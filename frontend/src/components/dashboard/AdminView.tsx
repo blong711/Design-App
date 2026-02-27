@@ -2,13 +2,14 @@
 
 import { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
-import { Plus, MoreVertical, DollarSign, Activity, FileCheck, AlertCircle, X, Upload, ImageIcon, Loader2, CheckCircle2 } from "lucide-react";
+import { Plus, DollarSign, Activity, FileCheck, AlertCircle, X, Upload, ImageIcon, Loader2, CheckCircle2, UserPlus, ChevronDown } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
-function NewTicketDrawer({ open, onClose, onCreated }: { open: boolean; onClose: () => void; onCreated: () => void }) {
+function NewTicketDrawer({ open, onClose, onCreated, designers }: { open: boolean; onClose: () => void; onCreated: () => void; designers: any[] }) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
+  const [assignedTo, setAssignedTo] = useState("");
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -19,7 +20,7 @@ function NewTicketDrawer({ open, onClose, onCreated }: { open: boolean; onClose:
   const currentUser = typeof window !== "undefined" ? JSON.parse(localStorage.getItem("user") || "{}") : {};
 
   const reset = () => {
-    setTitle(""); setDescription(""); setPrice("");
+    setTitle(""); setDescription(""); setPrice(""); setAssignedTo("");
     setImageFile(null); setImagePreview(null);
     setError(null); setSuccess(false);
   };
@@ -51,6 +52,7 @@ function NewTicketDrawer({ open, onClose, onCreated }: { open: boolean; onClose:
         description: description.trim(),
         price: parseFloat(price) || 0,
         image_url,
+        assigned_to: assignedTo || null,
       });
       setSuccess(true);
       setTimeout(() => { handleClose(); onCreated(); }, 1200);
@@ -104,6 +106,29 @@ function NewTicketDrawer({ open, onClose, onCreated }: { open: boolean; onClose:
                     <p className="text-xs text-muted-foreground capitalize">{currentUser.role}</p>
                   </div>
                 </div>
+              </div>
+
+              {/* Assign To Designer */}
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Assign to Designer</label>
+                <div className="relative">
+                  <select
+                    value={assignedTo}
+                    onChange={e => setAssignedTo(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl bg-foreground/5 border border-border text-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-all text-sm appearance-none cursor-pointer"
+                  >
+                    <option value="">Unassigned (Pending)</option>
+                    {designers.filter(d => d.role === "designer").map(d => (
+                      <option key={d.id} value={d.id}>{d.full_name} ({d.username})</option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                </div>
+                {assignedTo && (
+                  <p className="text-xs text-primary mt-1.5 flex items-center gap-1">
+                    <UserPlus className="w-3 h-3" /> Status will be set to <strong>Assigned</strong> automatically
+                  </p>
+                )}
               </div>
 
               {/* Title */}
@@ -183,8 +208,8 @@ function NewTicketDrawer({ open, onClose, onCreated }: { open: boolean; onClose:
             {/* Footer */}
             <div className="px-6 py-4 border-t border-border flex items-center justify-between gap-3">
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <span className="w-2 h-2 rounded-full bg-amber-400"></span>
-                Status: <span className="font-medium text-foreground">Pending</span>
+                <span className={`w-2 h-2 rounded-full ${assignedTo ? "bg-blue-400" : "bg-amber-400"}`}></span>
+                Status: <span className="font-medium text-foreground">{assignedTo ? "Assigned" : "Pending"}</span>
               </div>
               <div className="flex gap-3">
                 <button onClick={handleClose} className="px-5 py-2.5 rounded-xl border border-border text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-all">
@@ -208,14 +233,128 @@ function NewTicketDrawer({ open, onClose, onCreated }: { open: boolean; onClose:
   );
 }
 
+function AssignModal({ ticket, designers, onClose, onAssigned }: { ticket: any; designers: any[]; onClose: () => void; onAssigned: () => void }) {
+  const [selectedDesigner, setSelectedDesigner] = useState(ticket.assigned_to || "");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      await api.patch(`/tickets/${ticket.id}/assign`, { assigned_to: selectedDesigner || null });
+      onAssigned();
+      onClose();
+    } catch (e: any) {
+      setError(e.response?.data?.detail || "Failed to assign ticket");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const designerList = designers.filter(d => d.role === "designer");
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        key="assign-backdrop"
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+        onClick={onClose}
+      />
+      <motion.div
+        key="assign-modal"
+        initial={{ opacity: 0, scale: 0.95, y: 10 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 10 }}
+        transition={{ type: "spring", stiffness: 400, damping: 30 }}
+        className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none"
+      >
+        <div className="w-full max-w-md bg-background border border-border rounded-2xl shadow-2xl pointer-events-auto">
+          {/* Header */}
+          <div className="flex items-center justify-between px-6 py-5 border-b border-border">
+            <div>
+              <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
+                <UserPlus className="w-5 h-5 text-primary" /> Assign Ticket
+              </h2>
+              <p className="text-sm text-muted-foreground mt-0.5 truncate max-w-xs">{ticket.title}</p>
+            </div>
+            <button onClick={onClose} className="p-2 rounded-lg hover:bg-foreground/5 transition-colors">
+              <X className="w-4 h-4 text-muted-foreground" />
+            </button>
+          </div>
+
+          {/* Body */}
+          <div className="px-6 py-6 space-y-4">
+            {/* Current status info */}
+            <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-foreground/5 border border-border text-sm">
+              <span className="text-muted-foreground">Current status:</span>
+              <span className="font-semibold text-foreground capitalize">{ticket.status.replace("_", " ")}</span>
+            </div>
+
+            {/* Designer select */}
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Select Designer</label>
+              <div className="relative">
+                <select
+                  value={selectedDesigner}
+                  onChange={e => setSelectedDesigner(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl bg-foreground/5 border border-border text-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-all text-sm appearance-none cursor-pointer"
+                >
+                  <option value="">Unassigned</option>
+                  {designerList.map(d => (
+                    <option key={d.id} value={d.id}>{d.full_name} ({d.username})</option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+              </div>
+              {selectedDesigner && selectedDesigner !== ticket.assigned_to && ticket.status === "pending" && (
+                <p className="text-xs text-primary mt-1.5 flex items-center gap-1">
+                  <CheckCircle2 className="w-3 h-3" /> Status will change to <strong>Assigned</strong>
+                </p>
+              )}
+            </div>
+
+            {error && (
+              <div className="px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-sm flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" /> {error}
+              </div>
+            )}
+          </div>
+
+          {/* Footer */}
+          <div className="px-6 py-4 border-t border-border flex items-center justify-end gap-3">
+            <button onClick={onClose} className="px-5 py-2.5 rounded-xl border border-border text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-all">
+              Cancel
+            </button>
+            <button
+              onClick={handleSubmit}
+              disabled={loading}
+              className="px-6 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 disabled:opacity-60 transition-all flex items-center gap-2 shadow-lg shadow-primary/30"
+            >
+              {loading ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</> : <><UserPlus className="w-4 h-4" /> {selectedDesigner ? "Assign" : "Unassign"}</>}
+            </button>
+          </div>
+        </div>
+      </motion.div>
+    </AnimatePresence>
+  );
+}
+
 export default function AdminView() {
   const [stats, setStats] = useState<any>(null);
   const [tickets, setTickets] = useState<any[]>([]);
+  const [designers, setDesigners] = useState<any[]>([]);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [assigningTicket, setAssigningTicket] = useState<any | null>(null);
+
+  // Map designer id -> full_name for quick display
+  const designerMap = Object.fromEntries(designers.map(d => [d.id, d.full_name]));
 
   useEffect(() => {
     fetchStats();
     fetchTickets();
+    fetchDesigners();
   }, []);
 
   const fetchStats = async () => {
@@ -224,6 +363,15 @@ export default function AdminView() {
       setStats(res.data);
     } catch (e) {
       console.error("Failed to load stats", e);
+    }
+  };
+
+  const fetchDesigners = async () => {
+    try {
+      const res = await api.get("/users");
+      setDesigners(res.data);
+    } catch (e) {
+      console.error("Failed to load designers", e);
     }
   };
 
@@ -249,7 +397,17 @@ export default function AdminView() {
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         onCreated={() => { fetchStats(); fetchTickets(); }}
+        designers={designers}
       />
+
+      {assigningTicket && (
+        <AssignModal
+          ticket={assigningTicket}
+          designers={designers}
+          onClose={() => setAssigningTicket(null)}
+          onAssigned={() => { fetchTickets(); fetchStats(); setAssigningTicket(null); }}
+        />
+      )}
 
       <div className="flex justify-between items-center">
         <div>
@@ -341,11 +499,28 @@ export default function AdminView() {
                     </span>
                   </td>
                   <td className="py-4 px-4 font-medium text-foreground">${ticket.price}</td>
-                  <td className="py-4 px-4 text-sm text-muted-foreground">{ticket.assigned_to ? "Designer" : "Unassigned"}</td>
+                  <td className="py-4 px-4 text-sm">
+                    {ticket.assigned_to ? (
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center text-primary text-xs font-bold">
+                          {designerMap[ticket.assigned_to]?.charAt(0)?.toUpperCase() || "?"}
+                        </div>
+                        <span className="text-foreground font-medium">{designerMap[ticket.assigned_to] || "Unknown"}</span>
+                      </div>
+                    ) : (
+                      <span className="text-muted-foreground italic">Unassigned</span>
+                    )}
+                  </td>
                   <td className="py-4 px-4 text-right">
-                     <button className="p-2 bg-foreground/5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
-                        <MoreVertical className="w-4 h-4 text-muted-foreground" />
-                     </button>
+                    <div className="relative flex items-center justify-end gap-2">
+                      <button
+                        onClick={() => setAssigningTicket(ticket)}
+                        className="px-3 py-1.5 rounded-lg bg-primary/10 text-primary text-xs font-semibold hover:bg-primary/20 transition-colors flex items-center gap-1.5 opacity-0 group-hover:opacity-100"
+                      >
+                        <UserPlus className="w-3.5 h-3.5" />
+                        {ticket.assigned_to ? "Reassign" : "Assign"}
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

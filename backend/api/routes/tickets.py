@@ -41,8 +41,20 @@ async def create_ticket(
 ):
     ticket_data = ticket_in.model_dump()
     ticket_data["created_by"] = current_user.id
-    ticket_data["status"] = "pending"
     ticket_data["payment_status"] = "unpaid"
+
+    assigned_to_str = ticket_data.pop("assigned_to", None)
+    if assigned_to_str:
+        # Validate designer exists
+        designer = await db["users"].find_one({"_id": ObjectId(assigned_to_str), "role": "designer"})
+        if not designer:
+            raise HTTPException(status_code=404, detail="Designer not found")
+        ticket_data["status"] = "assigned"
+        ticket_data["assigned_to"] = ObjectId(assigned_to_str)
+    else:
+        ticket_data["status"] = "pending"
+        ticket_data["assigned_to"] = None
+
     ticket_db = TicketInDB(**ticket_data)
     result = await db["design_tickets"].insert_one(ticket_db.model_dump(by_alias=True))
     created = await db["design_tickets"].find_one({"_id": result.inserted_id})
@@ -69,7 +81,17 @@ async def update_ticket(
 ):
     update_data = {k: v for k, v in ticket_in.model_dump(exclude_unset=True).items() if v is not None}
     update_data["updated_at"] = datetime.now(timezone.utc)
-    
+
+    # If assigning to a designer, validate and auto-set status to "assigned"
+    if "assigned_to" in update_data:
+        designer_id = update_data["assigned_to"]
+        designer = await db["users"].find_one({"_id": ObjectId(designer_id), "role": "designer"})
+        if not designer:
+            raise HTTPException(status_code=404, detail="Designer not found")
+        existing = await db["design_tickets"].find_one({"_id": ObjectId(id)})
+        if existing and existing.get("status") == "pending":
+            update_data["status"] = "assigned"
+
     result = await db["design_tickets"].update_one(
         {"_id": ObjectId(id)},
         {"$set": update_data}
@@ -77,6 +99,41 @@ async def update_ticket(
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Ticket not found")
 
+    updated = await db["design_tickets"].find_one({"_id": ObjectId(id)})
+    return TicketResponse.from_mongo(updated)
+
+class AssignUpdate(BaseModel):
+    assigned_to: Optional[str] = None
+
+@router.patch("/{id}/assign", response_model=TicketResponse)
+async def assign_ticket(
+    id: str,
+    assign_data: AssignUpdate,
+    db=Depends(get_db),
+    current_user: UserResponse = Depends(get_current_admin)
+):
+    """Assign or unassign a ticket to/from a designer."""
+    t = await db["design_tickets"].find_one({"_id": ObjectId(id), "is_deleted": False})
+    if not t:
+        raise HTTPException(status_code=404, detail="Ticket not found")
+
+    update_fields = {"updated_at": datetime.now(timezone.utc)}
+
+    if assign_data.assigned_to:
+        designer = await db["users"].find_one({"_id": ObjectId(assign_data.assigned_to), "role": "designer"})
+        if not designer:
+            raise HTTPException(status_code=404, detail="Designer not found")
+        update_fields["assigned_to"] = assign_data.assigned_to
+        # Auto-promote status from pending -> assigned
+        if t.get("status") == "pending":
+            update_fields["status"] = "assigned"
+    else:
+        # Unassign
+        update_fields["assigned_to"] = None
+        if t.get("status") == "assigned":
+            update_fields["status"] = "pending"
+
+    await db["design_tickets"].update_one({"_id": ObjectId(id)}, {"$set": update_fields})
     updated = await db["design_tickets"].find_one({"_id": ObjectId(id)})
     return TicketResponse.from_mongo(updated)
 

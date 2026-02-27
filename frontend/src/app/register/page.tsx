@@ -144,7 +144,7 @@ export default function RegisterPage() {
         </div>
 
         <p className={`text-xs text-gray-600 transition-all duration-700 delay-500 ${mounted ? "opacity-100" : "opacity-0"}`}>
-          © 2026 VTN Print On Demand Design. All rights reserved.&nbsp;&nbsp;•&nbsp;&nbsp;Premium Edition
+          © 2026 Manager Design. All rights reserved.&nbsp;&nbsp;•&nbsp;&nbsp;Premium Edition
         </p>
       </div>
 

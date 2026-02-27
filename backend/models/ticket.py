@@ -22,6 +22,7 @@ class TicketCreate(BaseModel):
     description: str
     price: Optional[float] = 0.0
     image_url: Optional[str] = None
+    assigned_to: Optional[str] = None
 
 class TicketUpdate(BaseModel):
     title: Optional[str] = None
