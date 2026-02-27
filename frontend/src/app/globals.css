@@ -1,0 +1,74 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-sans);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-xl: var(--radius);
+  --radius-2xl: calc(var(--radius) + 4px);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+}
+
+:root {
+  /* Enforce Dark Mode Base for Premium Theme */
+  --background: oklch(0.12 0.01 260);     /* Deep Slate/Purple */
+  --foreground: oklch(0.98 0 0);          /* Pure White */
+  --card: oklch(0.16 0.02 260 / 0.7);     /* Glassmorphism Card */
+  --card-foreground: oklch(0.98 0 0);
+  --popover: oklch(0.16 0.02 260);
+  --popover-foreground: oklch(0.98 0 0);
+  
+  /* Cyber Purple Accent */
+  --primary: oklch(0.65 0.25 290);        
+  --primary-foreground: oklch(0.98 0 0);
+  
+  --secondary: oklch(0.25 0.05 260);
+  --secondary-foreground: oklch(0.98 0 0);
+  
+  --muted: oklch(0.22 0.03 260);
+  --muted-foreground: oklch(0.70 0.02 260);
+  
+  /* Teal/Cyan Accent #2 */
+  --accent: oklch(0.75 0.15 190);
+  --accent-foreground: oklch(0.15 0.05 190);
+  
+  --destructive: oklch(0.6 0.2 20);
+  --destructive-foreground: oklch(0.98 0 0);
+
+  --border: oklch(1 0 0 / 0.1);           /* Subtle borders */
+  --input: oklch(1 0 0 / 0.1);
+  --ring: oklch(0.65 0.25 290 / 0.5);     /* Purple ring */
+  
+  --radius: 1rem;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    background-image: radial-gradient(circle at top right, rgba(168, 85, 247, 0.15), transparent 40%),
+                      radial-gradient(circle at bottom left, rgba(45, 212, 191, 0.1), transparent 40%);
+    background-attachment: fixed;
+  }
+}
+
+/* Glassmorphism Utilities */
+.glass-panel {
+  @apply bg-white/5 backdrop-blur-xl border border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.3)];
+}
