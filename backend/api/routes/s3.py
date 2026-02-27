@@ -1,10 +1,15 @@
 import boto3
+import os
+import shutil
 from botocore.exceptions import ClientError
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from core.config import settings
 from api.deps import get_current_user
 from models.user import UserResponse
 import uuid
+
+UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "uploads", "avatars")
+os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 router = APIRouter()
 
@@ -52,3 +57,50 @@ def generate_presigned_url(
         "object_key": object_name,
         "public_url": f"https://{settings.S3_BUCKET_NAME}.s3.{settings.AWS_REGION}.amazonaws.com/{object_name}"
     }
+
+
+@router.post("/upload/avatar")
+async def upload_avatar_local(
+    file: UploadFile = File(...),
+    current_user: UserResponse = Depends(get_current_user)
+):
+    """
+    Upload avatar directly to local storage.
+    Used as fallback when S3 is not configured.
+    """
+    allowed = {"image/jpeg", "image/png", "image/gif", "image/webp"}
+    if file.content_type not in allowed:
+        raise HTTPException(status_code=400, detail="Only image files are allowed")
+
+    ext = file.filename.split(".")[-1] if file.filename and "." in file.filename else "jpg"
+    unique_name = f"{uuid.uuid4()}.{ext}"
+    file_path = os.path.join(UPLOAD_DIR, unique_name)
+
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    public_url = f"http://localhost:8000/static/avatars/{unique_name}"
+    return {"public_url": public_url}
+
+
+TICKET_IMG_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "uploads", "tickets")
+os.makedirs(TICKET_IMG_DIR, exist_ok=True)
+
+@router.post("/upload/ticket-image")
+async def upload_ticket_image(
+    file: UploadFile = File(...),
+    current_user: UserResponse = Depends(get_current_user)
+):
+    allowed = {"image/jpeg", "image/png", "image/gif", "image/webp"}
+    if file.content_type not in allowed:
+        raise HTTPException(status_code=400, detail="Only image files are allowed")
+
+    ext = file.filename.split(".")[-1] if file.filename and "." in file.filename else "jpg"
+    unique_name = f"{uuid.uuid4()}.{ext}"
+    file_path = os.path.join(TICKET_IMG_DIR, unique_name)
+
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    public_url = f"http://localhost:8000/static/tickets/{unique_name}"
+    return {"public_url": public_url}

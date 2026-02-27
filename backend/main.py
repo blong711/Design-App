@@ -1,8 +1,10 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from core.config import settings
 from core.database import connect_to_mongo, close_mongo_connection
-from api.routes import auth, users, api_keys, tickets, s3, analytics, external
+from api.routes import auth, users, api_keys, tickets, s3, analytics, external, webhooks
+import os
 
 app = FastAPI(title=settings.PROJECT_NAME)
 
@@ -29,6 +31,12 @@ app.include_router(tickets.router, prefix=f"{settings.API_V1_STR}/tickets", tags
 app.include_router(s3.router, prefix=f"{settings.API_V1_STR}/s3", tags=["s3"])
 app.include_router(analytics.router, prefix=f"{settings.API_V1_STR}/analytics", tags=["analytics"])
 app.include_router(external.router, prefix=f"{settings.API_V1_STR}/external", tags=["external"])
+app.include_router(webhooks.router, prefix=f"{settings.API_V1_STR}/webhooks", tags=["webhooks"])
+
+# Serve uploaded files statically
+uploads_dir = os.path.join(os.path.dirname(__file__), "uploads")
+os.makedirs(uploads_dir, exist_ok=True)
+app.mount("/static", StaticFiles(directory=uploads_dir), name="static")
 
 @app.get("/")
 def root():

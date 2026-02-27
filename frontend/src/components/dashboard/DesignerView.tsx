@@ -41,7 +41,7 @@ export default function DesignerView({ user }: { user: any }) {
     const data = res.data;
     
     // Group tickets
-    const grouped = { assigned: [], in_progress: [], review: [], completed: [], pending: [] };
+    const grouped: Record<string, any[]> = { assigned: [], in_progress: [], review: [], completed: [], pending: [] };
     data.forEach((t: any) => {
       if (grouped[t.status]) {
         grouped[t.status].push(t);
@@ -126,12 +126,12 @@ export default function DesignerView({ user }: { user: any }) {
           {COLUMNS.map(col => (
             <div key={col.id} className="flex flex-col h-full rounded-2xl glass-panel relative overflow-hidden">
                {/* Column Header */}
-               <div className="px-5 py-4 border-b border-white/5 flex items-center justify-between">
+               <div className="px-5 py-4 border-b border-border flex items-center justify-between">
                   <div className="flex items-center gap-2 font-semibold">
                     <col.icon className={`w-4 h-4 ${col.color}`} />
-                    <span className="text-sm uppercase tracking-wider text-white/80">{col.title}</span>
+                    <span className="text-sm uppercase tracking-wider text-foreground/80">{col.title}</span>
                   </div>
-                  <span className="text-xs font-bold text-white/50 bg-white/5 px-2 py-0.5 rounded-full">
+                  <span className="text-xs font-bold text-muted-foreground bg-foreground/5 px-2 py-0.5 rounded-full">
                     {columns[col.id]?.length || 0}
                   </span>
                </div>
@@ -151,14 +151,14 @@ export default function DesignerView({ user }: { user: any }) {
                              ref={provided.innerRef}
                              {...provided.draggableProps}
                              {...provided.dragHandleProps}
-                             className={`p-4 rounded-xl border border-white/10 shadow-lg select-none transition-all ${
-                               snapshot.isDragging ? 'bg-[#1a1528] shadow-[0_0_20px_rgba(168,85,247,0.3)] border-primary/50 rotate-2' : 'bg-white/5 hover:bg-white/10'
+                             className={`p-4 rounded-xl border border-border shadow-lg select-none transition-all ${
+                               snapshot.isDragging ? 'bg-[#1a1528] shadow-[0_0_20px_rgba(168,85,247,0.3)] border-primary/50 rotate-2' : 'bg-foreground/5 hover:bg-foreground/10'
                              }`}
                            >
                               <div className="flex justify-between items-start mb-2">
-                                <h4 className="font-semibold text-white/90 leading-tight">{ticket.title}</h4>
+                                <h4 className="font-semibold text-foreground leading-tight">{ticket.title}</h4>
                               </div>
-                              <p className="text-xs text-white/50 line-clamp-2 mb-4">
+                              <p className="text-xs text-muted-foreground line-clamp-2 mb-4">
                                 {ticket.description}
                               </p>
                               
@@ -188,17 +188,17 @@ export default function DesignerView({ user }: { user: any }) {
       {/* S3 Upload Modal when moving to Review */}
       {selectedTicket && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="w-full max-w-md bg-[#161421] rounded-3xl border border-white/10 p-6 shadow-2xl">
+          <div className="w-full max-w-md bg-background rounded-3xl border border-border p-6 shadow-2xl">
             <h3 className="text-xl font-bold mb-2">Upload Final Design</h3>
-            <p className="text-sm text-white/60 mb-6">You're submitting {" "}
-              <b className="text-white/90">{selectedTicket.title}</b>. Upload your file directly to AWS S3.
+            <p className="text-sm text-muted-foreground mb-6">You're submitting {" "}
+              <b className="text-foreground">{selectedTicket.title}</b>. Upload your file directly to AWS S3.
             </p>
 
-            <div className="border-2 border-dashed border-white/20 rounded-xl p-8 flex flex-col items-center justify-center bg-white/5 mb-6 hover:border-primary/50 transition-colors">
-               <UploadCloud className="w-10 h-10 text-white/40 mb-3" />
+            <div className="border-2 border-dashed border-border rounded-xl p-8 flex flex-col items-center justify-center bg-foreground/5 mb-6 hover:border-primary/50 transition-colors">
+               <UploadCloud className="w-10 h-10 text-muted-foreground mb-3" />
                <input 
                   type="file" 
-                  className="w-full text-sm text-white/60 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/20 file:text-primary hover:file:bg-primary/30"
+                  className="w-full text-sm text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/20 file:text-primary hover:file:bg-primary/30"
                   onChange={e => setUploadFile(e.target.files?.[0] || null)}
                />
                {uploadFile && <p className="mt-3 text-sm text-green-400 font-medium">Ready: {uploadFile.name}</p>}
@@ -206,7 +206,7 @@ export default function DesignerView({ user }: { user: any }) {
 
             <div className="flex gap-3 justify-end">
               <button 
-                className="px-4 py-2 text-sm font-medium text-white/60 hover:text-white"
+                className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground"
                 onClick={() => setSelectedTicket(null)}
               >
                 Skip for now

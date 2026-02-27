@@ -39,8 +39,12 @@ async def create_ticket(
     db=Depends(get_db),
     current_user: UserResponse = Depends(get_current_admin)
 ):
-    ticket_db = TicketInDB(**ticket_in.dict())
-    result = await db["design_tickets"].insert_one(ticket_db.dict(by_alias=True))
+    ticket_data = ticket_in.model_dump()
+    ticket_data["created_by"] = current_user.id
+    ticket_data["status"] = "pending"
+    ticket_data["payment_status"] = "unpaid"
+    ticket_db = TicketInDB(**ticket_data)
+    result = await db["design_tickets"].insert_one(ticket_db.model_dump(by_alias=True))
     created = await db["design_tickets"].find_one({"_id": result.inserted_id})
     return TicketResponse.from_mongo(created)
 
@@ -63,7 +67,7 @@ async def update_ticket(
     db=Depends(get_db),
     current_user: UserResponse = Depends(get_current_admin)
 ):
-    update_data = {k: v for k, v in ticket_in.dict(exclude_unset=True).items() if v is not None}
+    update_data = {k: v for k, v in ticket_in.model_dump(exclude_unset=True).items() if v is not None}
     update_data["updated_at"] = datetime.now(timezone.utc)
     
     result = await db["design_tickets"].update_one(

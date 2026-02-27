@@ -68,6 +68,38 @@
   }
 }
 
+/* ── Light Theme ── */
+html.light {
+  --background: oklch(0.97 0 0);
+  --foreground: oklch(0.15 0.01 260);
+  --card: oklch(1 0 0 / 0.9);
+  --card-foreground: oklch(0.15 0.01 260);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.15 0.01 260);
+  --primary: oklch(0.60 0.25 290);
+  --primary-foreground: oklch(0.98 0 0);
+  --secondary: oklch(0.92 0.01 260);
+  --secondary-foreground: oklch(0.2 0.02 260);
+  --muted: oklch(0.93 0.01 260);
+  --muted-foreground: oklch(0.50 0.03 260);
+  --accent: oklch(0.65 0.15 190);
+  --accent-foreground: oklch(0.98 0 0);
+  --destructive: oklch(0.55 0.22 20);
+  --destructive-foreground: oklch(0.98 0 0);
+  --border: oklch(0.2 0 0 / 0.12);
+  --input: oklch(0.2 0 0 / 0.08);
+  --ring: oklch(0.60 0.25 290 / 0.4);
+}
+
+html.light body {
+  background-image: radial-gradient(circle at top right, rgba(168, 85, 247, 0.06), transparent 40%),
+                    radial-gradient(circle at bottom left, rgba(45, 212, 191, 0.04), transparent 40%);
+}
+
+html.light .glass-panel {
+  @apply bg-white/70 backdrop-blur-xl border border-black/5 shadow-[0_8px_32px_0_rgba(0,0,0,0.08)];
+}
+
 /* Glassmorphism Utilities */
 .glass-panel {
   @apply bg-white/5 backdrop-blur-xl border border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.3)];

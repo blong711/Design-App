@@ -49,7 +49,7 @@ export default function DesignerOverview({ user }: { user: any }) {
               <card.icon className="w-24 h-24" />
            </div>
            <div className="relative z-10 flex flex-col justify-between h-full">
-            <h3 className="text-sm font-medium text-white/70">{card.title}</h3>
+            <h3 className="text-sm font-medium text-muted-foreground">{card.title}</h3>
             <div className={`text-4xl font-bold mt-4 tracking-tighter ${card.color}`}>
               {card.value}
             </div>

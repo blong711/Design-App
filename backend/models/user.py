@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, List
 from pydantic import BaseModel, EmailStr, Field
 from datetime import datetime, timezone
 from models.base import PyObjectId
@@ -19,9 +19,19 @@ class UserUpdate(BaseModel):
     role: Optional[str] = None
     is_active: Optional[bool] = None
 
+class ProfileUpdate(BaseModel):
+    full_name: Optional[str] = None
+    email: Optional[EmailStr] = None
+    avatar_url: Optional[str] = None
+
+class PasswordChange(BaseModel):
+    current_password: str
+    new_password: str
+
 class UserInDB(UserBase):
-    id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
+    id: PyObjectId = Field(default_factory=lambda: ObjectId(), alias="_id")
     hashed_password: str
+    avatar_url: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     class Config:
@@ -30,10 +40,12 @@ class UserInDB(UserBase):
 
 class UserResponse(UserBase):
     id: str
+    avatar_url: Optional[str] = None
 
     @classmethod
     def from_mongo(cls, data: dict):
         if not data:
             return data
+        data_copy = {k: v for k, v in data.items() if k != "_id"}
         id = data.get("_id")
-        return cls(**data, id=str(id) if id else "")
+        return cls(**data_copy, id=str(id) if id else "")
