@@ -50,20 +50,20 @@ export default function ApiKeysPage() {
 
       <div className="grid gap-4 mt-8">
         {keys.length === 0 ? (
-           <div className="text-center py-20 bg-white/5 rounded-2xl border border-white/10 border-dashed">
-             <Key className="w-12 h-12 text-white/20 mx-auto mb-4" />
-             <p className="text-white/60">No API Keys created yet.</p>
+           <div className="text-center py-20 bg-muted/50 rounded-2xl border border-border border-dashed">
+             <Key className="w-12 h-12 text-muted-foreground/40 mx-auto mb-4" />
+             <p className="text-muted-foreground">No API Keys created yet.</p>
            </div>
         ) : (
           keys.map((k) => (
-            <div key={k.id} className="glass-panel p-5 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 group hover:border-white/20 transition-colors">
+            <div key={k.id} className="glass-panel p-5 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 group hover:border-border transition-colors">
               <div>
-                <h3 className="text-lg font-semibold text-white/90">{k.system_name}</h3>
-                <p className="text-xs text-white/50 mt-1">Created on {new Date(k.created_at).toLocaleDateString()}</p>
+                <h3 className="text-lg font-semibold text-foreground">{k.system_name}</h3>
+                <p className="text-xs text-muted-foreground mt-1">Created on {new Date(k.created_at).toLocaleDateString()}</p>
                 
-                <div className="flex items-center gap-2 mt-3 bg-[#0c0a15] px-3 py-2 rounded-lg border border-white/5">
+                <div className="flex items-center gap-2 mt-3 bg-muted px-3 py-2 rounded-lg border border-border">
                   <span className="text-sm font-mono text-primary/80 tracking-widest">{k.key.substring(0, 8)}••••••••••••••••••••</span>
-                  <button onClick={() => handleCopy(k.key, k.id)} className="p-1.5 hover:bg-white/10 rounded-md text-white/60 transition-colors">
+                  <button onClick={() => handleCopy(k.key, k.id)} className="p-1.5 hover:bg-foreground/10 rounded-md text-muted-foreground transition-colors">
                     {copied === k.id ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
                   </button>
                 </div>
@@ -74,7 +74,7 @@ export default function ApiKeysPage() {
                     <span className={`w-2 h-2 rounded-full ${k.is_active ? 'bg-green-400' : 'bg-red-400'}`}></span>
                     {k.is_active ? 'Active' : 'Revoked'}
                  </span>
-                 <button className="p-2 text-white/30 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors">
+                 <button className="p-2 text-muted-foreground/60 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors">
                    <Trash2 className="w-5 h-5" />
                  </button>
               </div>

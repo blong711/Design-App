@@ -104,3 +104,24 @@ html.light .glass-panel {
 .glass-panel {
   @apply bg-white/5 backdrop-blur-xl border border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.3)];
 }
+
+/* Infinite marquee carousel */
+@keyframes marquee {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.marquee-track {
+  display: flex;
+  width: max-content;
+  animation: marquee 25s linear infinite;
+}
+
+.marquee-track:hover {
+  animation-play-state: paused;
+}
+

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Loader2, ArrowRight, Check } from "lucide-react";
 import Link from "next/link";
 import { api } from "@/lib/api";
+import { useSettings } from "@/lib/settings-context";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -23,6 +24,7 @@ export default function RegisterPage() {
     confirm_password: "",
   });
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const { authLayout } = useSettings();
 
   useEffect(() => {
     setMounted(true);
@@ -81,8 +83,9 @@ export default function RegisterPage() {
   ];
 
   return (
-    <div className="min-h-screen flex overflow-hidden">
-      {/* ── Left Panel ── */}
+    <div className={`min-h-screen flex overflow-hidden ${authLayout === "reversed" ? "flex-row-reverse" : ""}`}>
+      {/* ── Left Panel (hero) ── */}
+      {authLayout !== "centered" && (
       <div
         className="hidden lg:flex flex-col justify-between flex-1 px-16 py-14 relative overflow-hidden"
         style={{ background: "#111116" }}
@@ -147,19 +150,26 @@ export default function RegisterPage() {
           © 2026 Manager Design. All rights reserved.&nbsp;&nbsp;•&nbsp;&nbsp;Premium Edition
         </p>
       </div>
+      )}
 
-      {/* ── Right Panel ── */}
+      {/* ── Right Panel (form) ── */}
       <div
-        className="flex flex-col justify-center items-center w-full lg:w-[580px] lg:min-w-[580px] px-12 py-10 overflow-y-auto"
-        style={{ background: "#f5f5f7" }}
+        className={`flex flex-col justify-center items-center px-12 py-10 overflow-y-auto ${
+          authLayout === "centered"
+            ? "w-full"
+            : "w-full lg:w-[580px] lg:min-w-[580px]"
+        }`}
+        style={{ background: authLayout === "centered" ? "#111116" : "#f5f5f7" }}
       >
         <div
           className={`w-full max-w-sm transition-all duration-700 delay-200 ${mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"}`}
         >
           {/* Logo card */}
           <div className="flex justify-center mb-6">
-            <div className="bg-white rounded-2xl shadow-lg px-8 py-5 flex items-center gap-1">
-              <span className="text-3xl font-black tracking-tight text-gray-900" style={{ fontFamily: "Georgia, serif" }}>
+            <div className={`rounded-2xl shadow-lg px-8 py-5 flex items-center gap-1 ${
+              authLayout === "centered" ? "bg-white/10 border border-white/10" : "bg-white"
+            }`}>
+              <span className={`text-3xl font-black tracking-tight ${authLayout === "centered" ? "text-white" : "text-gray-900"}`} style={{ fontFamily: "Georgia, serif" }}>
                 VTN
               </span>
               <span
@@ -176,8 +186,8 @@ export default function RegisterPage() {
             </div>
           </div>
 
-          <h2 className="text-2xl font-bold text-gray-900 text-center mb-1">Create account</h2>
-          <p className="text-sm text-gray-500 text-center mb-6">
+          <h2 className={`text-2xl font-bold text-center mb-1 ${authLayout === "centered" ? "text-white" : "text-gray-900"}`}>Create account</h2>
+          <p className={`text-sm text-center mb-6 ${authLayout === "centered" ? "text-gray-400" : "text-gray-500"}`}>
             Already have an account?{" "}
             <Link href="/login" className="text-pink-500 font-medium hover:underline">
               Sign in
@@ -203,7 +213,7 @@ export default function RegisterPage() {
 
               {/* Username */}
               <div>
-                <label className="block text-xs font-semibold tracking-widest text-gray-400 mb-1.5 uppercase">
+                <label className={`block text-xs font-semibold tracking-widest mb-1.5 uppercase ${authLayout === "centered" ? "text-gray-500" : "text-gray-400"}`}>
                   Username
                 </label>
                 <input
@@ -212,8 +222,11 @@ export default function RegisterPage() {
                   placeholder="yourUsername"
                   value={form.username}
                   onChange={handleChange}
-                  className={`w-full bg-white border rounded-lg px-3 py-2.5 text-sm text-gray-800 placeholder-gray-300 outline-none transition-colors duration-300 ${
-                    fieldErrors.username ? "border-red-400 focus:border-red-400" : "border-gray-200 focus:border-pink-500"
+                  className={`w-full border rounded-lg px-3 py-2.5 text-sm outline-none transition-colors duration-300 ${
+                    fieldErrors.username ? "border-red-400 focus:border-red-400" :
+                    authLayout === "centered"
+                      ? "bg-white/10 border-white/10 text-white placeholder-gray-500 focus:border-pink-500"
+                      : "bg-white border-gray-200 text-gray-800 placeholder-gray-300 focus:border-pink-500"
                   }`}
                 />
                 {fieldErrors.username && <p className="text-red-500 text-xs mt-1">{fieldErrors.username}</p>}
@@ -221,7 +234,7 @@ export default function RegisterPage() {
 
               {/* Full name */}
               <div>
-                <label className="block text-xs font-semibold tracking-widest text-gray-400 mb-1.5 uppercase">
+                <label className={`block text-xs font-semibold tracking-widest mb-1.5 uppercase ${authLayout === "centered" ? "text-gray-500" : "text-gray-400"}`}>
                   Full Name
                 </label>
                 <input
@@ -230,8 +243,11 @@ export default function RegisterPage() {
                   placeholder="Nguyen Van A"
                   value={form.full_name}
                   onChange={handleChange}
-                  className={`w-full bg-white border rounded-lg px-3 py-2.5 text-sm text-gray-800 placeholder-gray-300 outline-none transition-colors duration-300 ${
-                    fieldErrors.full_name ? "border-red-400 focus:border-red-400" : "border-gray-200 focus:border-pink-500"
+                  className={`w-full border rounded-lg px-3 py-2.5 text-sm outline-none transition-colors duration-300 ${
+                    fieldErrors.full_name ? "border-red-400 focus:border-red-400" :
+                    authLayout === "centered"
+                      ? "bg-white/10 border-white/10 text-white placeholder-gray-500 focus:border-pink-500"
+                      : "bg-white border-gray-200 text-gray-800 placeholder-gray-300 focus:border-pink-500"
                   }`}
                 />
                 {fieldErrors.full_name && <p className="text-red-500 text-xs mt-1">{fieldErrors.full_name}</p>}
@@ -239,7 +255,7 @@ export default function RegisterPage() {
 
               {/* Email */}
               <div>
-                <label className="block text-xs font-semibold tracking-widest text-gray-400 mb-1.5 uppercase">
+                <label className={`block text-xs font-semibold tracking-widest mb-1.5 uppercase ${authLayout === "centered" ? "text-gray-500" : "text-gray-400"}`}>
                   Email
                 </label>
                 <input
@@ -248,8 +264,11 @@ export default function RegisterPage() {
                   placeholder="name@company.com"
                   value={form.email}
                   onChange={handleChange}
-                  className={`w-full bg-white border rounded-lg px-3 py-2.5 text-sm text-gray-800 placeholder-gray-300 outline-none transition-colors duration-300 ${
-                    fieldErrors.email ? "border-red-400 focus:border-red-400" : "border-gray-200 focus:border-pink-500"
+                  className={`w-full border rounded-lg px-3 py-2.5 text-sm outline-none transition-colors duration-300 ${
+                    fieldErrors.email ? "border-red-400 focus:border-red-400" :
+                    authLayout === "centered"
+                      ? "bg-white/10 border-white/10 text-white placeholder-gray-500 focus:border-pink-500"
+                      : "bg-white border-gray-200 text-gray-800 placeholder-gray-300 focus:border-pink-500"
                   }`}
                 />
                 {fieldErrors.email && <p className="text-red-500 text-xs mt-1">{fieldErrors.email}</p>}
@@ -257,7 +276,7 @@ export default function RegisterPage() {
 
               {/* Password */}
               <div>
-                <label className="block text-xs font-semibold tracking-widest text-gray-400 mb-1.5 uppercase">
+                <label className={`block text-xs font-semibold tracking-widest mb-1.5 uppercase ${authLayout === "centered" ? "text-gray-500" : "text-gray-400"}`}>
                   Password
                 </label>
                 <div className="relative">
@@ -267,8 +286,11 @@ export default function RegisterPage() {
                     placeholder="Min 6 characters"
                     value={form.password}
                     onChange={handleChange}
-                    className={`w-full bg-white border rounded-lg px-3 py-2.5 text-sm text-gray-800 placeholder-gray-300 outline-none transition-colors duration-300 pr-10 ${
-                      fieldErrors.password ? "border-red-400 focus:border-red-400" : "border-gray-200 focus:border-pink-500"
+                    className={`w-full border rounded-lg px-3 py-2.5 text-sm outline-none transition-colors duration-300 pr-10 ${
+                      fieldErrors.password ? "border-red-400 focus:border-red-400" :
+                      authLayout === "centered"
+                        ? "bg-white/10 border-white/10 text-white placeholder-gray-500 focus:border-pink-500"
+                        : "bg-white border-gray-200 text-gray-800 placeholder-gray-300 focus:border-pink-500"
                     }`}
                   />
                   <button
@@ -284,7 +306,7 @@ export default function RegisterPage() {
 
               {/* Confirm password */}
               <div>
-                <label className="block text-xs font-semibold tracking-widest text-gray-400 mb-1.5 uppercase">
+                <label className={`block text-xs font-semibold tracking-widest mb-1.5 uppercase ${authLayout === "centered" ? "text-gray-500" : "text-gray-400"}`}>
                   Confirm Password
                 </label>
                 <div className="relative">
@@ -294,8 +316,11 @@ export default function RegisterPage() {
                     placeholder="••••••••"
                     value={form.confirm_password}
                     onChange={handleChange}
-                    className={`w-full bg-white border rounded-lg px-3 py-2.5 text-sm text-gray-800 placeholder-gray-300 outline-none transition-colors duration-300 pr-10 ${
-                      fieldErrors.confirm_password ? "border-red-400 focus:border-red-400" : "border-gray-200 focus:border-pink-500"
+                    className={`w-full border rounded-lg px-3 py-2.5 text-sm outline-none transition-colors duration-300 pr-10 ${
+                      fieldErrors.confirm_password ? "border-red-400 focus:border-red-400" :
+                      authLayout === "centered"
+                        ? "bg-white/10 border-white/10 text-white placeholder-gray-500 focus:border-pink-500"
+                        : "bg-white border-gray-200 text-gray-800 placeholder-gray-300 focus:border-pink-500"
                     }`}
                   />
                   <button

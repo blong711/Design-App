@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, Loader2, ArrowRight } from "lucide-react";
+import { Eye, EyeOff, Loader2, ArrowRight, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 import { api } from "@/lib/api";
+import { useSettings } from "@/lib/settings-context";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -14,6 +15,9 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [transitioning, setTransitioning] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const { authLayout } = useSettings();
 
   useEffect(() => {
     setMounted(true);
@@ -36,7 +40,15 @@ export default function LoginPage() {
 
       localStorage.setItem("access_token", res.data.access_token);
       localStorage.setItem("user", JSON.stringify(res.data.user));
-      router.push("/dashboard");
+
+      // Trigger success animation
+      setShowSuccess(true);
+      setTimeout(() => {
+        setTransitioning(true);
+      }, 600);
+      setTimeout(() => {
+        router.push("/dashboard");
+      }, 1400);
     } catch (err: any) {
       setError(err.response?.data?.detail || "Invalid credentials. Please try again.");
     } finally {
@@ -44,16 +56,62 @@ export default function LoginPage() {
     }
   };
 
-  const features = [
-    { tag: "PRINT ON DEMAND", label: "Design Studio" },
-    { tag: "HIGH QUALITY", label: "Artwork Export" },
-    { tag: "SMART TOOLS", label: "Template Library" },
-    { tag: "FAST DELIVERY", label: "Order Fulfillment" },
+  const carouselImages = [
+    "/carousel/1.jpg",
+    "/carousel/2.jpg",
+    "/carousel/3.jpg",
+    "/carousel/4.jpg",
+    "/carousel/5.jpg",
+    "/carousel/6.jpg",
   ];
 
   return (
-    <div className="min-h-screen flex overflow-hidden">
-      {/* ── Left Panel ── */}
+    <div className="h-screen flex overflow-hidden relative">
+      {/* ── Transition overlay ── */}
+      {showSuccess && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none"
+          style={{ perspective: "1000px" }}
+        >
+          {/* Expanding circle */}
+          <div
+            className="absolute rounded-full"
+            style={{
+              width: transitioning ? "300vmax" : "0px",
+              height: transitioning ? "300vmax" : "0px",
+              background: "linear-gradient(135deg, #111116 0%, #1a1a2e 100%)",
+              transition: "all 0.8s cubic-bezier(0.4, 0, 0.2, 1)",
+            }}
+          />
+          {/* Success icon */}
+          <div
+            className="relative z-10 flex flex-col items-center gap-3"
+            style={{
+              opacity: showSuccess && !transitioning ? 1 : transitioning ? 0 : 0,
+              transform: showSuccess && !transitioning ? "scale(1)" : "scale(0.5)",
+              transition: "all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)",
+            }}
+          >
+            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center shadow-lg shadow-green-500/30">
+              <CheckCircle2 className="w-9 h-9 text-white" />
+            </div>
+            <p className="text-white font-semibold text-lg tracking-wide">Welcome!</p>
+          </div>
+        </div>
+      )}
+
+      {/* ── Page content with exit animation ── */}
+      <div
+        className={`h-screen flex overflow-hidden w-full ${authLayout === "reversed" ? "flex-row-reverse" : ""}`}
+        style={{
+          opacity: transitioning ? 0 : 1,
+          transform: transitioning ? "scale(0.95)" : "scale(1)",
+          filter: transitioning ? "blur(4px)" : "blur(0px)",
+          transition: "all 0.6s cubic-bezier(0.4, 0, 0.2, 1)",
+        }}
+      >
+      {/* ── Left Panel (hero) ── */}
+      {authLayout !== "centered" && (
       <div
         className="hidden lg:flex flex-col justify-between flex-1 px-16 py-14 relative overflow-hidden"
         style={{ background: "#111116" }}
@@ -67,60 +125,66 @@ export default function LoginPage() {
           className="absolute bottom-0 right-0 w-[400px] h-[400px] rounded-full opacity-10 pointer-events-none"
           style={{ background: "radial-gradient(circle, #7c3aed 0%, transparent 70%)" }}
         />
-
-        {/* Top badge */}
-        <div
-          className={`transition-all duration-700 ${mounted ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4"}`}
-        >
-          <span
-            className="inline-flex items-center gap-2 border border-white/20 rounded-full px-4 py-1.5 text-xs font-semibold tracking-widest text-white/70"
+          {/* Top badge */}
+          <div
+            className={`transition-all duration-700 ${mounted ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4"}`}
           >
-            <span className="w-1.5 h-1.5 rounded-full bg-pink-500 inline-block" />
-            CREATIVE DESIGN PLATFORM
-          </span>
-        </div>
-
-        {/* Main copy */}
-        <div
-          className={`transition-all duration-700 delay-100 ${mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}
-        >
-          <h1 className="text-5xl font-extrabold leading-tight text-white mb-4">
-            Where creativity
-            <br />
             <span
-              style={{
-                background: "linear-gradient(90deg, #ec4899, #a855f7)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-              }}
+              className="inline-flex items-center gap-2 border border-white/20 rounded-full px-4 py-1.5 text-xs font-semibold tracking-widest text-white/70"
             >
-              meets print design
+              <span className="w-1.5 h-1.5 rounded-full bg-pink-500 inline-block" />
+              CREATIVE DESIGN PLATFORM
             </span>
-          </h1>
-          <p className="text-gray-400 text-sm max-w-sm leading-relaxed">
-            Professional design management platform for creating,
-            <br />
-            managing and delivering stunning print-on-demand artwork.
-          </p>
+          </div>
 
-          {/* Feature grid */}
-          <div className="grid grid-cols-2 gap-0 mt-16 max-w-md">
-            {features.map((f, i) => (
-              <div
-                key={i}
-                className={`py-6 pr-8 transition-all duration-500`}
+          {/* Main copy */}
+          <div
+            className={`transition-all duration-700 delay-100 ${mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}
+          >
+            <h1 className="text-5xl font-extrabold leading-tight text-white mb-4">
+              Where creativity
+              <br />
+              <span
                 style={{
-                  borderTop: "1px solid rgba(255,255,255,0.08)",
-                  borderRight: i % 2 === 0 ? "1px solid rgba(255,255,255,0.08)" : "none",
-                  transitionDelay: `${200 + i * 80}ms`,
-                  opacity: mounted ? 1 : 0,
-                  transform: mounted ? "translateY(0)" : "translateY(16px)",
+                  background: "linear-gradient(90deg, #ec4899, #a855f7)",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
                 }}
               >
-                <p className="text-xs font-semibold tracking-widest text-gray-500 mb-1">{f.tag}</p>
-                <p className="text-white font-bold text-lg">{f.label}</p>
-              </div>
-            ))}
+                meets print design
+              </span>
+            </h1>
+            <p className="text-gray-400 text-sm max-w-sm leading-relaxed">
+              Professional design management platform for creating,
+              <br />
+              managing and delivering stunning print-on-demand artwork.
+            </p>
+
+          {/* Image marquee */}
+          <div
+            className={`mt-12 overflow-hidden rounded-xl max-w-lg transition-all duration-700`}
+            style={{
+              transitionDelay: "300ms",
+              opacity: mounted ? 1 : 0,
+              transform: mounted ? "translateY(0)" : "translateY(16px)",
+              maskImage: "linear-gradient(to right, transparent, black 8%, black 92%, transparent)",
+              WebkitMaskImage: "linear-gradient(to right, transparent, black 8%, black 92%, transparent)",
+            }}
+          >
+            <div className="marquee-track">
+              {[...carouselImages, ...carouselImages].map((src, i) => (
+                <div
+                  key={i}
+                  className="flex-shrink-0 w-[220px] h-[150px] mx-2 rounded-lg overflow-hidden"
+                >
+                  <img
+                    src={src}
+                    alt={`Design showcase ${(i % carouselImages.length) + 1}`}
+                    className="w-full h-full object-cover hover:scale-110 transition-transform duration-500"
+                  />
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -131,19 +195,26 @@ export default function LoginPage() {
           © 2026 Design Manager Print On Demand Design. All rights reserved.&nbsp;&nbsp;•&nbsp;&nbsp;Premium Edition
         </p>
       </div>
+      )}
 
-      {/* ── Right Panel ── */}
+      {/* ── Right Panel (form) ── */}
       <div
-        className="flex flex-col justify-center items-center w-full lg:w-[580px] lg:min-w-[580px] px-12 py-14"
-        style={{ background: "#f5f5f7" }}
+        className={`flex flex-col justify-center items-center px-12 py-14 ${
+          authLayout === "centered"
+            ? "w-full"
+            : "w-full lg:w-[580px] lg:min-w-[580px]"
+        }`}
+        style={{ background: authLayout === "centered" ? "#111116" : "#f5f5f7" }}
       >
         <div
           className={`w-full max-w-sm transition-all duration-700 delay-200 ${mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"}`}
         >
           {/* Logo card */}
           <div className="flex justify-center mb-8">
-            <div className="bg-white rounded-2xl shadow-lg px-8 py-5 flex items-center gap-1">
-              <span className="text-3xl font-black tracking-tight text-gray-900" style={{ fontFamily: "Georgia, serif" }}>
+            <div className={`rounded-2xl shadow-lg px-8 py-5 flex items-center gap-1 ${
+              authLayout === "centered" ? "bg-white/10 border border-white/10" : "bg-white"
+            }`}>
+              <span className={`text-3xl font-black tracking-tight ${authLayout === "centered" ? "text-white" : "text-gray-900"}`} style={{ fontFamily: "Georgia, serif" }}>
                 Design
               </span>
               <span
@@ -161,8 +232,8 @@ export default function LoginPage() {
           </div>
 
           {/* Heading */}
-          <h2 className="text-2xl font-bold text-gray-900 text-center mb-1">Welcome back!</h2>
-          <p className="text-sm text-gray-500 text-center mb-8">
+          <h2 className={`text-2xl font-bold text-center mb-1 ${authLayout === "centered" ? "text-white" : "text-gray-900"}`}>Welcome back!</h2>
+          <p className={`text-sm text-center mb-8 ${authLayout === "centered" ? "text-gray-400" : "text-gray-500"}`}>
             Please enter your details to sign in.{" "}
             <Link href="/register" className="text-pink-500 font-medium hover:underline">
               Create account
@@ -179,7 +250,7 @@ export default function LoginPage() {
 
             {/* Email/Username */}
             <div>
-              <label className="block text-xs font-semibold tracking-widest text-gray-400 mb-1.5 uppercase">
+              <label className={`block text-xs font-semibold tracking-widest mb-1.5 uppercase ${authLayout === "centered" ? "text-gray-500" : "text-gray-400"}`}>
                 Username
               </label>
               <input
@@ -188,13 +259,17 @@ export default function LoginPage() {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 required
-                className="w-full bg-white border border-gray-200 focus:border-pink-500 rounded-lg px-3 py-2.5 text-sm text-gray-800 placeholder-gray-300 outline-none transition-colors duration-300"
+                className={`w-full border rounded-lg px-3 py-2.5 text-sm outline-none transition-colors duration-300 ${
+                  authLayout === "centered"
+                    ? "bg-white/10 border-white/10 text-white placeholder-gray-500 focus:border-pink-500"
+                    : "bg-white border-gray-200 text-gray-800 placeholder-gray-300 focus:border-pink-500"
+                }`}
               />
             </div>
 
             {/* Password */}
             <div>
-              <label className="block text-xs font-semibold tracking-widest text-gray-400 mb-1.5 uppercase">
+              <label className={`block text-xs font-semibold tracking-widest mb-1.5 uppercase ${authLayout === "centered" ? "text-gray-500" : "text-gray-400"}`}>
                 Password
               </label>
               <div className="relative">
@@ -204,7 +279,11 @@ export default function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="w-full bg-white border border-gray-200 focus:border-pink-500 rounded-lg px-3 py-2.5 text-sm text-gray-800 placeholder-gray-300 outline-none transition-colors duration-300 pr-10"
+                  className={`w-full border rounded-lg px-3 py-2.5 text-sm outline-none transition-colors duration-300 pr-10 ${
+                    authLayout === "centered"
+                      ? "bg-white/10 border-white/10 text-white placeholder-gray-500 focus:border-pink-500"
+                      : "bg-white border-gray-200 text-gray-800 placeholder-gray-300 focus:border-pink-500"
+                  }`}
                 />
                 <button
                   type="button"
@@ -241,6 +320,7 @@ export default function LoginPage() {
             </a>
           </div>
         </div>
+      </div>
       </div>
     </div>
   );

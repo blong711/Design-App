@@ -71,7 +71,7 @@ function NewTicketDrawer({ open, onClose, onCreated, designers }: { open: boolea
           <motion.div
             key="backdrop"
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60]"
             onClick={handleClose}
           />
           {/* Drawer */}
@@ -79,7 +79,7 @@ function NewTicketDrawer({ open, onClose, onCreated, designers }: { open: boolea
             key="drawer"
             initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }}
             transition={{ type: "spring", stiffness: 300, damping: 35 }}
-            className="fixed right-0 top-0 h-full w-full max-w-lg bg-background border-l border-border z-50 flex flex-col shadow-2xl"
+            className="fixed right-0 top-0 h-full w-full max-w-lg bg-background border-l border-border z-[70] flex flex-col shadow-2xl"
           >
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-5 border-b border-border">

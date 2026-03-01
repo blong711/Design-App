@@ -1,12 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { Settings, X, Sun, Moon, PanelLeft, PanelTop } from "lucide-react";
+import { Settings, X, Sun, Moon, PanelLeft, PanelTop, Columns2, ArrowRightLeft, Maximize2 } from "lucide-react";
 import { useSettings } from "@/lib/settings-context";
+import { usePathname } from "next/navigation";
 
 export function AppSettings() {
   const [open, setOpen] = useState(false);
-  const { colorScheme, setColorScheme, layoutMode, setLayoutMode } = useSettings();
+  const { colorScheme, setColorScheme, layoutMode, setLayoutMode, authLayout, setAuthLayout } = useSettings();
+  const pathname = usePathname();
+  const isAuthPage = pathname === "/login" || pathname === "/register";
 
   return (
     <>
@@ -84,10 +87,11 @@ export function AppSettings() {
             </div>
           </div>
 
-          {/* Layout Mode */}
+          {/* Layout Mode - only on dashboard */}
+          {!isAuthPage && (
           <div>
             <p className={`text-xs font-semibold tracking-widest uppercase mb-2.5 ${colorScheme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
-              Layout
+              Dashboard Layout
             </p>
             <div className="flex gap-2">
               <button
@@ -118,6 +122,57 @@ export function AppSettings() {
               </button>
             </div>
           </div>
+          )}
+
+          {/* Auth Page Layout - only on login/register */}
+          {isAuthPage && (
+          <div>
+            <p className={`text-xs font-semibold tracking-widest uppercase mb-2.5 ${colorScheme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
+              Page Layout
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setAuthLayout("default")}
+                className={`flex-1 flex flex-col items-center gap-1.5 py-2 rounded-xl border text-[10px] font-medium transition-all ${
+                  authLayout === "default"
+                    ? "border-pink-500 bg-pink-500/10 text-pink-500"
+                    : colorScheme === "dark"
+                    ? "border-white/10 text-gray-400 hover:border-white/20"
+                    : "border-gray-200 text-gray-500 hover:border-gray-300"
+                }`}
+              >
+                <Columns2 className="w-4 h-4" />
+                Default
+              </button>
+              <button
+                onClick={() => setAuthLayout("reversed")}
+                className={`flex-1 flex flex-col items-center gap-1.5 py-2 rounded-xl border text-[10px] font-medium transition-all ${
+                  authLayout === "reversed"
+                    ? "border-pink-500 bg-pink-500/10 text-pink-500"
+                    : colorScheme === "dark"
+                    ? "border-white/10 text-gray-400 hover:border-white/20"
+                    : "border-gray-200 text-gray-500 hover:border-gray-300"
+                }`}
+              >
+                <ArrowRightLeft className="w-4 h-4" />
+                Reversed
+              </button>
+              <button
+                onClick={() => setAuthLayout("centered")}
+                className={`flex-1 flex flex-col items-center gap-1.5 py-2 rounded-xl border text-[10px] font-medium transition-all ${
+                  authLayout === "centered"
+                    ? "border-pink-500 bg-pink-500/10 text-pink-500"
+                    : colorScheme === "dark"
+                    ? "border-white/10 text-gray-400 hover:border-white/20"
+                    : "border-gray-200 text-gray-500 hover:border-gray-300"
+                }`}
+              >
+                <Maximize2 className="w-4 h-4" />
+                Centered
+              </button>
+            </div>
+          </div>
+          )}
         </div>
       </div>
 

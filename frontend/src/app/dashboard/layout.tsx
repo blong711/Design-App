@@ -71,7 +71,7 @@ export default function DashboardLayout({
     return (
       <div className="min-h-screen flex flex-col bg-background">
         {/* Top Nav */}
-        <header className="h-16 glass-panel border-b border-white/10 sticky top-0 z-50 flex items-center px-6 gap-6">
+        <header className="h-16 glass-panel border-b border-border sticky top-0 z-50 flex items-center px-6 gap-6">
           {/* Logo */}
           <div className="flex items-center gap-2 mr-4">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-primary to-accent flex items-center justify-center shadow-lg shadow-primary/30">
@@ -89,7 +89,7 @@ export default function DashboardLayout({
               return (
                 <Link key={link.name} href={link.href}>
                   <div className={`relative flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
-                    isActive ? "text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-white/5"
+                    isActive ? "text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
                   }`}>
                     {isActive && (
                       <motion.div
@@ -110,7 +110,7 @@ export default function DashboardLayout({
           <div className="flex items-center gap-3 ml-auto">
             <Link href="/dashboard/account">
               <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all ${
-                pathname.startsWith("/dashboard/account") ? "bg-primary/20 border border-primary/30" : "hover:bg-white/5"
+                pathname.startsWith("/dashboard/account") ? "bg-primary/20 border border-primary/30" : "hover:bg-foreground/5"
               }`}>
                 <div className="w-7 h-7 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center font-bold text-primary text-xs overflow-hidden">
                   {user.avatar_url
@@ -142,8 +142,8 @@ export default function DashboardLayout({
   return (
     <div className="min-h-screen flex bg-background">
       {/* Sidebar */}
-      <aside className="w-64 border-r border-white/10 glass-panel flex flex-col hidden md:flex sticky top-0 h-screen">
-        <div className="h-16 flex items-center gap-3 px-6 border-b border-white/10">
+      <aside className="w-64 border-r border-border glass-panel flex flex-col hidden md:flex sticky top-0 h-screen">
+        <div className="h-16 flex items-center gap-3 px-6 border-b border-border">
           <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-primary to-accent flex items-center justify-center shadow-lg shadow-primary/30">
             <Palette className="w-4 h-4 text-white" />
           </div>
@@ -157,7 +157,7 @@ export default function DashboardLayout({
             const isActive = pathname === link.href || (link.href !== "/dashboard" && pathname.startsWith(link.href));
             return (
               <Link key={link.name} href={link.href}>
-                <div className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all relative group overflow-hidden ${isActive ? "text-foreground" : "text-muted-foreground hover:bg-white/5 hover:text-foreground"}`}>
+                <div className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all relative group overflow-hidden ${isActive ? "text-foreground" : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground"}`}>
                   {isActive && (
                     <motion.div
                       layoutId="sidebar-active"
@@ -173,10 +173,10 @@ export default function DashboardLayout({
           })}
         </nav>
 
-        <div className="p-4 border-t border-white/10">
+        <div className="p-4 border-t border-border">
           <Link href="/dashboard/account">
             <div className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all relative group overflow-hidden cursor-pointer ${
-              pathname.startsWith("/dashboard/account") ? "bg-primary/20 border border-primary/30" : "hover:bg-white/5"
+              pathname.startsWith("/dashboard/account") ? "bg-primary/20 border border-primary/30" : "hover:bg-foreground/5"
             }`}>
               <div className="w-8 h-8 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center font-bold text-primary shrink-0 overflow-hidden">
                 {user.avatar_url
@@ -195,7 +195,7 @@ export default function DashboardLayout({
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <header className="h-16 border-b border-white/10 glass-panel sticky top-0 z-50 flex items-center justify-between px-6 md:justify-end">
+        <header className="h-16 border-b border-border glass-panel sticky top-0 z-50 flex items-center justify-between px-6 md:justify-end">
           <div className="flex items-center gap-2 md:hidden">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-primary to-accent flex items-center justify-center">
               <Palette className="w-4 h-4 text-white" />
