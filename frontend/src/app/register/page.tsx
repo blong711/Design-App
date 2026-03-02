@@ -67,7 +67,7 @@ export default function RegisterPage() {
         password: form.password,
       });
       setSuccess(true);
-      setTimeout(() => router.push("/login"), 2000);
+      // Don't redirect — account is inactive, user must wait for admin approval
     } catch (err: any) {
       setError(err.response?.data?.detail || "Registration failed. Please try again.");
     } finally {
@@ -86,79 +86,78 @@ export default function RegisterPage() {
     <div className={`min-h-screen flex overflow-hidden ${authLayout === "reversed" ? "flex-row-reverse" : ""}`}>
       {/* ── Left Panel (hero) ── */}
       {authLayout !== "centered" && (
-      <div
-        className="hidden lg:flex flex-col justify-between flex-1 px-16 py-14 relative overflow-hidden"
-        style={{ background: "#111116" }}
-      >
         <div
-          className="absolute -top-32 -left-32 w-[500px] h-[500px] rounded-full opacity-20 pointer-events-none"
-          style={{ background: "radial-gradient(circle, #c026d3 0%, transparent 70%)" }}
-        />
-        <div
-          className="absolute bottom-0 right-0 w-[400px] h-[400px] rounded-full opacity-10 pointer-events-none"
-          style={{ background: "radial-gradient(circle, #7c3aed 0%, transparent 70%)" }}
-        />
+          className="hidden lg:flex flex-col justify-between flex-1 px-16 py-14 relative overflow-hidden"
+          style={{ background: "#111116" }}
+        >
+          <div
+            className="absolute -top-32 -left-32 w-[500px] h-[500px] rounded-full opacity-20 pointer-events-none"
+            style={{ background: "radial-gradient(circle, #c026d3 0%, transparent 70%)" }}
+          />
+          <div
+            className="absolute bottom-0 right-0 w-[400px] h-[400px] rounded-full opacity-10 pointer-events-none"
+            style={{ background: "radial-gradient(circle, #7c3aed 0%, transparent 70%)" }}
+          />
 
-        <div className={`transition-all duration-700 ${mounted ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4"}`}>
-          <span className="inline-flex items-center gap-2 border border-white/20 rounded-full px-4 py-1.5 text-xs font-semibold tracking-widest text-white/70">
-            <span className="w-1.5 h-1.5 rounded-full bg-pink-500 inline-block" />
-            CREATIVE DESIGN PLATFORM
-          </span>
-        </div>
-
-        <div className={`transition-all duration-700 delay-100 ${mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}>
-          <h1 className="text-5xl font-extrabold leading-tight text-white mb-4">
-            Join our team of
-            <br />
-            <span
-              style={{
-                background: "linear-gradient(90deg, #ec4899, #a855f7)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-              }}
-            >
-              creative designers
+          <div className={`transition-all duration-700 ${mounted ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4"}`}>
+            <span className="inline-flex items-center gap-2 border border-white/20 rounded-full px-4 py-1.5 text-xs font-semibold tracking-widest text-white/70">
+              <span className="w-1.5 h-1.5 rounded-full bg-pink-500 inline-block" />
+              CREATIVE DESIGN PLATFORM
             </span>
-          </h1>
-          <p className="text-gray-400 text-sm max-w-sm leading-relaxed">
-            Create your account and start managing beautiful
-            <br />
-            print-on-demand designs from day one.
-          </p>
+          </div>
 
-          <div className="grid grid-cols-2 gap-0 mt-16 max-w-md">
-            {features.map((f, i) => (
-              <div
-                key={i}
-                className="py-6 pr-8 transition-all duration-500"
+          <div className={`transition-all duration-700 delay-100 ${mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}>
+            <h1 className="text-5xl font-extrabold leading-tight text-white mb-4">
+              Join our team of
+              <br />
+              <span
                 style={{
-                  borderTop: "1px solid rgba(255,255,255,0.08)",
-                  borderRight: i % 2 === 0 ? "1px solid rgba(255,255,255,0.08)" : "none",
-                  transitionDelay: `${200 + i * 80}ms`,
-                  opacity: mounted ? 1 : 0,
-                  transform: mounted ? "translateY(0)" : "translateY(16px)",
+                  background: "linear-gradient(90deg, #ec4899, #a855f7)",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
                 }}
               >
-                <p className="text-xs font-semibold tracking-widest text-gray-500 mb-1">{f.tag}</p>
-                <p className="text-white font-bold text-lg">{f.label}</p>
-              </div>
-            ))}
-          </div>
-        </div>
+                creative designers
+              </span>
+            </h1>
+            <p className="text-gray-400 text-sm max-w-sm leading-relaxed">
+              Create your account and start managing beautiful
+              <br />
+              print-on-demand designs from day one.
+            </p>
 
-        <p className={`text-xs text-gray-600 transition-all duration-700 delay-500 ${mounted ? "opacity-100" : "opacity-0"}`}>
-          © 2026 Manager Design. All rights reserved.&nbsp;&nbsp;•&nbsp;&nbsp;Premium Edition
-        </p>
-      </div>
+            <div className="grid grid-cols-2 gap-0 mt-16 max-w-md">
+              {features.map((f, i) => (
+                <div
+                  key={i}
+                  className="py-6 pr-8 transition-all duration-500"
+                  style={{
+                    borderTop: "1px solid rgba(255,255,255,0.08)",
+                    borderRight: i % 2 === 0 ? "1px solid rgba(255,255,255,0.08)" : "none",
+                    transitionDelay: `${200 + i * 80}ms`,
+                    opacity: mounted ? 1 : 0,
+                    transform: mounted ? "translateY(0)" : "translateY(16px)",
+                  }}
+                >
+                  <p className="text-xs font-semibold tracking-widest text-gray-500 mb-1">{f.tag}</p>
+                  <p className="text-white font-bold text-lg">{f.label}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <p className={`text-xs text-gray-600 transition-all duration-700 delay-500 ${mounted ? "opacity-100" : "opacity-0"}`}>
+            © 2026 Manager Design. All rights reserved.&nbsp;&nbsp;•&nbsp;&nbsp;Premium Edition
+          </p>
+        </div>
       )}
 
       {/* ── Right Panel (form) ── */}
       <div
-        className={`flex flex-col justify-center items-center px-12 py-10 overflow-y-auto ${
-          authLayout === "centered"
+        className={`flex flex-col justify-center items-center px-12 py-10 overflow-y-auto ${authLayout === "centered"
             ? "w-full"
             : "w-full lg:w-[580px] lg:min-w-[580px]"
-        }`}
+          }`}
         style={{ background: authLayout === "centered" ? "#111116" : "#f5f5f7" }}
       >
         <div
@@ -166,9 +165,8 @@ export default function RegisterPage() {
         >
           {/* Logo card */}
           <div className="flex justify-center mb-6">
-            <div className={`rounded-2xl shadow-lg px-8 py-5 flex items-center gap-1 ${
-              authLayout === "centered" ? "bg-white/10 border border-white/10" : "bg-white"
-            }`}>
+            <div className={`rounded-2xl shadow-lg px-8 py-5 flex items-center gap-1 ${authLayout === "centered" ? "bg-white/10 border border-white/10" : "bg-white"
+              }`}>
               <span className={`text-3xl font-black tracking-tight ${authLayout === "centered" ? "text-white" : "text-gray-900"}`} style={{ fontFamily: "Georgia, serif" }}>
                 VTN
               </span>
@@ -196,12 +194,25 @@ export default function RegisterPage() {
 
           {/* Success state */}
           {success ? (
-            <div className="flex flex-col items-center gap-4 py-8">
-              <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center">
-                <Check className="w-8 h-8 text-green-500" />
+            <div className="flex flex-col items-center gap-4 py-8 text-center">
+              <div className="w-16 h-16 rounded-full bg-amber-100 flex items-center justify-center">
+                <Check className="w-8 h-8 text-amber-500" />
               </div>
-              <p className="text-gray-800 font-semibold text-center">Account created successfully!</p>
-              <p className="text-gray-400 text-sm text-center">Redirecting to login...</p>
+              <div>
+                <p className={`font-semibold text-lg mb-1 ${authLayout === "centered" ? "text-white" : "text-gray-800"}`}>
+                  Registration successful!
+                </p>
+                <p className={`text-sm leading-relaxed ${authLayout === "centered" ? "text-gray-400" : "text-gray-500"}`}>
+                  Your account is <strong>pending activation</strong>.<br />
+                  Please contact an admin to activate your account before logging in.
+                </p>
+              </div>
+              <Link
+                href="/login"
+                className="mt-2 text-sm text-pink-500 font-medium hover:underline"
+              >
+                Back to login →
+              </Link>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -222,12 +233,11 @@ export default function RegisterPage() {
                   placeholder="yourUsername"
                   value={form.username}
                   onChange={handleChange}
-                  className={`w-full border rounded-lg px-3 py-2.5 text-sm outline-none transition-colors duration-300 ${
-                    fieldErrors.username ? "border-red-400 focus:border-red-400" :
-                    authLayout === "centered"
-                      ? "bg-white/10 border-white/10 text-white placeholder-gray-500 focus:border-pink-500"
-                      : "bg-white border-gray-200 text-gray-800 placeholder-gray-300 focus:border-pink-500"
-                  }`}
+                  className={`w-full border rounded-lg px-3 py-2.5 text-sm outline-none transition-colors duration-300 ${fieldErrors.username ? "border-red-400 focus:border-red-400" :
+                      authLayout === "centered"
+                        ? "bg-white/10 border-white/10 text-white placeholder-gray-500 focus:border-pink-500"
+                        : "bg-white border-gray-200 text-gray-800 placeholder-gray-300 focus:border-pink-500"
+                    }`}
                 />
                 {fieldErrors.username && <p className="text-red-500 text-xs mt-1">{fieldErrors.username}</p>}
               </div>
@@ -243,12 +253,11 @@ export default function RegisterPage() {
                   placeholder="Nguyen Van A"
                   value={form.full_name}
                   onChange={handleChange}
-                  className={`w-full border rounded-lg px-3 py-2.5 text-sm outline-none transition-colors duration-300 ${
-                    fieldErrors.full_name ? "border-red-400 focus:border-red-400" :
-                    authLayout === "centered"
-                      ? "bg-white/10 border-white/10 text-white placeholder-gray-500 focus:border-pink-500"
-                      : "bg-white border-gray-200 text-gray-800 placeholder-gray-300 focus:border-pink-500"
-                  }`}
+                  className={`w-full border rounded-lg px-3 py-2.5 text-sm outline-none transition-colors duration-300 ${fieldErrors.full_name ? "border-red-400 focus:border-red-400" :
+                      authLayout === "centered"
+                        ? "bg-white/10 border-white/10 text-white placeholder-gray-500 focus:border-pink-500"
+                        : "bg-white border-gray-200 text-gray-800 placeholder-gray-300 focus:border-pink-500"
+                    }`}
                 />
                 {fieldErrors.full_name && <p className="text-red-500 text-xs mt-1">{fieldErrors.full_name}</p>}
               </div>
@@ -264,12 +273,11 @@ export default function RegisterPage() {
                   placeholder="name@company.com"
                   value={form.email}
                   onChange={handleChange}
-                  className={`w-full border rounded-lg px-3 py-2.5 text-sm outline-none transition-colors duration-300 ${
-                    fieldErrors.email ? "border-red-400 focus:border-red-400" :
-                    authLayout === "centered"
-                      ? "bg-white/10 border-white/10 text-white placeholder-gray-500 focus:border-pink-500"
-                      : "bg-white border-gray-200 text-gray-800 placeholder-gray-300 focus:border-pink-500"
-                  }`}
+                  className={`w-full border rounded-lg px-3 py-2.5 text-sm outline-none transition-colors duration-300 ${fieldErrors.email ? "border-red-400 focus:border-red-400" :
+                      authLayout === "centered"
+                        ? "bg-white/10 border-white/10 text-white placeholder-gray-500 focus:border-pink-500"
+                        : "bg-white border-gray-200 text-gray-800 placeholder-gray-300 focus:border-pink-500"
+                    }`}
                 />
                 {fieldErrors.email && <p className="text-red-500 text-xs mt-1">{fieldErrors.email}</p>}
               </div>
@@ -286,12 +294,11 @@ export default function RegisterPage() {
                     placeholder="Min 6 characters"
                     value={form.password}
                     onChange={handleChange}
-                    className={`w-full border rounded-lg px-3 py-2.5 text-sm outline-none transition-colors duration-300 pr-10 ${
-                      fieldErrors.password ? "border-red-400 focus:border-red-400" :
-                      authLayout === "centered"
-                        ? "bg-white/10 border-white/10 text-white placeholder-gray-500 focus:border-pink-500"
-                        : "bg-white border-gray-200 text-gray-800 placeholder-gray-300 focus:border-pink-500"
-                    }`}
+                    className={`w-full border rounded-lg px-3 py-2.5 text-sm outline-none transition-colors duration-300 pr-10 ${fieldErrors.password ? "border-red-400 focus:border-red-400" :
+                        authLayout === "centered"
+                          ? "bg-white/10 border-white/10 text-white placeholder-gray-500 focus:border-pink-500"
+                          : "bg-white border-gray-200 text-gray-800 placeholder-gray-300 focus:border-pink-500"
+                      }`}
                   />
                   <button
                     type="button"
@@ -316,12 +323,11 @@ export default function RegisterPage() {
                     placeholder="••••••••"
                     value={form.confirm_password}
                     onChange={handleChange}
-                    className={`w-full border rounded-lg px-3 py-2.5 text-sm outline-none transition-colors duration-300 pr-10 ${
-                      fieldErrors.confirm_password ? "border-red-400 focus:border-red-400" :
-                      authLayout === "centered"
-                        ? "bg-white/10 border-white/10 text-white placeholder-gray-500 focus:border-pink-500"
-                        : "bg-white border-gray-200 text-gray-800 placeholder-gray-300 focus:border-pink-500"
-                    }`}
+                    className={`w-full border rounded-lg px-3 py-2.5 text-sm outline-none transition-colors duration-300 pr-10 ${fieldErrors.confirm_password ? "border-red-400 focus:border-red-400" :
+                        authLayout === "centered"
+                          ? "bg-white/10 border-white/10 text-white placeholder-gray-500 focus:border-pink-500"
+                          : "bg-white border-gray-200 text-gray-800 placeholder-gray-300 focus:border-pink-500"
+                      }`}
                   />
                   <button
                     type="button"

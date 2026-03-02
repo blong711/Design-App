@@ -1,0 +1,38 @@
+services:
+  database:
+    image: mongo:6.0
+    container_name: design_app_db
+    # Port 27017 not exposed externally to avoid conflict with local MongoDB
+    volumes:
+      - db_data:/data/db
+    restart: always
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: design_app_backend
+    ports:
+      - "8000:8000"
+    environment:
+      - MONGODB_URL=mongodb://database:27017
+      - MONGODB_DB=design_manager
+    depends_on:
+      - database
+    restart: always
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: design_app_frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
+    depends_on:
+      - backend
+    restart: always
+
+volumes:
+  db_data:

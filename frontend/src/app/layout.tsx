@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { SettingsProvider } from "@/lib/settings-context";
 import { AppSettings } from "@/components/ui/AppSettings";
+import { ToastProvider } from "@/lib/toast";
 
 const inter = Inter({
   variable: "--font-sans",
@@ -24,10 +25,12 @@ export default function RootLayout({
       <body
         className={`${inter.variable} font-sans antialiased bg-background text-foreground min-h-screen`}
       >
-        <SettingsProvider>
-          {children}
-          <AppSettings />
-        </SettingsProvider>
+        <ToastProvider>
+          <SettingsProvider>
+            {children}
+            <AppSettings />
+          </SettingsProvider>
+        </ToastProvider>
       </body>
     </html>
   );

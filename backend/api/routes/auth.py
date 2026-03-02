@@ -2,12 +2,13 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from core.security import verify_password, get_password_hash, create_access_token
 from models.user import UserResponse, UserCreate, ProfileUpdate, PasswordChange
-from api.deps import get_db, get_current_user
+from api.deps import get_db, get_current_user, get_current_admin
 
 router = APIRouter()
 
 @router.post("/register", response_model=UserResponse, status_code=201)
 async def register(user_in: UserCreate, db=Depends(get_db)):
+    """Public registration — account starts inactive until admin approves."""
     existing = await db["users"].find_one({"username": user_in.username})
     if existing:
         raise HTTPException(status_code=400, detail="Username already registered")
@@ -19,7 +20,7 @@ async def register(user_in: UserCreate, db=Depends(get_db)):
     password = user_dict.pop("password")
     user_dict["hashed_password"] = get_password_hash(password)
     user_dict["role"] = "designer"
-    user_dict["is_active"] = True
+    user_dict["is_active"] = False  # Requires admin approval before login
 
     result = await db["users"].insert_one(user_dict)
     created = await db["users"].find_one({"_id": result.inserted_id})

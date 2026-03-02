@@ -1,7 +1,6 @@
 import asyncio
 from motor.motor_asyncio import AsyncIOMotorClient
 from passlib.context import CryptContext
-from core.config import settings
 from datetime import datetime, timezone
 import os
 
@@ -9,12 +8,12 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 def get_password_hash(password: str) -> str:
     return pwd_context.hash(password)
 
-async def print_pass(val):
-    print("Hash is:", val)
-
 async def seed():
-    client = AsyncIOMotorClient("mongodb://localhost:27017/")
-    db = client["design_manager"]
+    mongo_url = os.getenv("MONGODB_URL", "mongodb://localhost:27017")
+    mongo_db  = os.getenv("MONGODB_DB",  "design_manager")
+    print(f"Connecting to {mongo_url} / {mongo_db}")
+    client = AsyncIOMotorClient(mongo_url)
+    db = client[mongo_db]
 
     # Insert Admin
     admin_exists = await db.users.find_one({"username": "admin"})
