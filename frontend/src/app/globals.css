@@ -25,33 +25,33 @@
 
 :root {
   /* Enforce Dark Mode Base for Premium Theme */
-  --background: oklch(0.12 0.01 260);     /* Deep Slate/Purple */
-  --foreground: oklch(0.98 0 0);          /* Pure White */
-  --card: oklch(0.16 0.02 260 / 0.7);     /* Glassmorphism Card */
+  --background: oklch(14.67% 0.0041 264.53); /* Dark but warm slate */
+  --foreground: oklch(0.98 0 0); /* Pure White */
+  --card: oklch(0.18 0.02 260 / 0.4); /* Glassmorphism Card */
   --card-foreground: oklch(0.98 0 0);
   --popover: oklch(0.16 0.02 260);
   --popover-foreground: oklch(0.98 0 0);
   
-  /* Cyber Purple Accent */
-  --primary: oklch(0.65 0.25 290);        
+  /* Vibrant Neon/Cyber Accents */
+  --primary: oklch(65% 0.28 290); /* Electric Purple */
   --primary-foreground: oklch(0.98 0 0);
   
-  --secondary: oklch(0.25 0.05 260);
+  --secondary: oklch(25% 0.08 260);
   --secondary-foreground: oklch(0.98 0 0);
   
-  --muted: oklch(0.22 0.03 260);
-  --muted-foreground: oklch(0.70 0.02 260);
+  --muted: oklch(22% 0.03 260);
+  --muted-foreground: oklch(70% 0.02 260);
   
-  /* Teal/Cyan Accent #2 */
-  --accent: oklch(0.75 0.15 190);
-  --accent-foreground: oklch(0.15 0.05 190);
+  /* Electric Cyan Accent #2 */
+  --accent: oklch(75% 0.18 190);
+  --accent-foreground: oklch(15% 0.05 190);
   
-  --destructive: oklch(0.6 0.2 20);
+  --destructive: oklch(60% 0.25 20);
   --destructive-foreground: oklch(0.98 0 0);
 
-  --border: oklch(1 0 0 / 0.1);           /* Subtle borders */
-  --input: oklch(1 0 0 / 0.1);
-  --ring: oklch(0.65 0.25 290 / 0.5);     /* Purple ring */
+  --border: oklch(1 0 0 / 0.08); /* Even subtler borders */
+  --input: oklch(1 0 0 / 0.08);
+  --ring: oklch(65% 0.28 290 / 0.6);
   
   --radius: 1rem;
 }
@@ -62,9 +62,13 @@
   }
   body {
     @apply bg-background text-foreground antialiased;
-    background-image: radial-gradient(circle at top right, rgba(168, 85, 247, 0.15), transparent 40%),
-                      radial-gradient(circle at bottom left, rgba(45, 212, 191, 0.1), transparent 40%);
+    background-color: var(--background);
+    background-image: 
+      radial-gradient(ellipse at top right, rgba(168, 85, 247, 0.18), transparent 50%),
+      radial-gradient(ellipse at bottom left, rgba(45, 212, 191, 0.12), transparent 50%),
+      radial-gradient(circle at 10% 20%, rgba(236, 72, 153, 0.06), transparent 30%);
     background-attachment: fixed;
+    background-size: cover;
   }
 }
 
@@ -72,37 +76,42 @@
 html.light {
   --background: oklch(0.97 0 0);
   --foreground: oklch(0.15 0.01 260);
-  --card: oklch(1 0 0 / 0.9);
+  --card: oklch(1 0 0 / 0.7);
   --card-foreground: oklch(0.15 0.01 260);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.15 0.01 260);
-  --primary: oklch(0.60 0.25 290);
+  --primary: oklch(60% 0.25 290);
   --primary-foreground: oklch(0.98 0 0);
-  --secondary: oklch(0.92 0.01 260);
-  --secondary-foreground: oklch(0.2 0.02 260);
-  --muted: oklch(0.93 0.01 260);
-  --muted-foreground: oklch(0.50 0.03 260);
-  --accent: oklch(0.65 0.15 190);
+  --secondary: oklch(92% 0.01 260);
+  --secondary-foreground: oklch(20% 0.02 260);
+  --muted: oklch(93% 0.01 260);
+  --muted-foreground: oklch(50% 0.03 260);
+  --accent: oklch(65% 0.15 190);
   --accent-foreground: oklch(0.98 0 0);
-  --destructive: oklch(0.55 0.22 20);
+  --destructive: oklch(55% 0.22 20);
   --destructive-foreground: oklch(0.98 0 0);
   --border: oklch(0.2 0 0 / 0.12);
   --input: oklch(0.2 0 0 / 0.08);
-  --ring: oklch(0.60 0.25 290 / 0.4);
+  --ring: oklch(60% 0.25 290 / 0.4);
 }
 
 html.light body {
-  background-image: radial-gradient(circle at top right, rgba(168, 85, 247, 0.06), transparent 40%),
-                    radial-gradient(circle at bottom left, rgba(45, 212, 191, 0.04), transparent 40%);
+  background-image: 
+    radial-gradient(ellipse at top right, rgba(168, 85, 247, 0.08), transparent 50%),
+    radial-gradient(ellipse at bottom left, rgba(45, 212, 191, 0.06), transparent 50%),
+    radial-gradient(circle at 10% 20%, rgba(236, 72, 153, 0.03), transparent 30%);
 }
 
 html.light .glass-panel {
-  @apply bg-white/70 backdrop-blur-xl border border-black/5 shadow-[0_8px_32px_0_rgba(0,0,0,0.08)];
+  @apply bg-white/60 backdrop-blur-2xl border border-black/5 shadow-[0_8px_32px_0_rgba(0,0,0,0.05)];
 }
 
 /* Glassmorphism Utilities */
 .glass-panel {
-  @apply bg-white/5 backdrop-blur-xl border border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.3)];
+  @apply bg-white/[0.03] backdrop-blur-2xl border border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.3)] transition-all duration-300;
+}
+.glass-panel:hover {
+  @apply shadow-[0_8px_32px_0_rgba(0,0,0,0.4)] border-white/[0.15] bg-white/[0.04];
 }
 
 /* Infinite marquee carousel */

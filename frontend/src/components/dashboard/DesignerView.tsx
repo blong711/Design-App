@@ -5,6 +5,7 @@ import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea
 import { api, s3Upload } from "@/lib/api";
 import { useToast } from "@/lib/toast";
 import { CheckCircle2, Clock, Eye, MessageSquare, Loader2, UploadCloud } from "lucide-react";
+import TicketDetailDrawer from "@/components/dashboard/TicketDetailDrawer";
 
 const COLUMNS = [
   { id: "assigned", title: "To Do", icon: Clock, color: "text-blue-400" },
@@ -33,6 +34,7 @@ export default function DesignerView({ user }: { user: any }) {
   const [selectedTicket, setSelectedTicket] = useState<any>(null);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [detailTicketId, setDetailTicketId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchTickets();
@@ -153,8 +155,9 @@ export default function DesignerView({ user }: { user: any }) {
                             ref={provided.innerRef}
                             {...provided.draggableProps}
                             {...provided.dragHandleProps}
-                            className={`p-4 rounded-xl border border-border shadow-lg select-none transition-all ${snapshot.isDragging ? 'bg-[#1a1528] shadow-[0_0_20px_rgba(168,85,247,0.3)] border-primary/50 rotate-2' : 'bg-foreground/5 hover:bg-foreground/10'
+                            className={`p-4 rounded-xl border border-border shadow-lg select-none transition-all cursor-pointer ${snapshot.isDragging ? 'bg-[#1a1528] shadow-[0_0_20px_rgba(168,85,247,0.3)] border-primary/50 rotate-2' : 'bg-foreground/5 hover:bg-foreground/10'
                               }`}
+                            onClick={() => setDetailTicketId(ticket.id)}
                           >
                             <div className="flex justify-between items-start mb-2">
                               <h4 className="font-semibold text-foreground leading-tight">{ticket.title}</h4>
@@ -192,7 +195,7 @@ export default function DesignerView({ user }: { user: any }) {
           <div className="w-full max-w-md bg-background rounded-3xl border border-border p-6 shadow-2xl">
             <h3 className="text-xl font-bold mb-2">Upload Final Design</h3>
             <p className="text-sm text-muted-foreground mb-6">You're submitting {" "}
-              <b className="text-foreground">{selectedTicket.title}</b>. Upload your file directly to AWS S3.
+              <b className="text-foreground">{selectedTicket.title}</b>. Upload your file to our secure storage.
             </p>
 
             <div className="border-2 border-dashed border-border rounded-xl p-8 flex flex-col items-center justify-center bg-foreground/5 mb-6 hover:border-primary/50 transition-colors">
@@ -217,12 +220,18 @@ export default function DesignerView({ user }: { user: any }) {
                 onClick={handleUploadSubmit}
                 className="bg-primary hover:bg-primary/80 disabled:opacity-50 px-6 py-2 rounded-full text-sm font-bold shadow-lg shadow-primary/30 flex items-center gap-2"
               >
-                {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Upload to S3"}
+                {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Upload File"}
               </button>
             </div>
           </div>
         </div>
       )}
+
+      <TicketDetailDrawer
+        ticketId={detailTicketId}
+        onClose={() => setDetailTicketId(null)}
+        currentUser={user}
+      />
     </div>
   );
 }

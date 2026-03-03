@@ -6,6 +6,7 @@ import { useToast } from "@/lib/toast";
 import {
   Users, UserPlus, Edit2, Trash2, X, Loader2,
   CheckCircle2, AlertCircle, ShieldCheck, Paintbrush,
+  Lock,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -16,15 +17,21 @@ interface User {
   username: string;
   email: string;
   full_name: string;
-  role: "admin" | "designer";
+  role: "admin" | "manager" | "designer";
   is_active: boolean;
+  team_id?: string;
+}
+
+interface Team {
+  id: string;
+  name: string;
 }
 
 // ─── Add User Modal ───────────────────────────────────────────────────────────
 
-function AddUserModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+function AddUserModal({ onClose, onCreated, teams }: { onClose: () => void; onCreated: () => void; teams: Team[] }) {
   const toast = useToast();
-  const [form, setForm] = useState({ username: "", email: "", full_name: "", password: "", role: "designer" });
+  const [form, setForm] = useState({ username: "", email: "", full_name: "", password: "", role: "designer", team_id: "" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -100,29 +107,44 @@ function AddUserModal({ onClose, onCreated }: { onClose: () => void; onCreated: 
             {/* Role */}
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">Role</label>
-              <div className="grid grid-cols-2 gap-3">
-                {(["designer", "admin"] as const).map((r) => {
+              <div className="grid grid-cols-3 gap-2">
+                {(["designer", "manager", "admin"] as const).map((r) => {
                   const isActive = form.role === r;
+                  let colorClass = "border-accent bg-accent/15 text-accent";
+                  if (r === "admin") colorClass = "border-primary bg-primary/15 text-primary";
+                  if (r === "manager") colorClass = "border-purple-500 bg-purple-500/15 text-purple-400";
+
                   return (
                     <button
                       key={r}
                       type="button"
                       onClick={() => set("role", r)}
-                      className={`flex flex-col items-center gap-2 px-4 py-3 rounded-xl border-2 transition-all cursor-pointer ${r === "designer"
-                          ? isActive
-                            ? "border-accent bg-accent/15 text-accent"
-                            : "border-border bg-foreground/5 text-muted-foreground hover:border-accent/50 hover:text-accent"
-                          : isActive
-                            ? "border-primary bg-primary/15 text-primary"
-                            : "border-border bg-foreground/5 text-muted-foreground hover:border-primary/50 hover:text-primary"
+                      className={`flex flex-col items-center gap-2 px-3 py-3 rounded-xl border-2 transition-all cursor-pointer ${isActive
+                          ? colorClass
+                          : "border-border bg-foreground/5 text-muted-foreground hover:opacity-80"
                         }`}
                     >
-                      {r === "designer" ? <Paintbrush className="w-5 h-5" /> : <ShieldCheck className="w-5 h-5" />}
-                      <span className="text-sm font-semibold capitalize">{r}</span>
+                      {r === "designer" ? <Paintbrush className="w-5 h-5" /> : r === "manager" ? <Users className="w-5 h-5" /> : <ShieldCheck className="w-5 h-5" />}
+                      <span className="text-[10px] font-bold uppercase">{r}</span>
                     </button>
                   );
                 })}
               </div>
+            </div>
+
+            {/* Team Selection */}
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">Assign Team</label>
+              <select
+                value={form.team_id}
+                onChange={(e) => set("team_id", e.target.value)}
+                className="w-full px-4 py-2.5 rounded-xl bg-foreground/5 border border-border text-foreground focus:outline-none focus:border-primary transition-all text-sm appearance-none"
+              >
+                <option value="" className="bg-background">No Team</option>
+                {teams.map(t => (
+                  <option key={t.id} value={t.id} className="bg-background">{t.name}</option>
+                ))}
+              </select>
             </div>
 
             {error && (
@@ -153,9 +175,9 @@ function AddUserModal({ onClose, onCreated }: { onClose: () => void; onCreated: 
 
 // ─── Edit User Modal ──────────────────────────────────────────────────────────
 
-function EditUserModal({ user, onClose, onUpdated }: { user: User; onClose: () => void; onUpdated: () => void }) {
+function EditUserModal({ user, onClose, onUpdated, teams }: { user: User; onClose: () => void; onUpdated: () => void; teams: Team[] }) {
   const toast = useToast();
-  const [form, setForm] = useState({ full_name: user.full_name, role: user.role, is_active: user.is_active });
+  const [form, setForm] = useState({ full_name: user.full_name, role: user.role, is_active: user.is_active, team_id: user.team_id || "" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -215,29 +237,44 @@ function EditUserModal({ user, onClose, onUpdated }: { user: User; onClose: () =
             {/* Role */}
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">Role</label>
-              <div className="grid grid-cols-2 gap-3">
-                {(["designer", "admin"] as const).map((r) => {
+              <div className="grid grid-cols-3 gap-2">
+                {(["designer", "manager", "admin"] as const).map((r) => {
                   const isActive = form.role === r;
+                  let colorClass = "border-accent bg-accent/15 text-accent";
+                  if (r === "admin") colorClass = "border-primary bg-primary/15 text-primary";
+                  if (r === "manager") colorClass = "border-purple-500 bg-purple-500/15 text-purple-400";
+
                   return (
                     <button
                       key={r}
                       type="button"
                       onClick={() => setForm((f) => ({ ...f, role: r }))}
-                      className={`flex flex-col items-center gap-2 px-4 py-3 rounded-xl border-2 transition-all cursor-pointer ${r === "designer"
-                          ? isActive
-                            ? "border-accent bg-accent/15 text-accent"
-                            : "border-border bg-foreground/5 text-muted-foreground hover:border-accent/50 hover:text-accent"
-                          : isActive
-                            ? "border-primary bg-primary/15 text-primary"
-                            : "border-border bg-foreground/5 text-muted-foreground hover:border-primary/50 hover:text-primary"
+                      className={`flex flex-col items-center gap-2 px-3 py-3 rounded-xl border-2 transition-all cursor-pointer ${isActive
+                          ? colorClass
+                          : "border-border bg-foreground/5 text-muted-foreground hover:opacity-80"
                         }`}
                     >
-                      {r === "designer" ? <Paintbrush className="w-5 h-5" /> : <ShieldCheck className="w-5 h-5" />}
-                      <span className="text-sm font-semibold capitalize">{r}</span>
+                      {r === "designer" ? <Paintbrush className="w-5 h-5" /> : r === "manager" ? <Users className="w-5 h-5" /> : <ShieldCheck className="w-5 h-5" />}
+                      <span className="text-[10px] font-bold uppercase">{r}</span>
                     </button>
                   );
                 })}
               </div>
+            </div>
+
+            {/* Team Selection */}
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">Assign Team</label>
+              <select
+                value={form.team_id}
+                onChange={(e) => setForm((f) => ({ ...f, team_id: e.target.value }))}
+                className="w-full px-4 py-2.5 rounded-xl bg-foreground/5 border border-border text-foreground focus:outline-none focus:border-primary transition-all text-sm appearance-none"
+              >
+                <option value="" className="bg-background">No Team</option>
+                {teams.map(t => (
+                  <option key={t.id} value={t.id} className="bg-background">{t.name}</option>
+                ))}
+              </select>
             </div>
 
             {/* Active Toggle */}
@@ -347,8 +384,21 @@ export default function UsersPage() {
   const [addOpen, setAddOpen] = useState(false);
   const [editUser, setEditUser] = useState<User | null>(null);
   const [deleteUser, setDeleteUser] = useState<User | null>(null);
+  const [teams, setTeams] = useState<Team[]>([]);
 
-  useEffect(() => { fetchUsers(); }, []);
+  useEffect(() => {
+    fetchUsers();
+    fetchTeams();
+  }, []);
+
+  const fetchTeams = async () => {
+    try {
+      const res = await api.get("/teams");
+      setTeams(res.data);
+    } catch (err) {
+      console.error("Failed to load teams");
+    }
+  };
 
   const fetchUsers = async () => {
     try {
@@ -358,6 +408,24 @@ export default function UsersPage() {
       toast("Failed to load users.", "error");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleImpersonate = async (user: User) => {
+    if (!confirm(`Switch to ${user.full_name}'s account?`)) return;
+
+    try {
+      const res = await api.post(`/auth/impersonate/${user.id}`);
+      const { access_token, user: userData } = res.data;
+
+      localStorage.setItem("access_token", access_token);
+      localStorage.setItem("user", JSON.stringify(userData));
+
+      toast(`Successfully switched to ${user.full_name}`, "success");
+      // Use window.location.href to force a full reload and clear state
+      window.location.href = "/dashboard";
+    } catch (e: any) {
+      toast(e.response?.data?.detail || "Impersonation failed.", "error");
     }
   };
 
@@ -371,8 +439,8 @@ export default function UsersPage() {
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       {/* Modals */}
-      {addOpen && <AddUserModal onClose={() => setAddOpen(false)} onCreated={fetchUsers} />}
-      {editUser && <EditUserModal user={editUser} onClose={() => setEditUser(null)} onUpdated={fetchUsers} />}
+      {addOpen && <AddUserModal onClose={() => setAddOpen(false)} onCreated={fetchUsers} teams={teams} />}
+      {editUser && <EditUserModal user={editUser} onClose={() => setEditUser(null)} onUpdated={fetchUsers} teams={teams} />}
       {deleteUser && <DeleteConfirmModal user={deleteUser} onClose={() => setDeleteUser(null)} onDeleted={fetchUsers} />}
 
       {/* Header */}
@@ -442,15 +510,31 @@ export default function UsersPage() {
                 <p className="text-sm text-muted-foreground truncate">{u.email}</p>
 
                 {/* Role badge */}
-                <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold tracking-wider uppercase border ${u.role === "admin"
-                  ? "bg-primary/20 text-primary border-primary/30"
-                  : "bg-accent/20 text-accent border-accent/30"
-                  }`}>
-                  {u.role}
-                </span>
+                <div className="flex flex-col items-center gap-1">
+                  <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold tracking-wider uppercase border text-center min-w-[80px] ${u.role === "admin"
+                    ? "bg-primary/20 text-primary border-primary/30"
+                    : u.role === "manager"
+                      ? "bg-purple-500/20 text-purple-400 border-purple-500/30"
+                      : "bg-accent/20 text-accent border-accent/30"
+                    }`}>
+                    {u.role}
+                  </span>
+                  {u.team_id && (
+                    <span className="text-[9px] text-muted-foreground font-bold uppercase">
+                      {teams.find(t => t.id === u.team_id)?.name || "Unknown Team"}
+                    </span>
+                  )}
+                </div>
 
                 {/* Actions */}
                 <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => handleImpersonate(u)}
+                    title="Switch to this account"
+                    className="p-2 bg-muted hover:bg-primary/10 text-muted-foreground hover:text-primary rounded-lg transition-colors"
+                  >
+                    <Lock className="w-4 h-4" />
+                  </button>
                   <button
                     onClick={() => setEditUser(u)}
                     title="Edit user"
