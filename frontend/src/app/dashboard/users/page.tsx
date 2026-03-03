@@ -5,7 +5,7 @@ import { api } from "@/lib/api";
 import { useToast } from "@/lib/toast";
 import {
   Users, UserPlus, Edit2, Trash2, X, Loader2,
-  CheckCircle2, AlertCircle, ChevronDown, ShieldCheck, Paintbrush,
+  CheckCircle2, AlertCircle, ShieldCheck, Paintbrush,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -100,16 +100,28 @@ function AddUserModal({ onClose, onCreated }: { onClose: () => void; onCreated: 
             {/* Role */}
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">Role</label>
-              <div className="relative">
-                <select
-                  value={form.role}
-                  onChange={(e) => set("role", e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl bg-foreground/5 border border-border text-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-all text-sm appearance-none cursor-pointer"
-                >
-                  <option value="designer">Designer</option>
-                  <option value="admin">Admin</option>
-                </select>
-                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+              <div className="grid grid-cols-2 gap-3">
+                {(["designer", "admin"] as const).map((r) => {
+                  const isActive = form.role === r;
+                  return (
+                    <button
+                      key={r}
+                      type="button"
+                      onClick={() => set("role", r)}
+                      className={`flex flex-col items-center gap-2 px-4 py-3 rounded-xl border-2 transition-all cursor-pointer ${r === "designer"
+                          ? isActive
+                            ? "border-accent bg-accent/15 text-accent"
+                            : "border-border bg-foreground/5 text-muted-foreground hover:border-accent/50 hover:text-accent"
+                          : isActive
+                            ? "border-primary bg-primary/15 text-primary"
+                            : "border-border bg-foreground/5 text-muted-foreground hover:border-primary/50 hover:text-primary"
+                        }`}
+                    >
+                      {r === "designer" ? <Paintbrush className="w-5 h-5" /> : <ShieldCheck className="w-5 h-5" />}
+                      <span className="text-sm font-semibold capitalize">{r}</span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
@@ -203,16 +215,28 @@ function EditUserModal({ user, onClose, onUpdated }: { user: User; onClose: () =
             {/* Role */}
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">Role</label>
-              <div className="relative">
-                <select
-                  value={form.role}
-                  onChange={(e) => setForm((f) => ({ ...f, role: e.target.value as "admin" | "designer" }))}
-                  className="w-full px-4 py-2.5 rounded-xl bg-foreground/5 border border-border text-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-all text-sm appearance-none cursor-pointer"
-                >
-                  <option value="designer">Designer</option>
-                  <option value="admin">Admin</option>
-                </select>
-                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+              <div className="grid grid-cols-2 gap-3">
+                {(["designer", "admin"] as const).map((r) => {
+                  const isActive = form.role === r;
+                  return (
+                    <button
+                      key={r}
+                      type="button"
+                      onClick={() => setForm((f) => ({ ...f, role: r }))}
+                      className={`flex flex-col items-center gap-2 px-4 py-3 rounded-xl border-2 transition-all cursor-pointer ${r === "designer"
+                          ? isActive
+                            ? "border-accent bg-accent/15 text-accent"
+                            : "border-border bg-foreground/5 text-muted-foreground hover:border-accent/50 hover:text-accent"
+                          : isActive
+                            ? "border-primary bg-primary/15 text-primary"
+                            : "border-border bg-foreground/5 text-muted-foreground hover:border-primary/50 hover:text-primary"
+                        }`}
+                    >
+                      {r === "designer" ? <Paintbrush className="w-5 h-5" /> : <ShieldCheck className="w-5 h-5" />}
+                      <span className="text-sm font-semibold capitalize">{r}</span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
@@ -397,8 +421,8 @@ export default function UsersPage() {
                 {/* Avatar */}
                 <div
                   className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-lg shadow-inner shrink-0 border ${u.role === "admin"
-                      ? "bg-primary/20 border-primary/30 text-primary"
-                      : "bg-accent/20 border-accent/30 text-accent"
+                    ? "bg-primary/20 border-primary/30 text-primary"
+                    : "bg-accent/20 border-accent/30 text-accent"
                     }`}
                 >
                   {u.role === "admin" ? <ShieldCheck className="w-5 h-5" /> : <Paintbrush className="w-5 h-5" />}
@@ -419,8 +443,8 @@ export default function UsersPage() {
 
                 {/* Role badge */}
                 <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold tracking-wider uppercase border ${u.role === "admin"
-                    ? "bg-primary/20 text-primary border-primary/30"
-                    : "bg-accent/20 text-accent border-accent/30"
+                  ? "bg-primary/20 text-primary border-primary/30"
+                  : "bg-accent/20 text-accent border-accent/30"
                   }`}>
                   {u.role}
                 </span>

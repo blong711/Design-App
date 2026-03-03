@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
-import { Filter, Search } from "lucide-react";
+import { Filter, Search, X, ChevronDown } from "lucide-react";
 
 interface User {
   id: string;
@@ -19,16 +19,25 @@ const STATUS_STYLE: Record<string, { bg: string; color: string }> = {
   pending: { bg: "rgba(255,255,255,0.05)", color: "#a1a1aa" },
 };
 
+const ALL_STATUSES = ["pending", "assigned", "in_progress", "review", "completed"] as const;
+const ALL_PAYMENTS = ["paid", "unpaid"] as const;
+
 export default function TicketsPage() {
   const [tickets, setTickets] = useState<any[]>([]);
   const [userMap, setUserMap] = useState<Record<string, User>>({});
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
 
+  // Filter state
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<string[]>([]);
+  const [paymentFilter, setPaymentFilter] = useState<string[]>([]);
+  const filterRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     Promise.all([
       api.get("/tickets"),
-      api.get("/users").catch(() => ({ data: [] })), // graceful fallback if not admin
+      api.get("/users").catch(() => ({ data: [] })),
     ]).then(([ticketRes, userRes]) => {
       setTickets(ticketRes.data);
       const map: Record<string, User> = {};
@@ -38,13 +47,39 @@ export default function TicketsPage() {
       .finally(() => setLoading(false));
   }, []);
 
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (filterRef.current && !filterRef.current.contains(e.target as Node)) {
+        setFilterOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const toggleStatus = (s: string) =>
+    setStatusFilter((prev) => prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]);
+
+  const togglePayment = (p: string) =>
+    setPaymentFilter((prev) => prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p]);
+
+  const clearFilters = () => { setStatusFilter([]); setPaymentFilter([]); };
+
+  const activeFilterCount = statusFilter.length + paymentFilter.length;
+
   const filtered = tickets.filter((t) => {
     const q = search.toLowerCase();
-    return (
+    const matchSearch =
+      !q ||
       t.title?.toLowerCase().includes(q) ||
       t.description?.toLowerCase().includes(q) ||
-      (t.assigned_to && userMap[t.assigned_to]?.full_name.toLowerCase().includes(q))
-    );
+      (t.assigned_to && userMap[t.assigned_to]?.full_name.toLowerCase().includes(q));
+
+    const matchStatus = statusFilter.length === 0 || statusFilter.includes(t.status);
+    const matchPayment = paymentFilter.length === 0 || paymentFilter.includes(t.payment_status);
+
+    return matchSearch && matchStatus && matchPayment;
   });
 
   if (loading) return <div className="animate-pulse text-muted-foreground py-10">Loading tickets...</div>;
@@ -60,6 +95,7 @@ export default function TicketsPage() {
           </p>
         </div>
         <div className="flex gap-3 w-full sm:w-auto">
+          {/* Search */}
           <div className="relative flex-1 sm:w-64">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input
@@ -70,11 +106,129 @@ export default function TicketsPage() {
               className="w-full bg-muted border border-border rounded-xl pl-9 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground"
             />
           </div>
-          <button className="bg-muted hover:bg-muted/80 border border-border px-4 py-2 rounded-xl text-sm font-medium flex items-center gap-2 text-foreground">
-            <Filter className="w-4 h-4" /> Filter
-          </button>
+
+          {/* Filter button + dropdown */}
+          <div className="relative" ref={filterRef}>
+            <button
+              onClick={() => setFilterOpen((o) => !o)}
+              className={`relative bg-muted hover:bg-muted/80 border px-4 py-2 rounded-xl text-sm font-medium flex items-center gap-2 text-foreground transition-colors ${activeFilterCount > 0 ? "border-primary text-primary" : "border-border"
+                }`}
+            >
+              <Filter className="w-4 h-4" />
+              Filter
+              <ChevronDown className={`w-3.5 h-3.5 transition-transform ${filterOpen ? "rotate-180" : ""}`} />
+              {activeFilterCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center">
+                  {activeFilterCount}
+                </span>
+              )}
+            </button>
+
+            {/* Dropdown panel */}
+            {filterOpen && (
+              <div className="absolute right-0 top-[calc(100%+8px)] z-50 w-64 bg-background border border-border rounded-2xl shadow-2xl shadow-black/40 p-4 space-y-4">
+                {/* Header */}
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-semibold text-foreground">Filters</span>
+                  {activeFilterCount > 0 && (
+                    <button
+                      onClick={clearFilters}
+                      className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
+                    >
+                      <X className="w-3 h-3" /> Clear all
+                    </button>
+                  )}
+                </div>
+
+                {/* Status */}
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">Status</p>
+                  <div className="flex flex-wrap gap-2">
+                    {ALL_STATUSES.map((s) => {
+                      const style = STATUS_STYLE[s];
+                      const active = statusFilter.includes(s);
+                      return (
+                        <button
+                          key={s}
+                          onClick={() => toggleStatus(s)}
+                          className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-all capitalize ${active
+                              ? "border-current opacity-100"
+                              : "border-border opacity-50 hover:opacity-80"
+                            }`}
+                          style={{ backgroundColor: style.bg, color: style.color }}
+                        >
+                          {s.replace(/_/g, " ")}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Divider */}
+                <div className="border-t border-border" />
+
+                {/* Payment */}
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">Payment</p>
+                  <div className="flex gap-2">
+                    {ALL_PAYMENTS.map((p) => {
+                      const active = paymentFilter.includes(p);
+                      return (
+                        <button
+                          key={p}
+                          onClick={() => togglePayment(p)}
+                          className={`flex-1 py-1.5 rounded-xl text-xs font-semibold border transition-all capitalize ${p === "paid"
+                              ? active
+                                ? "bg-green-500/20 text-green-400 border-green-500/50"
+                                : "bg-green-500/5 text-green-400/50 border-green-500/20 hover:opacity-80"
+                              : active
+                                ? "bg-red-500/20 text-red-400 border-red-500/50"
+                                : "bg-red-500/5 text-red-400/50 border-red-500/20 hover:opacity-80"
+                            }`}
+                        >
+                          {p}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
+
+      {/* Active filter chips */}
+      {activeFilterCount > 0 && (
+        <div className="flex flex-wrap gap-2 items-center">
+          <span className="text-xs text-muted-foreground">Active filters:</span>
+          {statusFilter.map((s) => (
+            <span
+              key={s}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border border-border bg-foreground/5 text-foreground capitalize"
+            >
+              {s.replace(/_/g, " ")}
+              <button onClick={() => toggleStatus(s)} className="hover:text-red-400 transition-colors">
+                <X className="w-3 h-3" />
+              </button>
+            </span>
+          ))}
+          {paymentFilter.map((p) => (
+            <span
+              key={p}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border capitalize ${p === "paid"
+                  ? "bg-green-500/10 text-green-400 border-green-500/30"
+                  : "bg-red-500/10 text-red-400 border-red-500/30"
+                }`}
+            >
+              {p}
+              <button onClick={() => togglePayment(p)} className="hover:opacity-70 transition-opacity">
+                <X className="w-3 h-3" />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
 
       {/* Table */}
       <div className="rounded-2xl glass-panel shadow-xl shadow-black/20 overflow-hidden">
@@ -94,7 +248,9 @@ export default function TicketsPage() {
               {filtered.length === 0 && (
                 <tr>
                   <td colSpan={6} className="py-16 text-center text-muted-foreground">
-                    {search ? `No tickets matching "${search}".` : "No tickets found."}
+                    {search || activeFilterCount > 0
+                      ? "No tickets match the current filters."
+                      : "No tickets found."}
                   </td>
                 </tr>
               )}
@@ -123,7 +279,7 @@ export default function TicketsPage() {
                       </span>
                     </td>
 
-                    {/* Assignee — name + avatar initial */}
+                    {/* Assignee */}
                     <td className="py-4 px-5">
                       {assignee ? (
                         <div className="flex items-center gap-2.5">

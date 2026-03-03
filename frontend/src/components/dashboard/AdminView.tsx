@@ -2,8 +2,107 @@
 
 import { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
-import { Plus, DollarSign, Activity, FileCheck, AlertCircle, X, Upload, ImageIcon, Loader2, CheckCircle2, UserPlus, ChevronDown } from "lucide-react";
+import { Plus, DollarSign, Activity, FileCheck, AlertCircle, X, Upload, ImageIcon, Loader2, CheckCircle2, UserPlus, ChevronDown, Paintbrush } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+
+// ─── Designer Picker ─────────────────────────────────────────────────────────
+
+function DesignerPicker({
+  designers,
+  value,
+  onChange,
+  unassignedLabel = "Unassigned",
+}: {
+  designers: any[];
+  value: string;
+  onChange: (id: string) => void;
+  unassignedLabel?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const selected = designers.find((d) => d.id === value);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-foreground/5 border transition-all text-sm cursor-pointer ${open ? "border-primary ring-1 ring-primary/30" : "border-border hover:border-foreground/20"
+          }`}
+      >
+        {selected ? (
+          <>
+            <div className="w-7 h-7 rounded-lg bg-accent/20 border border-accent/30 text-accent flex items-center justify-center text-xs font-bold shrink-0">
+              {selected.full_name.charAt(0).toUpperCase()}
+            </div>
+            <div className="flex-1 text-left min-w-0">
+              <p className="text-sm font-medium text-foreground truncate">{selected.full_name}</p>
+              <p className="text-[11px] text-muted-foreground">@{selected.username}</p>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="w-7 h-7 rounded-lg bg-muted border border-border flex items-center justify-center shrink-0">
+              <Paintbrush className="w-3.5 h-3.5 text-muted-foreground" />
+            </div>
+            <span className="flex-1 text-left text-muted-foreground">{unassignedLabel}</span>
+          </>
+        )}
+        <ChevronDown className={`w-4 h-4 text-muted-foreground shrink-0 transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+
+      {open && (
+        <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-[100] bg-background border border-border rounded-xl shadow-2xl shadow-black/40 overflow-hidden">
+          {/* Unassigned option */}
+          <button
+            type="button"
+            onClick={() => { onChange(""); setOpen(false); }}
+            className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-foreground/5 transition-colors ${!value ? "bg-primary/10 text-primary" : "text-muted-foreground"
+              }`}
+          >
+            <div className="w-7 h-7 rounded-lg bg-muted border border-border flex items-center justify-center shrink-0">
+              <Paintbrush className="w-3.5 h-3.5" />
+            </div>
+            <span className="font-medium">{unassignedLabel}</span>
+          </button>
+
+          {designers.length > 0 && <div className="border-t border-border" />}
+
+          {designers.map((d) => (
+            <button
+              key={d.id}
+              type="button"
+              onClick={() => { onChange(d.id); setOpen(false); }}
+              className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-foreground/5 transition-colors ${value === d.id ? "bg-primary/10" : ""
+                }`}
+            >
+              <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 ${value === d.id
+                  ? "bg-accent/30 border border-accent/40 text-accent"
+                  : "bg-accent/20 border border-accent/30 text-accent"
+                }`}>
+                {d.full_name.charAt(0).toUpperCase()}
+              </div>
+              <div className="flex-1 text-left min-w-0">
+                <p className={`text-sm font-medium truncate ${value === d.id ? "text-primary" : "text-foreground"}`}>{d.full_name}</p>
+                <p className="text-[11px] text-muted-foreground">@{d.username}</p>
+              </div>
+              {value === d.id && <div className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function NewTicketDrawer({ open, onClose, onCreated, designers }: { open: boolean; onClose: () => void; onCreated: () => void; designers: any[] }) {
   const [title, setTitle] = useState("");
@@ -111,19 +210,12 @@ function NewTicketDrawer({ open, onClose, onCreated, designers }: { open: boolea
               {/* Assign To Designer */}
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Assign to Designer</label>
-                <div className="relative">
-                  <select
-                    value={assignedTo}
-                    onChange={e => setAssignedTo(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl bg-foreground/5 border border-border text-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-all text-sm appearance-none cursor-pointer"
-                  >
-                    <option value="">Unassigned (Pending)</option>
-                    {designers.filter(d => d.role === "designer").map(d => (
-                      <option key={d.id} value={d.id}>{d.full_name} ({d.username})</option>
-                    ))}
-                  </select>
-                  <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-                </div>
+                <DesignerPicker
+                  designers={designers.filter(d => d.role === "designer")}
+                  value={assignedTo}
+                  onChange={setAssignedTo}
+                  unassignedLabel="Unassigned (Pending)"
+                />
                 {assignedTo && (
                   <p className="text-xs text-primary mt-1.5 flex items-center gap-1">
                     <UserPlus className="w-3 h-3" /> Status will be set to <strong>Assigned</strong> automatically
@@ -222,7 +314,7 @@ function NewTicketDrawer({ open, onClose, onCreated, designers }: { open: boolea
                 >
                   {success ? <><CheckCircle2 className="w-4 h-4" /> Created!</>
                     : loading ? <><Loader2 className="w-4 h-4 animate-spin" /> Creating...</>
-                    : <><Upload className="w-4 h-4" /> Create Ticket</>}
+                      : <><Upload className="w-4 h-4" /> Create Ticket</>}
                 </button>
               </div>
             </div>
@@ -295,19 +387,12 @@ function AssignModal({ ticket, designers, onClose, onAssigned }: { ticket: any; 
             {/* Designer select */}
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Select Designer</label>
-              <div className="relative">
-                <select
-                  value={selectedDesigner}
-                  onChange={e => setSelectedDesigner(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl bg-foreground/5 border border-border text-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-all text-sm appearance-none cursor-pointer"
-                >
-                  <option value="">Unassigned</option>
-                  {designerList.map(d => (
-                    <option key={d.id} value={d.id}>{d.full_name} ({d.username})</option>
-                  ))}
-                </select>
-                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-              </div>
+              <DesignerPicker
+                designers={designerList}
+                value={selectedDesigner}
+                onChange={setSelectedDesigner}
+                unassignedLabel="Unassigned"
+              />
               {selectedDesigner && selectedDesigner !== ticket.assigned_to && ticket.status === "pending" && (
                 <p className="text-xs text-primary mt-1.5 flex items-center gap-1">
                   <CheckCircle2 className="w-3 h-3" /> Status will change to <strong>Assigned</strong>
@@ -433,15 +518,15 @@ export default function AdminView() {
             transition={{ delay: i * 0.1, duration: 0.5 }}
             className="p-6 rounded-2xl glass-panel relative overflow-hidden group"
           >
-           <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
               <card.icon className="w-24 h-24" />
-           </div>
-           <div className="relative z-10 flex flex-col justify-between h-full">
-            <h3 className="text-sm font-medium text-muted-foreground">{card.title}</h3>
-            <div className={`text-4xl font-bold mt-4 tracking-tighter ${card.color}`}>
-              {card.value}
             </div>
-           </div>
+            <div className="relative z-10 flex flex-col justify-between h-full">
+              <h3 className="text-sm font-medium text-muted-foreground">{card.title}</h3>
+              <div className={`text-4xl font-bold mt-4 tracking-tighter ${card.color}`}>
+                {card.value}
+              </div>
+            </div>
           </motion.div>
         ))}
       </div>
@@ -449,8 +534,8 @@ export default function AdminView() {
       {/* Recent Tickets Table */}
       <div className="rounded-2xl glass-panel p-6">
         <div className="flex justify-between items-center mb-6">
-           <h3 className="text-xl font-semibold">Recent Assignments</h3>
-           <button className="text-sm text-primary hover:text-primary-foreground underline underline-offset-4 transition-colors">View All</button>
+          <h3 className="text-xl font-semibold">Recent Assignments</h3>
+          <button className="text-sm text-primary hover:text-primary-foreground underline underline-offset-4 transition-colors">View All</button>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
@@ -487,12 +572,12 @@ export default function AdminView() {
                       style={{
                         backgroundColor:
                           ticket.status === 'completed' ? 'rgba(74, 222, 128, 0.1)' :
-                          ticket.status === 'review' ? 'rgba(250, 204, 21, 0.1)' :
-                          ticket.status === 'in_progress' ? 'rgba(96, 165, 250, 0.1)' : 'rgba(128,128,128,0.1)',
+                            ticket.status === 'review' ? 'rgba(250, 204, 21, 0.1)' :
+                              ticket.status === 'in_progress' ? 'rgba(96, 165, 250, 0.1)' : 'rgba(128,128,128,0.1)',
                         color:
                           ticket.status === 'completed' ? '#4ade80' :
-                          ticket.status === 'review' ? '#facc15' :
-                          ticket.status === 'in_progress' ? '#60a5fa' : '#a1a1aa'
+                            ticket.status === 'review' ? '#facc15' :
+                              ticket.status === 'in_progress' ? '#60a5fa' : '#a1a1aa'
                       }}
                     >
                       {ticket.status.replace("_", " ").toUpperCase()}
