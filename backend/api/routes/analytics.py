@@ -1,22 +1,34 @@
 from fastapi import APIRouter, Depends, HTTPException
 from typing import Dict, Any
-from api.deps import get_db, get_current_admin, get_current_user
+from api.deps import get_db, get_current_admin, get_current_user, get_current_manager
 from models.user import UserResponse
 from datetime import datetime, timezone, timedelta
 import calendar
+from bson import ObjectId
 
 router = APIRouter()
 
 @router.get("/overview")
 async def get_overview(
     db=Depends(get_db), 
-    current_user: UserResponse = Depends(get_current_admin)
+    current_user: UserResponse = Depends(get_current_manager)
 ):
-    """Admin Overview Analytics"""
+    """Admin/Manager Overview Analytics"""
     
+    query = {"is_deleted": False}
+    if current_user.role == "manager":
+        if not current_user.team_id:
+            return {
+                "total_tickets": 0,
+                "completed_tickets": 0,
+                "total_unpaid": 0,
+                "total_paid": 0
+            }
+        query["team_id"] = ObjectId(current_user.team_id)
+
     # Simple aggregates without complex pipelines for MVP, or we can use $match and $group
     pipeline = [
-        {"$match": {"is_deleted": False}},
+        {"$match": query},
         {"$group": {
             "_id": None,
             "total_tickets": {"$sum": 1},

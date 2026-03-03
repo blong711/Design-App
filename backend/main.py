@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from core.config import settings
 from core.database import connect_to_mongo, close_mongo_connection
-from api.routes import auth, users, api_keys, tickets, s3, analytics, external, webhooks
+from api.routes import auth, users, api_keys, tickets, s3, analytics, external, webhooks, teams
 import os
 
 app = FastAPI(title=settings.PROJECT_NAME)
@@ -32,6 +32,7 @@ app.include_router(s3.router, prefix=f"{settings.API_V1_STR}/s3", tags=["s3"])
 app.include_router(analytics.router, prefix=f"{settings.API_V1_STR}/analytics", tags=["analytics"])
 app.include_router(external.router, prefix=f"{settings.API_V1_STR}/external", tags=["external"])
 app.include_router(webhooks.router, prefix=f"{settings.API_V1_STR}/webhooks", tags=["webhooks"])
+app.include_router(teams.router, prefix=f"{settings.API_V1_STR}/teams", tags=["teams"])
 
 # Serve uploaded files statically
 uploads_dir = os.path.join(os.path.dirname(__file__), "uploads")

@@ -17,6 +17,8 @@ services:
     environment:
       - MONGODB_URL=mongodb://database:27017
       - MONGODB_DB=design_manager
+    volumes:
+      - ./backend/uploads:/app/uploads
     depends_on:
       - database
     restart: always

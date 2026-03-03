@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from typing import List, Optional
 from models.ticket import TicketCreate, TicketUpdate, TicketInDB, TicketResponse
+from models.comment import CommentCreate, CommentInDB, CommentResponse
 from models.user import UserResponse
-from api.deps import get_db, get_current_user, get_current_admin
+from api.deps import get_db, get_current_user, get_current_admin, get_current_manager
 from bson import ObjectId
 from datetime import datetime, timezone
 from pydantic import BaseModel
@@ -26,7 +27,13 @@ async def list_tickets(
     if current_user.role == "designer":
         # Designer sees only their assigned tickets
         query["assigned_to"] = current_user.id
+    elif current_user.role == "manager":
+        # Manager sees only tickets in their team
+        if not current_user.team_id:
+            return [] # Manager without team sees nothing
+        query["team_id"] = ObjectId(current_user.team_id)
     else:
+        # Admin sees everything, but can filter by assignee
         if assigned_to:
             query["assigned_to"] = assigned_to
 
@@ -37,18 +44,31 @@ async def list_tickets(
 async def create_ticket(
     ticket_in: TicketCreate,
     db=Depends(get_db),
-    current_user: UserResponse = Depends(get_current_admin)
+    current_user: UserResponse = Depends(get_current_manager)
 ):
     ticket_data = ticket_in.model_dump()
     ticket_data["created_by"] = current_user.id
     ticket_data["payment_status"] = "unpaid"
 
+    # Team Scoping
+    if current_user.role == "manager":
+        if not current_user.team_id:
+            raise HTTPException(status_code=400, detail="Manager must belong to a team to create tickets")
+        ticket_data["team_id"] = ObjectId(current_user.team_id)
+    # Admin can optionally specify team_id if we added it to TicketCreate, 
+    # but for now let's just use None or handle it if we want.
+
     assigned_to_str = ticket_data.pop("assigned_to", None)
     if assigned_to_str:
         # Validate designer exists
-        designer = await db["users"].find_one({"_id": ObjectId(assigned_to_str), "role": "designer"})
+        designer_query = {"_id": ObjectId(assigned_to_str), "role": "designer"}
+        if current_user.role == "manager":
+            designer_query["team_id"] = ObjectId(current_user.team_id)
+            
+        designer = await db["users"].find_one(designer_query)
         if not designer:
-            raise HTTPException(status_code=404, detail="Designer not found")
+            raise HTTPException(status_code=404, detail="Designer not found in your team")
+            
         ticket_data["status"] = "assigned"
         ticket_data["assigned_to"] = ObjectId(assigned_to_str)
     else:
@@ -203,3 +223,43 @@ async def bulk_pay_tickets(
         {"$set": {"payment_status": "paid", "updated_at": datetime.now(timezone.utc)}}
     )
     return {"message": f"Successfully paid {result.modified_count} tickets"}
+
+# ─── Ticket Comments ──────────────────────────────────────────────────────────
+
+@router.get("/{id}/comments", response_model=List[CommentResponse])
+async def list_ticket_comments(
+    id: str,
+    db=Depends(get_db),
+    current_user: UserResponse = Depends(get_current_user)
+):
+    """List all comments for a specific ticket."""
+    comments = await db["ticket_comments"].find({"ticket_id": ObjectId(id)}).sort("created_at", 1).to_list(length=500)
+    return [CommentResponse.from_mongo(c) for c in comments]
+
+@router.post("/{id}/comments", response_model=CommentResponse)
+async def create_ticket_comment(
+    id: str,
+    comment_in: CommentCreate,
+    db=Depends(get_db),
+    current_user: UserResponse = Depends(get_current_user)
+):
+    """Add a new comment to a ticket."""
+    # Validate ticket exists
+    ticket = await db["design_tickets"].find_one({"_id": ObjectId(id)})
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Ticket not found")
+    
+    # Check permission (Admins can comment on any, Designers only on assigned)
+    if current_user.role == "designer" and str(ticket.get("assigned_to")) != current_user.id:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    comment_db = CommentInDB(
+        content=comment_in.content,
+        ticket_id=ObjectId(id),
+        user_id=current_user.id,
+        user_name=current_user.full_name
+    )
+    
+    result = await db["ticket_comments"].insert_one(comment_db.model_dump(by_alias=True))
+    created = await db["ticket_comments"].find_one({"_id": result.inserted_id})
+    return CommentResponse.from_mongo(created)

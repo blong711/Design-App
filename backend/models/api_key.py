@@ -28,3 +28,6 @@ class ApiKeyResponse(ApiKeyBase):
             return data
         id = data.get("_id")
         return cls(**data, id=str(id) if id else "")
+
+class ApiKeyCreateResponse(ApiKeyResponse):
+    key: str

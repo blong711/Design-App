@@ -445,6 +445,12 @@ export default function AdminView() {
   const [designers, setDesigners] = useState<any[]>([]);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [assigningTicket, setAssigningTicket] = useState<any | null>(null);
+  const [user, setUser] = useState<any>(null);
+
+  useEffect(() => {
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) setUser(JSON.parse(storedUser));
+  }, []);
 
   // Map designer id -> full_name for quick display
   const designerMap = Object.fromEntries(designers.map(d => [d.id, d.full_name]));
@@ -467,7 +473,14 @@ export default function AdminView() {
   const fetchDesigners = async () => {
     try {
       const res = await api.get("/users");
-      setDesigners(res.data);
+      let allDesigners = res.data;
+
+      // Filter by team if manager
+      if (user?.role === "manager" && user.team_id) {
+        allDesigners = allDesigners.filter((d: any) => d.team_id === user.team_id);
+      }
+
+      setDesigners(allDesigners);
     } catch (e) {
       console.error("Failed to load designers", e);
     }
@@ -509,8 +522,12 @@ export default function AdminView() {
 
       <div className="flex justify-between items-center bg-background/40 backdrop-blur-xl p-6 rounded-[2rem] border border-border/50 shadow-2xl z-10 relative">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70">Overview</h2>
-          <p className="text-muted-foreground mt-1 text-sm font-medium">Welcome back, here's what's happening today.</p>
+          <h2 className="text-3xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70">
+            {user?.role === "manager" ? "Team Overview" : "Overview"}
+          </h2>
+          <p className="text-muted-foreground mt-1 text-sm font-medium">
+            {user?.role === "manager" ? "Manage your team's designs and assignments." : "Welcome back, here's what's happening today."}
+          </p>
         </div>
         <button
           onClick={() => setDrawerOpen(true)}

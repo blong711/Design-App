@@ -55,8 +55,14 @@ export default function DashboardLayout({
   const adminLinks = [
     { name: "Overview", href: "/dashboard", icon: LayoutDashboard },
     { name: "All Tickets", href: "/dashboard/tickets", icon: Ticket },
+    { name: "Teams", href: "/dashboard/teams", icon: Users },
     { name: "Users", href: "/dashboard/users", icon: Users },
     { name: "API Keys", href: "/dashboard/api-keys", icon: Settings },
+  ];
+
+  const managerLinks = [
+    { name: "Overview", href: "/dashboard", icon: LayoutDashboard },
+    { name: "All Tickets", href: "/dashboard/tickets", icon: Ticket },
   ];
 
   const designerLinks = [
@@ -64,7 +70,11 @@ export default function DashboardLayout({
     { name: "Kanban Board", href: "/dashboard/board", icon: Activity },
   ];
 
-  const links = user?.role === "admin" ? adminLinks : designerLinks;
+  const links = user?.role === "admin"
+    ? adminLinks
+    : user?.role === "manager"
+      ? managerLinks
+      : designerLinks;
 
   /* ── HORIZONTAL LAYOUT ── */
   if (layoutMode === "horizontal") {

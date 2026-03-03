@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
 import { Filter, Search, X, ChevronDown } from "lucide-react";
+import TicketDetailDrawer from "@/components/dashboard/TicketDetailDrawer";
 
 interface User {
   id: string;
@@ -27,6 +28,8 @@ export default function TicketsPage() {
   const [userMap, setUserMap] = useState<Record<string, User>>({});
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
+  const [currentUser, setCurrentUser] = useState<any>(null);
 
   // Filter state
   const [filterOpen, setFilterOpen] = useState(false);
@@ -43,6 +46,9 @@ export default function TicketsPage() {
       const map: Record<string, User> = {};
       (userRes.data as User[]).forEach((u) => { map[u.id] = u; });
       setUserMap(map);
+
+      const userStr = localStorage.getItem("user");
+      if (userStr) setCurrentUser(JSON.parse(userStr));
     }).catch(console.error)
       .finally(() => setLoading(false));
   }, []);
@@ -152,8 +158,8 @@ export default function TicketsPage() {
                           key={s}
                           onClick={() => toggleStatus(s)}
                           className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-all capitalize ${active
-                              ? "border-current opacity-100"
-                              : "border-border opacity-50 hover:opacity-80"
+                            ? "border-current opacity-100"
+                            : "border-border opacity-50 hover:opacity-80"
                             }`}
                           style={{ backgroundColor: style.bg, color: style.color }}
                         >
@@ -178,12 +184,12 @@ export default function TicketsPage() {
                           key={p}
                           onClick={() => togglePayment(p)}
                           className={`flex-1 py-1.5 rounded-xl text-xs font-semibold border transition-all capitalize ${p === "paid"
-                              ? active
-                                ? "bg-green-500/20 text-green-400 border-green-500/50"
-                                : "bg-green-500/5 text-green-400/50 border-green-500/20 hover:opacity-80"
-                              : active
-                                ? "bg-red-500/20 text-red-400 border-red-500/50"
-                                : "bg-red-500/5 text-red-400/50 border-red-500/20 hover:opacity-80"
+                            ? active
+                              ? "bg-green-500/20 text-green-400 border-green-500/50"
+                              : "bg-green-500/5 text-green-400/50 border-green-500/20 hover:opacity-80"
+                            : active
+                              ? "bg-red-500/20 text-red-400 border-red-500/50"
+                              : "bg-red-500/5 text-red-400/50 border-red-500/20 hover:opacity-80"
                             }`}
                         >
                           {p}
@@ -217,8 +223,8 @@ export default function TicketsPage() {
             <span
               key={p}
               className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border capitalize ${p === "paid"
-                  ? "bg-green-500/10 text-green-400 border-green-500/30"
-                  : "bg-red-500/10 text-red-400 border-red-500/30"
+                ? "bg-green-500/10 text-green-400 border-green-500/30"
+                : "bg-red-500/10 text-red-400 border-red-500/30"
                 }`}
             >
               {p}
@@ -261,6 +267,7 @@ export default function TicketsPage() {
                 return (
                   <tr
                     key={ticket.id}
+                    onClick={() => setSelectedTicketId(ticket.id)}
                     className="border-b border-border hover:bg-muted/50 transition-colors cursor-pointer"
                   >
                     {/* Ticket */}
@@ -299,8 +306,8 @@ export default function TicketsPage() {
                     {/* Payment */}
                     <td className="py-4 px-5">
                       <span className={`px-2.5 py-1 rounded-lg text-xs font-semibold ${ticket.payment_status === "paid"
-                          ? "bg-green-500/20 text-green-400"
-                          : "bg-red-500/20 text-red-400"
+                        ? "bg-green-500/20 text-green-400"
+                        : "bg-red-500/20 text-red-400"
                         }`}>
                         {ticket.payment_status?.toUpperCase()}
                       </span>
@@ -320,6 +327,12 @@ export default function TicketsPage() {
           </table>
         </div>
       </div>
+
+      <TicketDetailDrawer
+        ticketId={selectedTicketId}
+        onClose={() => setSelectedTicketId(null)}
+        currentUser={currentUser}
+      />
     </div>
   );
 }

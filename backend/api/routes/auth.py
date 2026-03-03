@@ -42,6 +42,28 @@ async def login_access_token(db=Depends(get_db), form_data: OAuth2PasswordReques
         "user": user_obj.dict()
     }
 
+@router.post("/impersonate/{user_id}")
+async def impersonate_user(
+    user_id: str,
+    db=Depends(get_db),
+    current_admin=Depends(get_current_admin),
+):
+    from bson import ObjectId
+    user = await db["users"].find_one({"_id": ObjectId(user_id)})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    if not user.get("is_active"):
+        raise HTTPException(status_code=400, detail="Target user is inactive")
+
+    user_obj = UserResponse.from_mongo(user)
+    access_token = create_access_token(subject=user_obj.id)
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user": user_obj.dict()
+    }
+
 @router.get("/me", response_model=UserResponse)
 async def read_users_me(current_user: UserResponse = Depends(get_current_user)):
     return current_user

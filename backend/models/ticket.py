@@ -38,6 +38,7 @@ class TicketUpdate(BaseModel):
 class TicketInDB(TicketBase):
     id: PyObjectId = Field(default_factory=lambda: ObjectId(), alias="_id")
     assigned_to: Optional[PyObjectId] = None
+    team_id: Optional[PyObjectId] = None
     created_by: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
@@ -51,6 +52,7 @@ class TicketInDB(TicketBase):
 class TicketResponse(TicketBase):
     id: str
     assigned_to: Optional[str] = None
+    team_id: Optional[str] = None
     created_by: Optional[str] = None
     created_at: datetime
     updated_at: datetime
@@ -61,11 +63,13 @@ class TicketResponse(TicketBase):
     def from_mongo(cls, data: dict):
         if not data:
             return data
-        data_copy = {k: v for k, v in data.items() if k not in ["_id", "assigned_to"]}
+        data_copy = {k: v for k, v in data.items() if k not in ["_id", "assigned_to", "team_id"]}
         id = data.get("_id")
         assigned_to = data.get("assigned_to")
+        team_id = data.get("team_id")
         return cls(
             **data_copy,
             id=str(id) if id else "",
-            assigned_to=str(assigned_to) if assigned_to else None
+            assigned_to=str(assigned_to) if assigned_to else None,
+            team_id=str(team_id) if team_id else None
         )

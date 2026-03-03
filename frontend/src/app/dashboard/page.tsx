@@ -18,7 +18,7 @@ export default function DashboardPage() {
 
   return (
     <>
-      {user.role === "admin" ? <AdminView /> : <DesignerOverview user={user} />}
+      {user.role === "admin" || user.role === "manager" ? <AdminView /> : <DesignerOverview user={user} />}
     </>
   );
 }
