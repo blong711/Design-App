@@ -88,9 +88,8 @@ export default function DashboardLayout({
               const isActive = pathname === link.href || (link.href !== "/dashboard" && pathname.startsWith(link.href));
               return (
                 <Link key={link.name} href={link.href}>
-                  <div className={`relative flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
-                    isActive ? "text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
-                  }`}>
+                  <div className={`relative flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${isActive ? "text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
+                    }`}>
                     {isActive && (
                       <motion.div
                         layoutId="nav-active"
@@ -109,9 +108,8 @@ export default function DashboardLayout({
           {/* User + Logout */}
           <div className="flex items-center gap-3 ml-auto">
             <Link href="/dashboard/account">
-              <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all ${
-                pathname.startsWith("/dashboard/account") ? "bg-primary/20 border border-primary/30" : "hover:bg-foreground/5"
-              }`}>
+              <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all ${pathname.startsWith("/dashboard/account") ? "bg-primary/20 border border-primary/30" : "hover:bg-foreground/5"
+                }`}>
                 <div className="w-7 h-7 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center font-bold text-primary text-xs overflow-hidden">
                   {user.avatar_url
                     ? <img src={user.avatar_url} alt="avatar" className="w-full h-full object-cover" />
@@ -140,10 +138,10 @@ export default function DashboardLayout({
 
   /* ── VERTICAL LAYOUT (default) ── */
   return (
-    <div className="min-h-screen flex bg-background">
-      {/* Sidebar */}
-      <aside className="w-64 border-r border-border glass-panel flex flex-col hidden md:flex sticky top-0 h-screen">
-        <div className="h-16 flex items-center gap-3 px-6 border-b border-border">
+    <div className="min-h-screen flex bg-background/50 p-4 gap-4">
+      {/* Sidebar - Floating Island Style */}
+      <aside className="w-64 glass-panel flex-col hidden md:flex sticky top-4 h-[calc(100vh-2rem)] rounded-[2rem] overflow-hidden shadow-2xl z-40">
+        <div className="h-20 flex items-center gap-3 px-6 border-b border-border/50">
           <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-primary to-accent flex items-center justify-center shadow-lg shadow-primary/30">
             <Palette className="w-4 h-4 text-white" />
           </div>
@@ -173,11 +171,10 @@ export default function DashboardLayout({
           })}
         </nav>
 
-        <div className="p-4 border-t border-border">
+        <div className="p-4 border-t border-border/50 bg-background/20 backdrop-blur-md flex flex-col gap-2">
           <Link href="/dashboard/account">
-            <div className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all relative group overflow-hidden cursor-pointer ${
-              pathname.startsWith("/dashboard/account") ? "bg-primary/20 border border-primary/30" : "hover:bg-foreground/5"
-            }`}>
+            <div className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all relative group overflow-hidden cursor-pointer ${pathname.startsWith("/dashboard/account") ? "bg-primary/20 border border-primary/30" : "hover:bg-foreground/5"
+              }`}>
               <div className="w-8 h-8 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center font-bold text-primary shrink-0 overflow-hidden">
                 {user.avatar_url
                   ? <img src={user.avatar_url} alt="avatar" className="w-full h-full object-cover" />
@@ -190,28 +187,38 @@ export default function DashboardLayout({
               <UserCircle2 className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
             </div>
           </Link>
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all relative group overflow-hidden cursor-pointer hover:bg-red-500/10"
+          >
+            <div className="w-8 h-8 rounded-full bg-white/5 border border-white/5 flex items-center justify-center text-muted-foreground group-hover:text-red-400 group-hover:border-red-500/20 shrink-0 transition-colors">
+              <LogOut className="w-4 h-4" />
+            </div>
+            <div className="flex-1 min-w-0 text-left">
+              <p className="font-medium text-sm text-foreground/70 group-hover:text-red-400 transition-colors">Logout</p>
+            </div>
+          </button>
         </div>
       </aside>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <header className="h-16 border-b border-border glass-panel sticky top-0 z-50 flex items-center justify-between px-6 md:justify-end">
-          <div className="flex items-center gap-2 md:hidden">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-primary to-accent flex items-center justify-center">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
+        <header className="md:hidden h-16 glass-panel rounded-2xl mb-4 z-40 flex items-center justify-between px-6 shadow-lg">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-primary to-accent flex items-center justify-center shadow-lg shadow-primary/30">
               <Palette className="w-4 h-4 text-white" />
             </div>
             <h1 className="font-bold text-foreground/90">DesignManager</h1>
           </div>
           <button
             onClick={handleLogout}
-            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-red-400 transition-colors px-3 py-1.5 rounded-lg hover:bg-red-400/10"
+            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-red-400 transition-colors px-3 py-1.5 rounded-lg hover:bg-red-400/10 font-medium"
           >
             <LogOut className="w-4 h-4" />
-            <span className="hidden sm:inline">Logout</span>
           </button>
         </header>
 
-        <main className="flex-1 p-6 lg:p-10 relative overflow-y-auto w-full">
+        <main className="flex-1 relative overflow-y-auto w-full pb-10">
           {children}
         </main>
       </div>

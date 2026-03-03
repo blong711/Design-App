@@ -155,34 +155,14 @@ export default function RegisterPage() {
       {/* ── Right Panel (form) ── */}
       <div
         className={`flex flex-col justify-center items-center px-12 py-10 overflow-y-auto ${authLayout === "centered"
-            ? "w-full"
-            : "w-full lg:w-[580px] lg:min-w-[580px]"
+          ? "w-full"
+          : "w-full lg:w-[580px] lg:min-w-[580px]"
           }`}
         style={{ background: authLayout === "centered" ? "#111116" : "#f5f5f7" }}
       >
         <div
           className={`w-full max-w-sm transition-all duration-700 delay-200 ${mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"}`}
         >
-          {/* Logo card */}
-          <div className="flex justify-center mb-6">
-            <div className={`rounded-2xl shadow-lg px-8 py-5 flex items-center gap-1 ${authLayout === "centered" ? "bg-white/10 border border-white/10" : "bg-white"
-              }`}>
-              <span className={`text-3xl font-black tracking-tight ${authLayout === "centered" ? "text-white" : "text-gray-900"}`} style={{ fontFamily: "Georgia, serif" }}>
-                VTN
-              </span>
-              <span
-                className="text-3xl font-light italic ml-1"
-                style={{
-                  fontFamily: "Georgia, serif",
-                  background: "linear-gradient(90deg, #ec4899, #a855f7)",
-                  WebkitBackgroundClip: "text",
-                  WebkitTextFillColor: "transparent",
-                }}
-              >
-                Design
-              </span>
-            </div>
-          </div>
 
           <h2 className={`text-2xl font-bold text-center mb-1 ${authLayout === "centered" ? "text-white" : "text-gray-900"}`}>Create account</h2>
           <p className={`text-sm text-center mb-6 ${authLayout === "centered" ? "text-gray-400" : "text-gray-500"}`}>
@@ -234,9 +214,9 @@ export default function RegisterPage() {
                   value={form.username}
                   onChange={handleChange}
                   className={`w-full border rounded-lg px-3 py-2.5 text-sm outline-none transition-colors duration-300 ${fieldErrors.username ? "border-red-400 focus:border-red-400" :
-                      authLayout === "centered"
-                        ? "bg-white/10 border-white/10 text-white placeholder-gray-500 focus:border-pink-500"
-                        : "bg-white border-gray-200 text-gray-800 placeholder-gray-300 focus:border-pink-500"
+                    authLayout === "centered"
+                      ? "bg-white/10 border-white/10 text-white placeholder-gray-500 focus:border-pink-500"
+                      : "bg-white border-gray-200 text-gray-800 placeholder-gray-300 focus:border-pink-500"
                     }`}
                 />
                 {fieldErrors.username && <p className="text-red-500 text-xs mt-1">{fieldErrors.username}</p>}
@@ -254,9 +234,9 @@ export default function RegisterPage() {
                   value={form.full_name}
                   onChange={handleChange}
                   className={`w-full border rounded-lg px-3 py-2.5 text-sm outline-none transition-colors duration-300 ${fieldErrors.full_name ? "border-red-400 focus:border-red-400" :
-                      authLayout === "centered"
-                        ? "bg-white/10 border-white/10 text-white placeholder-gray-500 focus:border-pink-500"
-                        : "bg-white border-gray-200 text-gray-800 placeholder-gray-300 focus:border-pink-500"
+                    authLayout === "centered"
+                      ? "bg-white/10 border-white/10 text-white placeholder-gray-500 focus:border-pink-500"
+                      : "bg-white border-gray-200 text-gray-800 placeholder-gray-300 focus:border-pink-500"
                     }`}
                 />
                 {fieldErrors.full_name && <p className="text-red-500 text-xs mt-1">{fieldErrors.full_name}</p>}
@@ -274,9 +254,9 @@ export default function RegisterPage() {
                   value={form.email}
                   onChange={handleChange}
                   className={`w-full border rounded-lg px-3 py-2.5 text-sm outline-none transition-colors duration-300 ${fieldErrors.email ? "border-red-400 focus:border-red-400" :
-                      authLayout === "centered"
-                        ? "bg-white/10 border-white/10 text-white placeholder-gray-500 focus:border-pink-500"
-                        : "bg-white border-gray-200 text-gray-800 placeholder-gray-300 focus:border-pink-500"
+                    authLayout === "centered"
+                      ? "bg-white/10 border-white/10 text-white placeholder-gray-500 focus:border-pink-500"
+                      : "bg-white border-gray-200 text-gray-800 placeholder-gray-300 focus:border-pink-500"
                     }`}
                 />
                 {fieldErrors.email && <p className="text-red-500 text-xs mt-1">{fieldErrors.email}</p>}
@@ -295,9 +275,9 @@ export default function RegisterPage() {
                     value={form.password}
                     onChange={handleChange}
                     className={`w-full border rounded-lg px-3 py-2.5 text-sm outline-none transition-colors duration-300 pr-10 ${fieldErrors.password ? "border-red-400 focus:border-red-400" :
-                        authLayout === "centered"
-                          ? "bg-white/10 border-white/10 text-white placeholder-gray-500 focus:border-pink-500"
-                          : "bg-white border-gray-200 text-gray-800 placeholder-gray-300 focus:border-pink-500"
+                      authLayout === "centered"
+                        ? "bg-white/10 border-white/10 text-white placeholder-gray-500 focus:border-pink-500"
+                        : "bg-white border-gray-200 text-gray-800 placeholder-gray-300 focus:border-pink-500"
                       }`}
                   />
                   <button
@@ -324,9 +304,9 @@ export default function RegisterPage() {
                     value={form.confirm_password}
                     onChange={handleChange}
                     className={`w-full border rounded-lg px-3 py-2.5 text-sm outline-none transition-colors duration-300 pr-10 ${fieldErrors.confirm_password ? "border-red-400 focus:border-red-400" :
-                        authLayout === "centered"
-                          ? "bg-white/10 border-white/10 text-white placeholder-gray-500 focus:border-pink-500"
-                          : "bg-white border-gray-200 text-gray-800 placeholder-gray-300 focus:border-pink-500"
+                      authLayout === "centered"
+                        ? "bg-white/10 border-white/10 text-white placeholder-gray-500 focus:border-pink-500"
+                        : "bg-white border-gray-200 text-gray-800 placeholder-gray-300 focus:border-pink-500"
                       }`}
                   />
                   <button
