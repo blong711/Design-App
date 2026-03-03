@@ -56,13 +56,14 @@ export default function DashboardLayout({
     { name: "Overview", href: "/dashboard", icon: LayoutDashboard },
     { name: "All Tickets", href: "/dashboard/tickets", icon: Ticket },
     { name: "Teams", href: "/dashboard/teams", icon: Users },
-    { name: "Users", href: "/dashboard/users", icon: Users },
+    { name: "Users", href: "/dashboard/users", icon: UserCircle2 },
     { name: "API Keys", href: "/dashboard/api-keys", icon: Settings },
   ];
 
   const managerLinks = [
     { name: "Overview", href: "/dashboard", icon: LayoutDashboard },
     { name: "All Tickets", href: "/dashboard/tickets", icon: Ticket },
+    { name: "Teams", href: "/dashboard/teams", icon: Users },
   ];
 
   const designerLinks = [
