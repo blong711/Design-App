@@ -9,6 +9,10 @@ RUN npm ci
 # Copy the rest of the application
 COPY . .
 
+# Accept build-time API URL (NEXT_PUBLIC_ vars must be baked in at build time)
+ARG NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+
 # Build the Next.js application
 RUN npm run build
 
