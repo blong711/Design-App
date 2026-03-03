@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
-import { LogOut, Palette, LayoutDashboard, Ticket, Settings, Activity, Users, UserCircle2 } from "lucide-react";
+import { LogOut, Palette, LayoutDashboard, Ticket, Settings, Activity, Users, UserCircle2, Wallet } from "lucide-react";
 import { motion } from "framer-motion";
 import { useSettings } from "@/lib/settings-context";
 
@@ -69,6 +69,7 @@ export default function DashboardLayout({
   const designerLinks = [
     { name: "Overview", href: "/dashboard", icon: LayoutDashboard },
     { name: "Kanban Board", href: "/dashboard/board", icon: Activity },
+    { name: "My Earnings", href: "/dashboard/earnings", icon: Wallet },
   ];
 
   const links = user?.role === "admin"
