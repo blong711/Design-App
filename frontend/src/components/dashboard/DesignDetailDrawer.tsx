@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { api } from "@/lib/api";
 import { useToast } from "@/lib/toast";
 import { useSettings } from "@/lib/settings-context";
-import { X, MessageSquare, Send, Clock, User, DollarSign, ExternalLink, Image as ImageIcon, ArrowRight, RefreshCw } from "lucide-react";
+import { X, MessageSquare, Send, Clock, User, DollarSign, ExternalLink, Image as ImageIcon, ArrowRight, RefreshCw, ChevronDown, Check } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface Comment {
@@ -38,9 +38,13 @@ interface DesignDetailDrawerProps {
 export default function DesignDetailDrawer({ designId, onClose, currentUser }: DesignDetailDrawerProps) {
     const [design, setDesign] = useState<any>(null);
     const [activity, setActivity] = useState<ActivityItem[]>([]);
+    const [designers, setDesigners] = useState<any[]>([]);
     const [newComment, setNewComment] = useState("");
     const [loading, setLoading] = useState(false);
     const [sending, setSending] = useState(false);
+    const [assigning, setAssigning] = useState(false);
+    const [showDesignerSelect, setShowDesignerSelect] = useState(false);
+    const dropdownRef = useRef<HTMLDivElement>(null);
     const { colorScheme } = useSettings();
     const toast = useToast();
     const scrollRef = useRef<HTMLDivElement>(null);
@@ -60,9 +64,22 @@ export default function DesignDetailDrawer({ designId, onClose, currentUser }: D
     const borderCommentOther = isDark ? "border-white/5" : "border-gray-300";
 
     useEffect(() => {
+        function handleClickOutside(event: MouseEvent) {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+                setShowDesignerSelect(false);
+            }
+        }
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
+
+    useEffect(() => {
         if (designId) {
             fetchDesignDetails();
             fetchActivity();
+            if (currentUser?.role === "admin") {
+                fetchDesigners();
+            }
 
             // Auto-refresh activity every 3 seconds
             const interval = setInterval(() => {
@@ -97,6 +114,29 @@ export default function DesignDetailDrawer({ designId, onClose, currentUser }: D
             setActivity(res.data);
         } catch (err) {
             console.error("Failed to load activity");
+        }
+    };
+
+    const fetchDesigners = async () => {
+        try {
+            const res = await api.get("/users?role=designer");
+            setDesigners(res.data);
+        } catch (err) {
+            console.error("Failed to load designers");
+        }
+    };
+
+    const handleAssign = async (designerId: string) => {
+        try {
+            setAssigning(true);
+            await api.patch(`/designs/${designId}/assign`, { assigned_to: designerId || null });
+            toast(designerId ? "Design assigned successfully" : "Design unassigned", "success");
+            fetchDesignDetails(); // Refresh design data
+            fetchActivity(); // Refresh history
+        } catch (err: any) {
+            toast(err.response?.data?.detail || "Failed to assign design", "error");
+        } finally {
+            setAssigning(false);
         }
     };
 
@@ -175,21 +215,89 @@ export default function DesignDetailDrawer({ designId, onClose, currentUser }: D
                                         </div>
                                     </div>
 
-                                    {/* Assignee - Hidden for customers */}
-                                    {currentUser?.role !== "customer" && (
+                                    {/* Assignee - Admin Assign Dropdown or Designer View */}
+                                    {currentUser?.role === "admin" ? (
                                         <div>
                                             <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-widest mb-3">Assignee</h3>
-                                            <div className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-muted/50 border border-border">
+                                            <div className={`flex items-center gap-3 px-4 py-3 rounded-2xl ${bgCard} ${borderColor} border`}>
+                                                <div className="w-8 h-8 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center font-bold text-primary text-sm shrink-0">
+                                                    {design.assigned_user?.full_name?.charAt(0)?.toUpperCase() || "U"}
+                                                </div>
+                                                <div className="flex-1 flex items-center justify-between">
+                                                    <div>
+                                                        <p className={`text-sm font-medium ${textPrimary}`}>{design.assigned_user?.full_name || "Unassigned"}</p>
+                                                        <p className="text-xs text-muted-foreground">{design.assigned_user ? `@${design.assigned_user.username}` : "Pending assignment"}</p>
+                                                    </div>
+                                                    <div className="relative" ref={dropdownRef}>
+                                                        <button
+                                                            onClick={() => setShowDesignerSelect(!showDesignerSelect)}
+                                                            disabled={assigning}
+                                                            className={`flex items-center justify-between gap-2 px-3 py-2 rounded-xl text-sm font-medium ${bgInput} ${borderColor} border ${textPrimary} hover:border-primary/50 transition-colors w-48`}
+                                                        >
+                                                            <span className="truncate">
+                                                                {design.assigned_user?.full_name || "-- Unassigned --"}
+                                                            </span>
+                                                            <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${showDesignerSelect ? 'rotate-180' : ''}`} />
+                                                        </button>
+
+                                                        <AnimatePresence>
+                                                            {showDesignerSelect && (
+                                                                <motion.div
+                                                                    initial={{ opacity: 0, y: 10 }}
+                                                                    animate={{ opacity: 1, y: 0 }}
+                                                                    exit={{ opacity: 0, y: 10 }}
+                                                                    className={`absolute bottom-full right-0 mb-2 w-56 rounded-xl border ${borderColor} ${bgMain} shadow-2xl overflow-hidden z-[10005]`}
+                                                                >
+                                                                    <div className="max-h-60 overflow-y-auto custom-scrollbar p-1">
+                                                                        <button
+                                                                            onClick={() => { handleAssign(""); setShowDesignerSelect(false); }}
+                                                                            className={`w-full text-left px-3 py-2.5 rounded-lg text-sm flex items-center gap-2 transition-colors ${!design.assigned_user ? 'bg-primary/10 text-primary' : `${isDark ? 'hover:bg-white/5' : 'hover:bg-gray-100'} ${textPrimary}`}`}
+                                                                        >
+                                                                            <div className="w-4 flex justify-center shrink-0">
+                                                                                {!design.assigned_user && <Check className="w-4 h-4" />}
+                                                                            </div>
+                                                                            <span className="font-medium">-- Unassigned --</span>
+                                                                        </button>
+                                                                        {designers.map((d: any) => {
+                                                                            const isSelected = design.assigned_user?.id === d.id;
+                                                                            return (
+                                                                                <button
+                                                                                    key={d.id}
+                                                                                    onClick={() => { handleAssign(d.id); setShowDesignerSelect(false); }}
+                                                                                    className={`w-full text-left px-3 py-2.5 rounded-lg text-sm flex items-center gap-2 transition-colors ${isSelected ? 'bg-primary/10 text-primary' : `${isDark ? 'hover:bg-white/5' : 'hover:bg-gray-100'} ${textPrimary}`}`}
+                                                                                >
+                                                                                    <div className="w-4 flex justify-center shrink-0">
+                                                                                        {isSelected && <Check className="w-4 h-4" />}
+                                                                                    </div>
+                                                                                    <div className="flex-1 min-w-0">
+                                                                                        <p className="font-medium truncate">{d.full_name}</p>
+                                                                                        <p className={`text-[10px] truncate ${isSelected ? 'text-primary/70' : 'text-muted-foreground'}`}>@{d.username}</p>
+                                                                                    </div>
+                                                                                </button>
+                                                                            );
+                                                                        })}
+                                                                    </div>
+                                                                </motion.div>
+                                                            )}
+                                                        </AnimatePresence>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ) : currentUser?.role === "designer" ? (
+                                        <div>
+                                            <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-widest mb-3">Assignee</h3>
+                                            <div className={`flex items-center gap-3 px-4 py-3 rounded-2xl ${bgCard} ${borderColor} border`}>
                                                 <div className="w-8 h-8 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center font-bold text-primary text-sm shrink-0">
                                                     {design.assigned_user?.full_name?.charAt(0)?.toUpperCase() || "U"}
                                                 </div>
                                                 <div>
-                                                    <p className="text-sm font-medium text-foreground">{design.assigned_user?.full_name || "Unassigned"}</p>
+                                                    <p className={`text-sm font-medium ${textPrimary}`}>{design.assigned_user?.full_name || "Unassigned"}</p>
                                                     <p className="text-xs text-muted-foreground">{design.assigned_user ? `@${design.assigned_user.username}` : "Pending assignment"}</p>
                                                 </div>
                                             </div>
                                         </div>
-                                    )}
+                                    ) : null}
 
                                     {/* Description */}
                                     <div>

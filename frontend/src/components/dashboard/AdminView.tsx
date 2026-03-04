@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
 import { useToast } from "@/lib/toast";
-import { Plus, DollarSign, Activity, FileCheck, AlertCircle, X, Upload, ImageIcon, Loader2, CheckCircle2, UserPlus, ChevronDown, Paintbrush, Calendar, Filter, Check, Clock, AlertTriangle, ArrowUpRight, History } from "lucide-react";
+import { Plus, DollarSign, Activity, FileCheck, AlertCircle, X, Upload, ImageIcon, Loader2, CheckCircle2, UserPlus, ChevronDown, ChevronLeft, ChevronRight, Paintbrush, Calendar, Filter, Check, Clock, AlertTriangle, ArrowUpRight, History } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { formatVietnamDate, formatVietnamDateTime } from "@/lib/date-utils";
 
@@ -467,6 +467,8 @@ export default function AdminView() {
   const [hoveredStatus, setHoveredStatus] = useState<string | null>(null);
   const [selectedDesigner, setSelectedDesigner] = useState("");
   const [selectedMonth, setSelectedMonth] = useState("");
+  const [overdueTicketsPage, setOverdueTicketsPage] = useState(1);
+  const OVERDUE_PAGE_SIZE = 15;
 
   const tickets = designs;
 
@@ -1300,72 +1302,112 @@ export default function AdminView() {
                   </tr>
                 </thead>
                 <tbody>
-                  {overdueTickets.map(({ ticket, daysInStatus, threshold, severity }) => (
-                    <tr key={ticket.id} className="border-b border-border hover:bg-foreground/5 transition-colors group">
-                      <td className="py-4 px-4">
-                        <div className="flex items-center gap-3">
-                          {ticket.image_url && (
-                            <img src={ticket.image_url} alt="" className="w-10 h-10 rounded-lg object-cover shrink-0 border border-border" />
+                  {(() => {
+                    const totalODPages = Math.max(1, Math.ceil(overdueTickets.length / OVERDUE_PAGE_SIZE));
+                    const paged = overdueTickets.slice((overdueTicketsPage - 1) * OVERDUE_PAGE_SIZE, overdueTicketsPage * OVERDUE_PAGE_SIZE);
+                    return paged.map(({ ticket, daysInStatus, threshold, severity }) => (
+                      <tr key={ticket.id} className="border-b border-border hover:bg-foreground/5 transition-colors group">
+                        <td className="py-4 px-4">
+                          <div className="flex items-center gap-3">
+                            {ticket.image_url && (
+                              <img src={ticket.image_url} alt="" className="w-10 h-10 rounded-lg object-cover shrink-0 border border-border" />
+                            )}
+                            <div>
+                              <div className="font-semibold text-foreground flex items-center gap-2">
+                                {ticket.title}
+                                {severity === 'danger' && (
+                                  <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" title="Critical" />
+                                )}
+                              </div>
+                              <div className="text-xs text-muted-foreground mt-1 truncate max-w-[200px]">{ticket.description}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-4 px-4">
+                          <span className="px-3 py-1 rounded-full text-xs font-medium border border-border"
+                            style={{
+                              backgroundColor:
+                                ticket.status === 'review' ? 'rgba(250, 204, 21, 0.1)' :
+                                  ticket.status === 'in_progress' ? 'rgba(96, 165, 250, 0.1)' :
+                                    ticket.status === 'assigned' ? 'rgba(168, 85, 247, 0.1)' : 'rgba(128,128,128,0.1)',
+                              color:
+                                ticket.status === 'review' ? '#facc15' :
+                                  ticket.status === 'in_progress' ? '#60a5fa' :
+                                    ticket.status === 'assigned' ? '#a855f7' : '#a1a1aa'
+                            }}
+                          >
+                            {ticket.status.replace("_", " ").toUpperCase()}
+                          </span>
+                        </td>
+                        <td className="py-4 px-4 text-sm">
+                          {ticket.assigned_to ? (
+                            <div className="flex items-center gap-2">
+                              <div className="w-7 h-7 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center text-primary text-xs font-bold">
+                                {designerMap[ticket.assigned_to]?.charAt(0)?.toUpperCase() || "?"}
+                              </div>
+                              <span className="text-foreground font-medium">{designerMap[ticket.assigned_to] || "Unknown"}</span>
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground italic">Unassigned</span>
                           )}
-                          <div>
-                            <div className="font-semibold text-foreground flex items-center gap-2">
-                              {ticket.title}
-                              {severity === 'danger' && (
-                                <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" title="Critical" />
-                              )}
-                            </div>
-                            <div className="text-xs text-muted-foreground mt-1 truncate max-w-[200px]">{ticket.description}</div>
+                        </td>
+                        <td className="py-4 px-4 text-center">
+                          <div className="flex items-center justify-center gap-1.5">
+                            <Clock className="w-3.5 h-3.5 text-muted-foreground" />
+                            <span className="font-semibold text-foreground">{daysInStatus}</span>
+                            <span className="text-xs text-muted-foreground">days</span>
                           </div>
-                        </div>
-                      </td>
-                      <td className="py-4 px-4">
-                        <span className="px-3 py-1 rounded-full text-xs font-medium border border-border"
-                          style={{
-                            backgroundColor:
-                              ticket.status === 'review' ? 'rgba(250, 204, 21, 0.1)' :
-                                ticket.status === 'in_progress' ? 'rgba(96, 165, 250, 0.1)' :
-                                  ticket.status === 'assigned' ? 'rgba(168, 85, 247, 0.1)' : 'rgba(128,128,128,0.1)',
-                            color:
-                              ticket.status === 'review' ? '#facc15' :
-                                ticket.status === 'in_progress' ? '#60a5fa' :
-                                  ticket.status === 'assigned' ? '#a855f7' : '#a1a1aa'
-                          }}
-                        >
-                          {ticket.status.replace("_", " ").toUpperCase()}
-                        </span>
-                      </td>
-                      <td className="py-4 px-4 text-sm">
-                        {ticket.assigned_to ? (
-                          <div className="flex items-center gap-2">
-                            <div className="w-7 h-7 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center text-primary text-xs font-bold">
-                              {designerMap[ticket.assigned_to]?.charAt(0)?.toUpperCase() || "?"}
-                            </div>
-                            <span className="text-foreground font-medium">{designerMap[ticket.assigned_to] || "Unknown"}</span>
-                          </div>
-                        ) : (
-                          <span className="text-muted-foreground italic">Unassigned</span>
-                        )}
-                      </td>
-                      <td className="py-4 px-4 text-center">
-                        <div className="flex items-center justify-center gap-1.5">
-                          <Clock className="w-3.5 h-3.5 text-muted-foreground" />
-                          <span className="font-semibold text-foreground">{daysInStatus}</span>
-                          <span className="text-xs text-muted-foreground">days</span>
-                        </div>
-                      </td>
-                      <td className="py-4 px-4 text-center">
-                        <span className="text-sm text-muted-foreground">{threshold} days</span>
-                      </td>
-                      <td className="py-4 px-4 text-right">
-                        <span className={`font-bold text-lg ${severity === 'danger' ? 'text-red-400' : 'text-amber-400'}`}>
-                          +{daysInStatus - threshold} days
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+                        <td className="py-4 px-4 text-center">
+                          <span className="text-sm text-muted-foreground">{threshold} days</span>
+                        </td>
+                        <td className="py-4 px-4 text-right">
+                          <span className={`font-bold text-lg ${severity === 'danger' ? 'text-red-400' : 'text-amber-400'}`}>
+                            +{daysInStatus - threshold} days
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  })()}
                 </tbody>
               </table>
             </div>
+
+            {/* Pagination Controls */}
+            {(() => {
+              const totalODPages = Math.max(1, Math.ceil(overdueTickets.length / OVERDUE_PAGE_SIZE));
+              if (totalODPages <= 1) return null;
+              return (
+                <div className="flex items-center justify-between mt-4 pt-4 border-t border-amber-500/20">
+                  <p className="text-sm text-muted-foreground">
+                    Showing{" "}
+                    <span className="font-semibold text-foreground">{(overdueTicketsPage - 1) * OVERDUE_PAGE_SIZE + 1}</span>
+                    {"–"}
+                    <span className="font-semibold text-foreground">{Math.min(overdueTicketsPage * OVERDUE_PAGE_SIZE, overdueTickets.length)}</span>
+                    {" of "}
+                    <span className="font-semibold text-foreground">{overdueTickets.length}</span> overdue tickets
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => setOverdueTicketsPage((p) => Math.max(1, p - 1))} disabled={overdueTicketsPage === 1} className="w-9 h-9 flex items-center justify-center rounded-lg border border-border bg-foreground/5 hover:bg-foreground/10 disabled:opacity-40 disabled:cursor-not-allowed transition-all">
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+                    {Array.from({ length: Math.min(5, totalODPages) }, (_, i) => {
+                      const startPage = Math.max(1, Math.min(overdueTicketsPage - 2, totalODPages - 4));
+                      const p = startPage + i;
+                      if (p > totalODPages) return null;
+                      return (
+                        <button key={p} onClick={() => setOverdueTicketsPage(p)} className={`w-9 h-9 flex items-center justify-center rounded-lg border text-sm font-semibold transition-all ${overdueTicketsPage === p ? "bg-amber-500 border-amber-500 text-white shadow-md shadow-amber-500/30" : "border-border bg-foreground/5 hover:bg-foreground/10 text-foreground"}`}>
+                          {p}
+                        </button>
+                      );
+                    })}
+                    <button onClick={() => setOverdueTicketsPage((p) => Math.min(totalODPages, p + 1))} disabled={overdueTicketsPage === totalODPages} className="w-9 h-9 flex items-center justify-center rounded-lg border border-border bg-foreground/5 hover:bg-foreground/10 disabled:opacity-40 disabled:cursor-not-allowed transition-all">
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Summary Stats */}
             <div className="mt-6 grid grid-cols-1 md:grid-cols-4 gap-4">

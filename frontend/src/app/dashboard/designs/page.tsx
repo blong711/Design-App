@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
-import { Filter, Search, X, ChevronDown, Plus } from "lucide-react";
+import { Filter, Search, X, ChevronDown, ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { formatVietnamDate } from "@/lib/date-utils";
 import DesignDetailDrawer from "@/components/dashboard/DesignDetailDrawer";
 import NewDesignDrawer from "@/components/dashboard/NewDesignDrawer";
@@ -39,6 +39,8 @@ export default function DesignsPage() {
   const [statusFilter, setStatusFilter] = useState<string[]>([]);
   const [paymentFilter, setPaymentFilter] = useState<string[]>([]);
   const filterRef = useRef<HTMLDivElement>(null);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 20;
 
   const fetchDesigns = async () => {
     try {
@@ -76,13 +78,17 @@ export default function DesignsPage() {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  const toggleStatus = (s: string) =>
+  const toggleStatus = (s: string) => {
+    setPage(1);
     setStatusFilter((prev) => prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]);
+  };
 
-  const togglePayment = (p: string) =>
+  const togglePayment = (p: string) => {
+    setPage(1);
     setPaymentFilter((prev) => prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p]);
+  };
 
-  const clearFilters = () => { setStatusFilter([]); setPaymentFilter([]); };
+  const clearFilters = () => { setStatusFilter([]); setPaymentFilter([]); setPage(1); };
 
   const activeFilterCount = statusFilter.length + paymentFilter.length;
 
@@ -99,6 +105,12 @@ export default function DesignsPage() {
 
     return matchSearch && matchStatus && matchPayment;
   });
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  // Reset page when search or filters change
+  useEffect(() => { setPage(1); }, [search, statusFilter, paymentFilter]);
 
   if (loading) return <div className="animate-pulse text-muted-foreground py-10">Loading designs...</div>;
 
@@ -284,7 +296,7 @@ export default function DesignsPage() {
                     </td>
                   </tr>
                 )}
-                {filtered.map((design) => {
+                {paginated.map((design) => {
                   const assignee = design.assigned_to ? userMap[design.assigned_to] : null;
                   const statusStyle = STATUS_STYLE[design.status] ?? STATUS_STYLE.pending;
 
@@ -353,6 +365,50 @@ export default function DesignsPage() {
             </table>
           </div>
         </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between pt-4">
+            <p className="text-sm text-muted-foreground">
+              Showing{" "}
+              <span className="font-semibold text-foreground">{(page - 1) * PAGE_SIZE + 1}</span>
+              {"–"}
+              <span className="font-semibold text-foreground">{Math.min(page * PAGE_SIZE, filtered.length)}</span>
+              {" of "}
+              <span className="font-semibold text-foreground">{filtered.length}</span> designs
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page === 1}
+                className="w-9 h-9 flex items-center justify-center rounded-lg border border-border bg-foreground/5 hover:bg-foreground/10 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                const startPage = Math.max(1, Math.min(page - 2, totalPages - 4));
+                const p = startPage + i;
+                if (p > totalPages) return null;
+                return (
+                  <button
+                    key={p}
+                    onClick={() => setPage(p)}
+                    className={`w-9 h-9 flex items-center justify-center rounded-lg border text-sm font-semibold transition-all ${page === p ? "bg-primary border-primary text-white shadow-md shadow-primary/30" : "border-border bg-foreground/5 hover:bg-foreground/10 text-foreground"}`}
+                  >
+                    {p}
+                  </button>
+                );
+              })}
+              <button
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages}
+                className="w-9 h-9 flex items-center justify-center rounded-lg border border-border bg-foreground/5 hover:bg-foreground/10 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       <DesignDetailDrawer

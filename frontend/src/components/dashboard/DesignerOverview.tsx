@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
-import { CheckCircle2, DollarSign, Activity, AlertCircle, Eye, Clock, Calendar, ExternalLink, Filter, MessageSquare } from "lucide-react";
+import { CheckCircle2, DollarSign, Activity, AlertCircle, Eye, Clock, Calendar, ExternalLink, Filter, MessageSquare, ChevronLeft, ChevronRight } from "lucide-react";
 import { motion } from "framer-motion";
 import DesignDetailDrawer from "@/components/dashboard/DesignDetailDrawer";
+import { getTimeAgo } from "@/lib/date-utils";
 
 export default function DesignerOverview({ user }: { user: any }) {
   const [stats, setStats] = useState<any>(null);
@@ -12,6 +13,10 @@ export default function DesignerOverview({ user }: { user: any }) {
   const [selectedHistoryMonth, setSelectedHistoryMonth] = useState<string>("all");
   const [selectedDesignId, setSelectedDesignId] = useState<string | null>(null);
   const [viewedDesignIds, setViewedDesignIds] = useState<Set<string>>(new Set());
+  const [activePage, setActivePage] = useState(1);
+  const [completedPage, setCompletedPage] = useState(1);
+  const ACTIVE_PAGE_SIZE = 20;
+  const COMPLETED_PAGE_SIZE = 20;
 
   // Load viewedDesignIds from localStorage when user is available
   useEffect(() => {
@@ -64,6 +69,8 @@ export default function DesignerOverview({ user }: { user: any }) {
 
   // Get active designs (not completed)
   const activeDesigns = designs.filter(t => t.status !== 'completed');
+  const totalActivePages = Math.max(1, Math.ceil(activeDesigns.length / ACTIVE_PAGE_SIZE));
+  const paginatedActiveDesigns = activeDesigns.slice((activePage - 1) * ACTIVE_PAGE_SIZE, activePage * ACTIVE_PAGE_SIZE);
 
   // Get completed designs
   const completedDesigns = designs.filter(t => t.status === 'completed');
@@ -82,6 +89,11 @@ export default function DesignerOverview({ user }: { user: any }) {
     });
   };
 
+  // Reset completed page when filter changes
+  useEffect(() => {
+    setCompletedPage(1);
+  }, [selectedHistoryMonth]);
+
   // Format time ago
   const formatDate = (dateString: string) => {
     return formatVietnamDate(dateString);
@@ -90,6 +102,8 @@ export default function DesignerOverview({ user }: { user: any }) {
   if (!stats) return <div className="animate-pulse">Loading overview...</div>;
 
   const filteredCompletedDesigns = getFilteredCompletedDesigns();
+  const totalCompletedPages = Math.max(1, Math.ceil(filteredCompletedDesigns.length / COMPLETED_PAGE_SIZE));
+  const paginatedCompletedDesigns = filteredCompletedDesigns.slice((completedPage - 1) * COMPLETED_PAGE_SIZE, completedPage * COMPLETED_PAGE_SIZE);
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
@@ -162,7 +176,7 @@ export default function DesignerOverview({ user }: { user: any }) {
                   </td>
                 </tr>
               )}
-              {activeDesigns.map((design, index) => (
+              {paginatedActiveDesigns.map((design, index) => (
                 <motion.tr
                   key={design.id}
                   initial={{ opacity: 0, x: -20 }}
@@ -255,6 +269,50 @@ export default function DesignerOverview({ user }: { user: any }) {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination Controls */}
+        {totalActivePages > 1 && (
+          <div className="flex items-center justify-between mt-6 pt-4 border-t border-border">
+            <p className="text-sm text-muted-foreground">
+              Showing <span className="font-semibold text-foreground">{(activePage - 1) * ACTIVE_PAGE_SIZE + 1}</span>–<span className="font-semibold text-foreground">{Math.min(activePage * ACTIVE_PAGE_SIZE, activeDesigns.length)}</span> of <span className="font-semibold text-foreground">{activeDesigns.length}</span> designs
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setActivePage(p => Math.max(1, p - 1))}
+                disabled={activePage === 1}
+                className="w-9 h-9 flex items-center justify-center rounded-lg border border-border bg-foreground/5 hover:bg-foreground/10 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+
+              {Array.from({ length: Math.min(5, totalActivePages) }, (_, i) => {
+                const startPage = Math.max(1, Math.min(activePage - 2, totalActivePages - 4));
+                const page = startPage + i;
+                if (page > totalActivePages) return null;
+                return (
+                  <button
+                    key={page}
+                    onClick={() => setActivePage(page)}
+                    className={`w-9 h-9 flex items-center justify-center rounded-lg border text-sm font-semibold transition-all ${activePage === page
+                      ? 'bg-primary border-primary text-white shadow-md shadow-primary/30'
+                      : 'border-border bg-foreground/5 hover:bg-foreground/10 text-foreground'
+                      }`}
+                  >
+                    {page}
+                  </button>
+                );
+              })}
+
+              <button
+                onClick={() => setActivePage(p => Math.min(totalActivePages, p + 1))}
+                disabled={activePage === totalActivePages}
+                className="w-9 h-9 flex items-center justify-center rounded-lg border border-border bg-foreground/5 hover:bg-foreground/10 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
       </motion.div>
 
       {/* Completed Designs History */}
@@ -308,7 +366,7 @@ export default function DesignerOverview({ user }: { user: any }) {
                   </td>
                 </tr>
               )}
-              {filteredCompletedDesigns.slice(0, 10).map((design, index) => (
+              {paginatedCompletedDesigns.map((design, index) => (
                 <motion.tr
                   key={design.id}
                   initial={{ opacity: 0, x: -20 }}
@@ -403,9 +461,47 @@ export default function DesignerOverview({ user }: { user: any }) {
           </table>
         </div>
 
-        {filteredCompletedDesigns.length > 10 && (
-          <div className="mt-4 text-center text-sm text-muted-foreground">
-            Showing 10 of {filteredCompletedDesigns.length} completed designs
+        {/* Pagination Controls */}
+        {totalCompletedPages > 1 && (
+          <div className="flex items-center justify-between mt-6 pt-4 border-t border-border">
+            <p className="text-sm text-muted-foreground">
+              Showing <span className="font-semibold text-foreground">{(completedPage - 1) * COMPLETED_PAGE_SIZE + 1}</span>–<span className="font-semibold text-foreground">{Math.min(completedPage * COMPLETED_PAGE_SIZE, filteredCompletedDesigns.length)}</span> of <span className="font-semibold text-foreground">{filteredCompletedDesigns.length}</span> completed designs
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCompletedPage(p => Math.max(1, p - 1))}
+                disabled={completedPage === 1}
+                className="w-9 h-9 flex items-center justify-center rounded-lg border border-border bg-foreground/5 hover:bg-foreground/10 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+
+              {Array.from({ length: Math.min(5, totalCompletedPages) }, (_, i) => {
+                const startPage = Math.max(1, Math.min(completedPage - 2, totalCompletedPages - 4));
+                const page = startPage + i;
+                if (page > totalCompletedPages) return null;
+                return (
+                  <button
+                    key={page}
+                    onClick={() => setCompletedPage(page)}
+                    className={`w-9 h-9 flex items-center justify-center rounded-lg border text-sm font-semibold transition-all ${completedPage === page
+                        ? 'bg-primary border-primary text-white shadow-md shadow-primary/30'
+                        : 'border-border bg-foreground/5 hover:bg-foreground/10 text-foreground'
+                      }`}
+                  >
+                    {page}
+                  </button>
+                );
+              })}
+
+              <button
+                onClick={() => setCompletedPage(p => Math.min(totalCompletedPages, p + 1))}
+                disabled={completedPage === totalCompletedPages}
+                className="w-9 h-9 flex items-center justify-center rounded-lg border border-border bg-foreground/5 hover:bg-foreground/10 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         )}
       </motion.div>
