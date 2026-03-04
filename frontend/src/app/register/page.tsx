@@ -175,16 +175,19 @@ export default function RegisterPage() {
           {/* Success state */}
           {success ? (
             <div className="flex flex-col items-center gap-4 py-8 text-center">
-              <div className="w-16 h-16 rounded-full bg-amber-100 flex items-center justify-center">
-                <Check className="w-8 h-8 text-amber-500" />
+              <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center">
+                <Check className="w-8 h-8 text-green-500" />
               </div>
               <div>
                 <p className={`font-semibold text-lg mb-1 ${authLayout === "centered" ? "text-white" : "text-gray-800"}`}>
-                  Registration successful!
+                  Check your email!
                 </p>
                 <p className={`text-sm leading-relaxed ${authLayout === "centered" ? "text-gray-400" : "text-gray-500"}`}>
-                  Your account is <strong>pending activation</strong>.<br />
-                  Please contact an admin to activate your account before logging in.
+                  We've sent a verification link to <strong>{form.email}</strong>.<br />
+                  Please check your inbox and click the link to activate your account.
+                </p>
+                <p className={`text-xs mt-3 ${authLayout === "centered" ? "text-gray-500" : "text-gray-400"}`}>
+                  Don't see the email? Check your spam folder.
                 </p>
               </div>
               <Link

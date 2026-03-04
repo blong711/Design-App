@@ -11,6 +11,7 @@ class UserBase(BaseModel):
     role: str = Field(default="customer", description="admin, customer, or designer")
     balance: float = 0.0
     is_active: bool = True
+    email_verified: bool = False
 
 class UserCreate(UserBase):
     password: str
@@ -34,6 +35,7 @@ class UserInDB(UserBase):
     hashed_password: str
     avatar_url: Optional[str] = None
     balance: float = 0.0
+    verification_token: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     class Config:

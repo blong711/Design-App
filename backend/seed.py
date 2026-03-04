@@ -24,6 +24,7 @@ async def seed():
             "full_name": "System Administrator",
             "role": "admin",
             "is_active": True,
+            "email_verified": True,
             "hashed_password": get_password_hash("password123"),
             "created_at": datetime.now(timezone.utc)
         }
@@ -42,6 +43,7 @@ async def seed():
             "full_name": "Pro Designer",
             "role": "designer",
             "is_active": True,
+            "email_verified": True,
             "hashed_password": get_password_hash("designer123"),
             "created_at": datetime.now(timezone.utc)
         }
