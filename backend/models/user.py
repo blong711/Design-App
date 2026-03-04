@@ -8,8 +8,7 @@ class UserBase(BaseModel):
     username: str
     email: EmailStr
     full_name: str
-    role: str = Field(default="designer", description="admin, manager, or designer")
-    team_id: Optional[str] = None
+    role: str = Field(default="customer", description="admin, customer, or designer")
     is_active: bool = True
 
 class UserCreate(UserBase):
@@ -24,7 +23,6 @@ class ProfileUpdate(BaseModel):
     full_name: Optional[str] = None
     email: Optional[EmailStr] = None
     avatar_url: Optional[str] = None
-    team_id: Optional[str] = None
 
 class PasswordChange(BaseModel):
     current_password: str
@@ -34,7 +32,6 @@ class UserInDB(UserBase):
     id: PyObjectId = Field(default_factory=lambda: ObjectId(), alias="_id")
     hashed_password: str
     avatar_url: Optional[str] = None
-    team_id: Optional[PyObjectId] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     class Config:
@@ -44,17 +41,14 @@ class UserInDB(UserBase):
 class UserResponse(UserBase):
     id: str
     avatar_url: Optional[str] = None
-    team_id: Optional[str] = None
 
     @classmethod
     def from_mongo(cls, data: dict):
         if not data:
             return data
-        data_copy = {k: v for k, v in data.items() if k not in ["_id", "team_id"]}
+        data_copy = {k: v for k, v in data.items() if k not in ["_id"]}
         id = data.get("_id")
-        team_id = data.get("team_id")
         return cls(
             **data_copy, 
-            id=str(id) if id else "",
-            team_id=str(team_id) if team_id else None
+            id=str(id) if id else ""
         )

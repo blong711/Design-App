@@ -52,9 +52,9 @@ async def seed():
         designer_id = designer_exists["_id"]
         print("Designer user already exists")
         
-    # Seed 1 dummy ticket
-    ticket_exists = await db.design_tickets.find_one({"title": "Design new Logo"})
-    if not ticket_exists and designer_id:
+    # Seed 1 dummy design
+    design_exists = await db.designs.find_one({"title": "Design new Logo"})
+    if not design_exists and designer_id:
         ti = {
             "title": "Design new Logo",
             "description": "Create a new cyber logo for the frontpage.",
@@ -72,8 +72,8 @@ async def seed():
             "completed_at": None,
             "is_deleted": False
         }
-        await db.design_tickets.insert_one(ti)
-        print("Created dummy ticket")
+        await db.designs.insert_one(ti)
+        print("Created dummy design")
 
     client.close()
 

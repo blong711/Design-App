@@ -1,22 +1,21 @@
 services:
   database:
     image: mongo:6.0
-    container_name: design_app_db
+    container_name: design_app_db_dev
     volumes:
-      - db_data:/data/db
+      - db_data_dev:/data/db
     restart: always
 
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: design_app_backend
+    container_name: design_app_backend_dev
     ports:
       - "8000:8000"
     environment:
       - MONGODB_URL=mongodb://database:27017
-      - MONGODB_DB=design_manager
-    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+      - MONGODB_DB=design_manager_dev
     volumes:
       - ./backend:/app
       - /app/node_modules
@@ -28,7 +27,7 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile.dev
-    container_name: design_app_frontend
+    container_name: design_app_frontend_dev
     ports:
       - "3000:3000"
     environment:
@@ -43,4 +42,4 @@ services:
     restart: always
 
 volumes:
-  db_data:
+  db_data_dev:

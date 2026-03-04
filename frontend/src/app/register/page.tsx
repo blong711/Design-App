@@ -108,7 +108,7 @@ export default function RegisterPage() {
 
           <div className={`transition-all duration-700 delay-100 ${mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}>
             <h1 className="text-5xl font-extrabold leading-tight text-white mb-4">
-              Join our team of
+              Join our community of
               <br />
               <span
                 style={{

@@ -114,7 +114,7 @@ async def local_upload(
     content_type = request.headers.get("Content-Type", "application/octet-stream")
     
     # Security: validate object_key starts with allowed prefixes
-    if not (object_key.startswith("results/") or object_key.startswith("avatars/") or object_key.startswith("tickets/")):
+    if not (object_key.startswith("results/") or object_key.startswith("avatars/") or object_key.startswith("designs/")):
         raise HTTPException(status_code=400, detail="Invalid object key prefix")
         
     public_url = upload_to_s3(file_bytes, object_key, content_type)
@@ -141,19 +141,19 @@ async def upload_avatar(
     return {"public_url": public_url}
 
 
-# ─── Ticket reference image upload ───────────────────────────────────────────
+# ─── Design reference image upload ───────────────────────────────────────────
 
-@router.post("/upload/ticket-image")
-async def upload_ticket_image(
+@router.post("/upload/design-image")
+async def upload_design_image(
     file: UploadFile = File(...),
     current_user: UserResponse = Depends(get_current_user),
 ):
-    """Upload ticket reference image to S3."""
+    """Upload design reference image to S3."""
     if file.content_type not in ALLOWED_IMAGE_TYPES:
         raise HTTPException(status_code=400, detail="Only image files are allowed (JPEG, PNG, GIF, WebP).")
 
     ext = file.filename.rsplit(".", 1)[-1] if file.filename and "." in file.filename else "jpg"
-    object_key = f"tickets/{current_user.id}/{uuid.uuid4()}.{ext}"
+    object_key = f"designs/{current_user.id}/{uuid.uuid4()}.{ext}"
 
     file_bytes = await file.read()
     public_url = upload_to_s3(file_bytes, object_key, file.content_type)

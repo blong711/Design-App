@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from bson import ObjectId
 from models.base import PyObjectId
 
-class TicketBase(BaseModel):
+class DesignBase(BaseModel):
     title: str
     description: str
     status: str = Field(default="pending", description="pending, assigned, in_progress, review, needs_revision, completed, canceled")
@@ -17,14 +17,14 @@ class TicketBase(BaseModel):
     rejection_reason: Optional[str] = None
     due_date: Optional[datetime] = None
 
-class TicketCreate(BaseModel):
+class DesignCreate(BaseModel):
     title: str
     description: str
     price: Optional[float] = 0.0
     image_url: Optional[str] = None
     assigned_to: Optional[str] = None
 
-class TicketUpdate(BaseModel):
+class DesignUpdate(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
     status: Optional[str] = None
@@ -35,10 +35,9 @@ class TicketUpdate(BaseModel):
     rejection_reason: Optional[str] = None
     due_date: Optional[datetime] = None
 
-class TicketInDB(TicketBase):
+class DesignInDB(DesignBase):
     id: PyObjectId = Field(default_factory=lambda: ObjectId(), alias="_id")
     assigned_to: Optional[PyObjectId] = None
-    team_id: Optional[PyObjectId] = None
     created_by: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
@@ -49,10 +48,9 @@ class TicketInDB(TicketBase):
         populate_by_name = True
         arbitrary_types_allowed = True
 
-class TicketResponse(TicketBase):
+class DesignResponse(DesignBase):
     id: str
     assigned_to: Optional[str] = None
-    team_id: Optional[str] = None
     created_by: Optional[str] = None
     created_at: datetime
     updated_at: datetime
@@ -63,13 +61,11 @@ class TicketResponse(TicketBase):
     def from_mongo(cls, data: dict):
         if not data:
             return data
-        data_copy = {k: v for k, v in data.items() if k not in ["_id", "assigned_to", "team_id"]}
+        data_copy = {k: v for k, v in data.items() if k not in ["_id", "assigned_to"]}
         id = data.get("_id")
         assigned_to = data.get("assigned_to")
-        team_id = data.get("team_id")
         return cls(
             **data_copy,
             id=str(id) if id else "",
-            assigned_to=str(assigned_to) if assigned_to else None,
-            team_id=str(team_id) if team_id else None
+            assigned_to=str(assigned_to) if assigned_to else None
         )

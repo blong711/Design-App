@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
-import { LogOut, Palette, LayoutDashboard, Ticket, Settings, Activity, Users, UserCircle2, Wallet } from "lucide-react";
+import { LogOut, Palette, LayoutDashboard, Briefcase, Settings, Activity, Users, UserCircle2, ShoppingCart, Wallet } from "lucide-react";
 import { motion } from "framer-motion";
 import { useSettings } from "@/lib/settings-context";
 
@@ -54,16 +54,14 @@ export default function DashboardLayout({
 
   const adminLinks = [
     { name: "Overview", href: "/dashboard", icon: LayoutDashboard },
-    { name: "All Tickets", href: "/dashboard/tickets", icon: Ticket },
-    { name: "Teams", href: "/dashboard/teams", icon: Users },
+    { name: "All Designs", href: "/dashboard/designs", icon: Briefcase },
     { name: "Users", href: "/dashboard/users", icon: UserCircle2 },
     { name: "API Keys", href: "/dashboard/api-keys", icon: Settings },
   ];
 
-  const managerLinks = [
+  const customerLinks = [
     { name: "Overview", href: "/dashboard", icon: LayoutDashboard },
-    { name: "All Tickets", href: "/dashboard/tickets", icon: Ticket },
-    { name: "Teams", href: "/dashboard/teams", icon: Users },
+    { name: "My Designs", href: "/dashboard/designs", icon: Briefcase },
   ];
 
   const designerLinks = [
@@ -74,8 +72,8 @@ export default function DashboardLayout({
 
   const links = user?.role === "admin"
     ? adminLinks
-    : user?.role === "manager"
-      ? managerLinks
+    : user?.role === "customer"
+      ? customerLinks
       : designerLinks;
 
   /* ── HORIZONTAL LAYOUT ── */

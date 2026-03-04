@@ -19,8 +19,8 @@ async def register(user_in: UserCreate, db=Depends(get_db)):
     user_dict = user_in.dict()
     password = user_dict.pop("password")
     user_dict["hashed_password"] = get_password_hash(password)
-    user_dict["role"] = "designer"
-    user_dict["is_active"] = False  # Requires admin approval before login
+    user_dict["role"] = "customer"
+    user_dict["is_active"] = True  # Auto-active for customers
 
     result = await db["users"].insert_one(user_dict)
     created = await db["users"].find_one({"_id": result.inserted_id})

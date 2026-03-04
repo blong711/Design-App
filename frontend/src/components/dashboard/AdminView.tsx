@@ -86,8 +86,8 @@ function DesignerPicker({
                 }`}
             >
               <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 ${value === d.id
-                  ? "bg-accent/30 border border-accent/40 text-accent"
-                  : "bg-accent/20 border border-accent/30 text-accent"
+                ? "bg-accent/30 border border-accent/40 text-accent"
+                : "bg-accent/20 border border-accent/30 text-accent"
                 }`}>
                 {d.full_name.charAt(0).toUpperCase()}
               </div>
@@ -104,7 +104,7 @@ function DesignerPicker({
   );
 }
 
-function NewTicketDrawer({ open, onClose, onCreated, designers }: { open: boolean; onClose: () => void; onCreated: () => void; designers: any[] }) {
+function NewDesignDrawer({ open, onClose, onCreated, designers }: { open: boolean; onClose: () => void; onCreated: () => void; designers: any[] }) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
@@ -143,10 +143,10 @@ function NewTicketDrawer({ open, onClose, onCreated, designers }: { open: boolea
       if (imageFile) {
         const fd = new FormData();
         fd.append("file", imageFile);
-        const r = await api.post("/s3/upload/ticket-image", fd, { headers: { "Content-Type": "multipart/form-data" } });
+        const r = await api.post("/s3/upload/design-image", fd, { headers: { "Content-Type": "multipart/form-data" } });
         image_url = r.data.public_url;
       }
-      await api.post("/tickets/", {
+      await api.post("/designs/", {
         title: title.trim(),
         description: description.trim(),
         price: parseFloat(price) || 0,
@@ -156,7 +156,7 @@ function NewTicketDrawer({ open, onClose, onCreated, designers }: { open: boolea
       setSuccess(true);
       setTimeout(() => { handleClose(); onCreated(); }, 1200);
     } catch (e: any) {
-      setError(e.response?.data?.detail || "Failed to create ticket");
+      setError(e.response?.data?.detail || "Failed to create design");
     } finally {
       setLoading(false);
     }
@@ -183,8 +183,8 @@ function NewTicketDrawer({ open, onClose, onCreated, designers }: { open: boolea
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-5 border-b border-border">
               <div>
-                <h2 className="text-xl font-bold text-foreground">New Ticket</h2>
-                <p className="text-sm text-muted-foreground mt-0.5">Create a new design ticket</p>
+                <h2 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70">New Design</h2>
+                <p className="text-sm text-muted-foreground mt-1">Create a new design assignment</p>
               </div>
               <button onClick={handleClose} className="p-2 rounded-lg hover:bg-foreground/5 transition-colors">
                 <X className="w-5 h-5 text-muted-foreground" />
@@ -325,8 +325,8 @@ function NewTicketDrawer({ open, onClose, onCreated, designers }: { open: boolea
   );
 }
 
-function AssignModal({ ticket, designers, onClose, onAssigned }: { ticket: any; designers: any[]; onClose: () => void; onAssigned: () => void }) {
-  const [selectedDesigner, setSelectedDesigner] = useState(ticket.assigned_to || "");
+function AssignModal({ design, designers, onClose, onAssigned }: { design: any; designers: any[]; onClose: () => void; onAssigned: () => void }) {
+  const [selectedDesigner, setSelectedDesigner] = useState(design.assigned_to || "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -334,11 +334,11 @@ function AssignModal({ ticket, designers, onClose, onAssigned }: { ticket: any; 
     setLoading(true);
     setError(null);
     try {
-      await api.patch(`/tickets/${ticket.id}/assign`, { assigned_to: selectedDesigner || null });
+      await api.patch(`/designs/${design.id}/assign`, { assigned_to: selectedDesigner || null });
       onAssigned();
       onClose();
     } catch (e: any) {
-      setError(e.response?.data?.detail || "Failed to assign ticket");
+      setError(e.response?.data?.detail || "Failed to assign design");
     } finally {
       setLoading(false);
     }
@@ -366,10 +366,13 @@ function AssignModal({ ticket, designers, onClose, onAssigned }: { ticket: any; 
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-5 border-b border-border">
             <div>
-              <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
-                <UserPlus className="w-5 h-5 text-primary" /> Assign Ticket
+              <h2 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70 flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-primary/20 border border-primary/30 flex items-center justify-center shadow-inner">
+                  <UserPlus className="w-4 h-4 text-primary" />
+                </div>
+                Assign Design
               </h2>
-              <p className="text-sm text-muted-foreground mt-0.5 truncate max-w-xs">{ticket.title}</p>
+              <p className="text-sm text-muted-foreground mt-1.5 truncate max-w-[280px] font-medium">{design.title}</p>
             </div>
             <button onClick={onClose} className="p-2 rounded-lg hover:bg-foreground/5 transition-colors">
               <X className="w-4 h-4 text-muted-foreground" />
@@ -379,9 +382,9 @@ function AssignModal({ ticket, designers, onClose, onAssigned }: { ticket: any; 
           {/* Body */}
           <div className="px-6 py-6 space-y-4">
             {/* Current status info */}
-            <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-foreground/5 border border-border text-sm">
-              <span className="text-muted-foreground">Current status:</span>
-              <span className="font-semibold text-foreground capitalize">{ticket.status.replace("_", " ")}</span>
+            <div className="flex items-center justify-between px-5 py-4 rounded-2xl bg-white/[0.03] border border-white/5 text-sm shadow-inner group">
+              <span className="text-muted-foreground font-semibold uppercase tracking-wider text-[11px]">Current Status</span>
+              <span className="font-bold text-foreground/90 uppercase tracking-widest text-xs px-2.5 py-1 rounded bg-black/20 border border-white/5">{design.status.replace("_", " ")}</span>
             </div>
 
             {/* Designer select */}
@@ -393,10 +396,10 @@ function AssignModal({ ticket, designers, onClose, onAssigned }: { ticket: any; 
                 onChange={setSelectedDesigner}
                 unassignedLabel="Unassigned"
               />
-              {selectedDesigner && selectedDesigner !== ticket.assigned_to && ticket.status === "pending" && (
-                <p className="text-xs text-primary mt-1.5 flex items-center gap-1">
-                  <CheckCircle2 className="w-3 h-3" /> Status will change to <strong>Assigned</strong>
-                </p>
+              {selectedDesigner && selectedDesigner !== design.assigned_to && design.status === "pending" && (
+                <motion.p initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} className="text-xs text-primary mt-2.5 ml-1 flex items-center gap-1.5 font-medium">
+                  <CheckCircle2 className="w-3.5 h-3.5" /> Status will change to <strong className="font-bold underline underline-offset-2">Assigned</strong>
+                </motion.p>
               )}
             </div>
 
@@ -428,26 +431,32 @@ function AssignModal({ ticket, designers, onClose, onAssigned }: { ticket: any; 
 
 export default function AdminView() {
   const [stats, setStats] = useState<any>(null);
-  const [tickets, setTickets] = useState<any[]>([]);
+  const [designs, setDesigns] = useState<any[]>([]);
   const [designers, setDesigners] = useState<any[]>([]);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [assigningTicket, setAssigningTicket] = useState<any | null>(null);
-  
-  // Debt section filters
-  const [selectedMonth, setSelectedMonth] = useState<string>("");
-  const [selectedDesigner, setSelectedDesigner] = useState<string>("");
-  
-  // Chart filters
-  const [timeFilter, setTimeFilter] = useState<'today' | 'week' | 'month' | 'all'>('all');
-  const [statusFilter, setStatusFilter] = useState<string>('');
+  const [assigningDesign, setAssigningDesign] = useState<any | null>(null);
+  const [user, setUser] = useState<any>(null);
+
+  // Filter & UI state
+  const [timeFilter, setTimeFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("");
   const [hoveredStatus, setHoveredStatus] = useState<string | null>(null);
+  const [selectedDesigner, setSelectedDesigner] = useState("");
+  const [selectedMonth, setSelectedMonth] = useState("");
+
+  const tickets = designs;
+
+  useEffect(() => {
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) setUser(JSON.parse(storedUser));
+  }, []);
 
   // Map designer id -> full_name for quick display
   const designerMap = Object.fromEntries(designers.map(d => [d.id, d.full_name]));
 
   useEffect(() => {
     fetchStats();
-    fetchTickets();
+    fetchDesigns();
     fetchDesigners();
   }, []);
 
@@ -463,18 +472,22 @@ export default function AdminView() {
   const fetchDesigners = async () => {
     try {
       const res = await api.get("/users");
-      setDesigners(res.data);
+      let allDesigners = res.data;
+
+      // Managers and Admins see all designers
+
+      setDesigners(allDesigners);
     } catch (e) {
       console.error("Failed to load designers", e);
     }
   };
 
-  const fetchTickets = async () => {
+  const fetchDesigns = async () => {
     try {
-      const res = await api.get("/tickets");
-      setTickets(res.data);
+      const res = await api.get("/designs");
+      setDesigns(res.data);
     } catch (e) {
-      console.error("Failed to load tickets", e);
+      console.error("Failed to load designs", e);
     }
   };
 
@@ -491,7 +504,7 @@ export default function AdminView() {
 
     return allTickets.filter(ticket => {
       const ticketDate = new Date(ticket.created_at);
-      
+
       switch (timeFilter) {
         case 'today':
           return ticketDate >= startOfToday;
@@ -512,14 +525,14 @@ export default function AdminView() {
     const now = new Date();
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
-    
+
     return filteredTickets
       .filter(ticket => {
         if (ticket.status !== 'completed') return false;
-        
+
         const completionDate = ticket.completed_at || ticket.updated_at;
         if (!completionDate) return false;
-        
+
         const ticketDate = new Date(completionDate);
         return ticketDate.getMonth() === currentMonth && ticketDate.getFullYear() === currentYear;
       })
@@ -535,7 +548,7 @@ export default function AdminView() {
       completed: 0,
       assigned: 0
     };
-    
+
     filteredTickets.forEach(ticket => {
       if (distribution.hasOwnProperty(ticket.status)) {
         distribution[ticket.status as keyof typeof distribution]++;
@@ -579,39 +592,39 @@ export default function AdminView() {
       if (times.length === 0) return 0;
       return Math.round(times.reduce((a, b) => a + b, 0) / times.length);
     };
-    
+
     return [
-      { 
-        label: 'Pending', 
-        value: distribution.pending + distribution.assigned, 
-        color: '#a1a1aa', 
+      {
+        label: 'Pending',
+        value: distribution.pending + distribution.assigned,
+        color: '#a1a1aa',
         percentage: 0,
         revenue: statusRevenue.pending + statusRevenue.assigned,
         avgDays: getAvgTime([...statusTimes.pending, ...statusTimes.assigned]),
         status: 'pending'
       },
-      { 
-        label: 'In Progress', 
-        value: distribution.in_progress, 
-        color: '#60a5fa', 
+      {
+        label: 'In Progress',
+        value: distribution.in_progress,
+        color: '#60a5fa',
         percentage: 0,
         revenue: statusRevenue.in_progress,
         avgDays: getAvgTime(statusTimes.in_progress),
         status: 'in_progress'
       },
-      { 
-        label: 'Review', 
-        value: distribution.review, 
-        color: '#facc15', 
+      {
+        label: 'Review',
+        value: distribution.review,
+        color: '#facc15',
         percentage: 0,
         revenue: statusRevenue.review,
         avgDays: getAvgTime(statusTimes.review),
         status: 'review'
       },
-      { 
-        label: 'Completed', 
-        value: distribution.completed, 
-        color: '#4ade80', 
+      {
+        label: 'Completed',
+        value: distribution.completed,
+        color: '#4ade80',
         percentage: 0,
         revenue: statusRevenue.completed,
         avgDays: getAvgTime(statusTimes.completed),
@@ -655,7 +668,7 @@ export default function AdminView() {
 
     tickets.forEach(ticket => {
       if (!ticket.assigned_to || !designerStats[ticket.assigned_to]) return;
-      
+
       const stats = designerStats[ticket.assigned_to];
       const price = parseFloat(ticket.price) || 0;
 
@@ -696,8 +709,8 @@ export default function AdminView() {
         if (completionDate) {
           const ticketDate = new Date(completionDate);
           const [year, month] = selectedMonth.split('-');
-          if (ticketDate.getFullYear() !== parseInt(year) || 
-              ticketDate.getMonth() !== parseInt(month) - 1) {
+          if (ticketDate.getFullYear() !== parseInt(year) ||
+            ticketDate.getMonth() !== parseInt(month) - 1) {
             return false;
           }
         } else {
@@ -716,7 +729,7 @@ export default function AdminView() {
 
     try {
       await Promise.all(
-        unpaidTickets.map(ticket => 
+        unpaidTickets.map(ticket =>
           api.patch(`/tickets/${ticket.id}`, { payment_status: 'paid' })
         )
       );
@@ -773,7 +786,7 @@ export default function AdminView() {
 
       if (threshold > 0 && statusDate) {
         const daysDiff = Math.floor((now.getTime() - statusDate.getTime()) / (1000 * 60 * 60 * 24));
-        
+
         if (daysDiff > threshold) {
           const overdueDays = daysDiff - threshold;
           overdueList.push({
@@ -787,7 +800,7 @@ export default function AdminView() {
     });
 
     // Sort by most overdue first
-    return overdueList.sort((a, b) => 
+    return overdueList.sort((a, b) =>
       (b.daysInStatus - b.threshold) - (a.daysInStatus - a.threshold)
     );
   };
@@ -805,41 +818,44 @@ export default function AdminView() {
   };
 
   const statCards = [
-    { title: "Total Tickets", value: stats?.total_tickets || 0, icon: Activity, color: "text-blue-400" },
-    { title: "Completed", value: stats?.completed_tickets || 0, icon: FileCheck, color: "text-green-400" },
-    { title: "Revenue This Month", value: `$${revenueThisMonth.toFixed(2)}`, icon: DollarSign, color: "text-emerald-400" },
+    { title: "Total Designs", value: stats?.total_designs || 0, icon: Activity, color: "text-blue-400" },
+    { title: "Completed", value: stats?.completed_designs || 0, icon: FileCheck, color: "text-green-400" },
     { title: "To Pay (Debt)", value: `$${stats?.total_unpaid || 0}`, icon: AlertCircle, color: "text-red-400" },
   ];
 
   return (
     <div className="space-y-8 animate-in fade-in zoom-in duration-500">
-      <NewTicketDrawer
+      <NewDesignDrawer
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
-        onCreated={() => { fetchStats(); fetchTickets(); }}
+        onCreated={() => { fetchStats(); fetchDesigns(); }}
         designers={designers}
       />
 
-      {assigningTicket && (
+      {assigningDesign && (
         <AssignModal
-          ticket={assigningTicket}
+          design={assigningDesign}
           designers={designers}
-          onClose={() => setAssigningTicket(null)}
-          onAssigned={() => { fetchTickets(); fetchStats(); setAssigningTicket(null); }}
+          onClose={() => setAssigningDesign(null)}
+          onAssigned={() => { fetchDesigns(); fetchStats(); setAssigningDesign(null); }}
         />
       )}
 
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">Overview</h2>
-          <p className="text-muted-foreground mt-1 text-sm">Welcome back, here's what's happening today.</p>
+          <h2 className="text-3xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70">
+            Overview
+          </h2>
+          <p className="text-muted-foreground mt-1 text-sm font-medium">
+            Welcome back, here's what's happening today.
+          </p>
         </div>
         <button
           onClick={() => setDrawerOpen(true)}
           className="bg-primary hover:bg-primary/90 px-5 py-2.5 rounded-xl font-semibold text-primary-foreground shadow-lg shadow-primary/30 transition-all flex items-center gap-2"
         >
-          <Plus className="w-5 h-5" />
-          <span>New Ticket</span>
+          <Plus className="w-5 h-5 drop-shadow-md" />
+          <span>New Design</span>
         </button>
       </div>
 
@@ -866,32 +882,17 @@ export default function AdminView() {
         ))}
       </div>
 
-      {/* Pie Chart - Status Distribution */}
+      {/* Recent Designs Table */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.5, duration: 0.5 }}
-        className="rounded-2xl glass-panel p-6"
+        className="rounded-[2rem] glass-panel p-8 relative z-10 shadow-2xl"
       >
-        <div className="flex justify-between items-center mb-6">
-          <h3 className="text-xl font-semibold">Ticket Status Distribution</h3>
-          
-          {/* Time Filter Dropdown */}
-          <div className="flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-muted-foreground" />
-            <select
-              value={timeFilter}
-              onChange={(e) => {
-                setTimeFilter(e.target.value as any);
-                setStatusFilter(''); // Reset status filter when time changes
-              }}
-              className="px-3 py-1.5 rounded-lg bg-foreground/5 border border-border text-foreground text-sm font-medium focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-all cursor-pointer"
-            >
-              <option value="all">All Time</option>
-              <option value="today">Today</option>
-              <option value="week">This Week</option>
-              <option value="month">This Month</option>
-            </select>
+        <div className="flex justify-between items-center mb-8">
+          <div>
+            <h3 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70">Recent Assignments</h3>
+            <p className="text-sm text-muted-foreground mt-1">Latest designs across all designers.</p>
           </div>
         </div>
 
@@ -908,7 +909,7 @@ export default function AdminView() {
             </button>
           </div>
         )}
-        
+
         <div className="flex flex-col lg:flex-row items-center gap-8">
           {/* Pie Chart */}
           <div className="relative w-64 h-64 shrink-0">
@@ -919,31 +920,31 @@ export default function AdminView() {
                   const startPercent = cumulativePercent;
                   cumulativePercent += item.percentage;
                   const endPercent = cumulativePercent;
-                  
+
                   // Calculate arc path
                   const startAngle = (startPercent / 100) * 2 * Math.PI;
                   const endAngle = (endPercent / 100) * 2 * Math.PI;
                   const largeArcFlag = endPercent - startPercent > 50 ? 1 : 0;
-                  
+
                   const startX = 100 + 80 * Math.cos(startAngle);
                   const startY = 100 + 80 * Math.sin(startAngle);
                   const endX = 100 + 80 * Math.cos(endAngle);
                   const endY = 100 + 80 * Math.sin(endAngle);
-                  
+
                   const pathData = item.percentage > 0
                     ? `M 100 100 L ${startX} ${startY} A 80 80 0 ${largeArcFlag} 1 ${endX} ${endY} Z`
                     : '';
-                  
+
                   const isSelected = statusFilter === item.status;
                   const isHovered = hoveredStatus === item.status;
-                  
+
                   return (
                     <g key={item.label}>
                       <motion.path
                         initial={{ opacity: 0, scale: 0 }}
-                        animate={{ 
-                          opacity: isSelected || isHovered ? 1 : (statusFilter ? 0.3 : 1), 
-                          scale: isSelected || isHovered ? 1.05 : 1 
+                        animate={{
+                          opacity: isSelected || isHovered ? 1 : (statusFilter ? 0.3 : 1),
+                          scale: isSelected || isHovered ? 1.05 : 1
                         }}
                         transition={{ delay: 0.6 + index * 0.1, duration: 0.3, type: "spring" }}
                         d={pathData}
@@ -954,7 +955,7 @@ export default function AdminView() {
                         onMouseEnter={() => setHoveredStatus(item.status)}
                         onMouseLeave={() => setHoveredStatus(null)}
                       />
-                      
+
                       {/* Percentage label inside segment */}
                       {item.percentage > 5 && (
                         <text
@@ -973,11 +974,11 @@ export default function AdminView() {
                   );
                 });
               })()}
-              
+
               {/* Center circle for donut effect */}
               <circle cx="100" cy="100" r="50" fill="var(--background)" />
             </svg>
-            
+
             {/* Center text */}
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
               <div className="text-3xl font-bold text-foreground">{totalTickets}</div>
@@ -986,13 +987,13 @@ export default function AdminView() {
               </div>
             </div>
           </div>
-          
+
           {/* Legend with interactive stats */}
           <div className="flex-1 grid grid-cols-2 gap-4">
             {statusDistribution.map((item, index) => {
               const isSelected = statusFilter === item.status;
               const isHovered = hoveredStatus === item.status;
-              
+
               return (
                 <motion.div
                   key={item.label}
@@ -1002,13 +1003,12 @@ export default function AdminView() {
                   onClick={() => setStatusFilter(statusFilter === item.status ? '' : item.status)}
                   onMouseEnter={() => setHoveredStatus(item.status)}
                   onMouseLeave={() => setHoveredStatus(null)}
-                  className={`flex items-start gap-3 p-3 rounded-lg transition-all cursor-pointer border ${
-                    isSelected 
-                      ? 'bg-foreground/10 border-primary shadow-lg' 
-                      : isHovered 
-                        ? 'bg-foreground/5 border-foreground/20' 
-                        : 'bg-transparent border-transparent hover:bg-foreground/5'
-                  }`}
+                  className={`flex items-start gap-3 p-3 rounded-lg transition-all cursor-pointer border ${isSelected
+                    ? 'bg-foreground/10 border-primary shadow-lg'
+                    : isHovered
+                      ? 'bg-foreground/5 border-foreground/20'
+                      : 'bg-transparent border-transparent hover:bg-foreground/5'
+                    }`}
                 >
                   <div
                     className="w-4 h-4 rounded-sm shrink-0 mt-0.5"
@@ -1019,7 +1019,7 @@ export default function AdminView() {
                     <div className="text-xs text-muted-foreground">
                       {item.value} ticket{item.value !== 1 ? 's' : ''} ({item.percentage}%)
                     </div>
-                    
+
                     {/* Tooltip info on hover */}
                     {(isHovered || isSelected) && (
                       <motion.div
@@ -1038,7 +1038,7 @@ export default function AdminView() {
                       </motion.div>
                     )}
                   </div>
-                  
+
                   {isSelected && (
                     <CheckCircle2 className="w-4 h-4 text-primary shrink-0 mt-0.5" />
                   )}
@@ -1070,58 +1070,36 @@ export default function AdminView() {
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b border-border text-muted-foreground text-sm">
-                <th className="pb-4 font-medium px-4">Ticket Info</th>
-                <th className="pb-4 font-medium px-4">Status</th>
-                <th className="pb-4 font-medium px-4">Price</th>
-                <th className="pb-4 font-medium px-4">Assignee</th>
-                <th className="pb-4 font-medium px-4 text-right">Actions</th>
+              <tr className="border-b border-border/50 text-muted-foreground text-xs uppercase tracking-wider bg-background/40">
+                <th className="py-5 font-semibold px-6 rounded-tl-2xl">Design Info</th>
+                <th className="py-5 font-semibold px-6">Status</th>
+                <th className="py-5 font-semibold px-6">Price</th>
+                <th className="py-5 font-semibold px-6">Assignee</th>
+                <th className="py-5 font-semibold px-6 text-right rounded-tr-2xl">Actions</th>
               </tr>
             </thead>
-            <tbody>
-              {(() => {
-                // Apply status filter
-                let displayTickets = statusFilter 
-                  ? filteredTickets.filter(t => t.status === statusFilter || (statusFilter === 'pending' && (t.status === 'pending' || t.status === 'assigned')))
-                  : filteredTickets;
-                
-                // Sort by updated_at desc
-                displayTickets = displayTickets.sort((a, b) => {
-                  const dateA = new Date(a.updated_at || a.created_at).getTime();
-                  const dateB = new Date(b.updated_at || b.created_at).getTime();
-                  return dateB - dateA;
-                });
-                
-                if (displayTickets.length === 0) {
-                  return (
-                    <tr>
-                      <td colSpan={5} className="py-8 text-center text-muted-foreground">
-                        {statusFilter ? `No ${statusFilter.replace('_', ' ')} tickets found.` : 'No tickets found.'}
-                      </td>
-                    </tr>
-                  );
-                }
-                
-                return displayTickets.slice(0, 10).map((ticket) => {
-                const overdueInfo = getTicketOverdueInfo(ticket);
-                return (
-                <tr key={ticket.id} className="border-b border-border hover:bg-foreground/5 transition-colors group">
-                  <td className="py-4 px-4">
-                    <div className="flex items-center gap-3">
-                      {ticket.image_url && (
-                        <img src={ticket.image_url} alt="" className="w-10 h-10 rounded-lg object-cover shrink-0 border border-border" />
-                      )}
-                      <div className="flex-1">
-                        <div className="font-semibold text-foreground flex items-center gap-2">
-                          {ticket.title}
-                          {overdueInfo && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-[10px] font-medium uppercase tracking-wide">
-                              <Clock className="w-3 h-3" />
-                              Overdue +{overdueInfo.daysInStatus - overdueInfo.threshold}d
-                            </span>
-                          )}
+            <tbody className="divide-y divide-border/30">
+              {designs.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="py-12 text-center text-muted-foreground bg-background/10">No designs found.</td>
+                </tr>
+              )}
+              {designs.slice(0, 10).map((design) => (
+                <tr key={design.id} className="hover:bg-white/[0.03] transition-colors group cursor-default">
+                  <td className="py-5 px-6">
+                    <div className="flex items-center gap-4">
+                      {design.image_url ? (
+                        <div className="relative w-12 h-12 rounded-xl border border-white/10 overflow-hidden shadow-md group-hover:shadow-lg transition-shadow">
+                          <img src={design.image_url} alt="" className="w-full h-full object-cover" />
                         </div>
-                        <div className="text-xs text-muted-foreground mt-1 truncate max-w-[200px]">{ticket.description}</div>
+                      ) : (
+                        <div className="w-12 h-12 rounded-xl border border-white/10 bg-background/50 flex items-center justify-center shadow-md">
+                          <Activity className="w-5 h-5 text-muted-foreground/50" />
+                        </div>
+                      )}
+                      <div>
+                        <div className="font-semibold text-foreground group-hover:text-primary transition-colors">{design.title}</div>
+                        <div className="text-xs text-muted-foreground mt-1 truncate max-w-[250px]">{design.description}</div>
                       </div>
                     </div>
                   </td>
@@ -1129,26 +1107,26 @@ export default function AdminView() {
                     <span className="px-3 py-1 rounded-full text-xs font-medium border border-border"
                       style={{
                         backgroundColor:
-                          ticket.status === 'completed' ? 'rgba(74, 222, 128, 0.1)' :
-                            ticket.status === 'review' ? 'rgba(250, 204, 21, 0.1)' :
-                              ticket.status === 'in_progress' ? 'rgba(96, 165, 250, 0.1)' : 'rgba(128,128,128,0.1)',
+                          design.status === 'completed' ? 'rgba(74, 222, 128, 0.15)' :
+                            design.status === 'review' ? 'rgba(250, 204, 21, 0.15)' :
+                              design.status === 'in_progress' ? 'rgba(96, 165, 250, 0.15)' : 'rgba(161,161,170,0.15)',
                         color:
-                          ticket.status === 'completed' ? '#4ade80' :
-                            ticket.status === 'review' ? '#facc15' :
-                              ticket.status === 'in_progress' ? '#60a5fa' : '#a1a1aa'
+                          design.status === 'completed' ? '#4ade80' :
+                            design.status === 'review' ? '#facc15' :
+                              design.status === 'in_progress' ? '#60a5fa' : '#a1a1aa'
                       }}
                     >
-                      {ticket.status.replace("_", " ").toUpperCase()}
+                      {design.status.replace("_", " ")}
                     </span>
                   </td>
-                  <td className="py-4 px-4 font-medium text-foreground">${ticket.price}</td>
-                  <td className="py-4 px-4 text-sm">
-                    {ticket.assigned_to ? (
-                      <div className="flex items-center gap-2">
-                        <div className="w-7 h-7 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center text-primary text-xs font-bold">
-                          {designerMap[ticket.assigned_to]?.charAt(0)?.toUpperCase() || "?"}
+                  <td className="py-5 px-6 font-semibold text-foreground/90">${design.price}</td>
+                  <td className="py-5 px-6 text-sm">
+                    {design.assigned_to ? (
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary/30 to-accent/30 border border-white/10 flex items-center justify-center text-foreground font-bold shadow-inner">
+                          {designerMap[design.assigned_to]?.charAt(0)?.toUpperCase() || "?"}
                         </div>
-                        <span className="text-foreground font-medium">{designerMap[ticket.assigned_to] || "Unknown"}</span>
+                        <span className="text-foreground font-medium">{designerMap[design.assigned_to] || "Unknown"}</span>
                       </div>
                     ) : (
                       <span className="text-muted-foreground italic">Unassigned</span>
@@ -1157,18 +1135,16 @@ export default function AdminView() {
                   <td className="py-4 px-4 text-right">
                     <div className="relative flex items-center justify-end gap-2">
                       <button
-                        onClick={() => setAssigningTicket(ticket)}
-                        className="px-3 py-1.5 rounded-lg bg-primary/10 text-primary text-xs font-semibold hover:bg-primary/20 transition-colors flex items-center gap-1.5 opacity-0 group-hover:opacity-100"
+                        onClick={() => setAssigningDesign(design)}
+                        className="px-4 py-2 rounded-xl bg-primary/10 hover:bg-primary border border-primary/20 hover:border-primary text-primary hover:text-white text-xs font-bold transition-all duration-300 flex items-center gap-2 opacity-0 group-hover:opacity-100 shadow-lg"
                       >
-                        <UserPlus className="w-3.5 h-3.5" />
-                        {ticket.assigned_to ? "Reassign" : "Assign"}
+                        <UserPlus className="w-4 h-4" />
+                        {design.assigned_to ? "Reassign" : "Assign"}
                       </button>
                     </div>
                   </td>
                 </tr>
-              );
-                });
-              })()}
+              ))}
             </tbody>
           </table>
         </div>
@@ -1191,7 +1167,7 @@ export default function AdminView() {
               <p className="text-sm text-muted-foreground">{overdueTickets.length} ticket{overdueTickets.length !== 1 ? 's' : ''} need{overdueTickets.length === 1 ? 's' : ''} attention</p>
             </div>
           </div>
-          
+
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
@@ -1376,7 +1352,7 @@ export default function AdminView() {
         className="rounded-2xl glass-panel p-6"
       >
         <h3 className="text-xl font-semibold mb-6">Debt Management</h3>
-        
+
         {/* Filters */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           {/* Month Filter */}
@@ -1459,10 +1435,10 @@ export default function AdminView() {
                     )}
                   </td>
                   <td className="py-4 px-4 text-sm text-muted-foreground">
-                    {(ticket.completed_at || ticket.updated_at) ? new Date(ticket.completed_at || ticket.updated_at).toLocaleDateString('en-US', { 
-                      month: 'short', 
-                      day: 'numeric', 
-                      year: 'numeric' 
+                    {(ticket.completed_at || ticket.updated_at) ? new Date(ticket.completed_at || ticket.updated_at).toLocaleDateString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric'
                     }) : 'N/A'}
                   </td>
                   <td className="py-4 px-4 text-right">

@@ -4,9 +4,8 @@ import { useEffect, useState } from "react";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { api, s3Upload } from "@/lib/api";
 import { useToast } from "@/lib/toast";
-import { CheckCircle2, Clock, Eye, MessageSquare, Loader2, UploadCloud, Search, Filter, Calendar, AlertCircle, TrendingUp } from "lucide-react";
-import TicketDetailDrawer from "@/components/dashboard/TicketDetailDrawer";
-import { motion, AnimatePresence } from "framer-motion";
+import { CheckCircle2, Clock, Eye, MessageSquare, Loader2, UploadCloud } from "lucide-react";
+import DesignDetailDrawer from "@/components/dashboard/DesignDetailDrawer";
 
 const COLUMNS = [
   { id: "assigned", title: "To Do", icon: Clock, color: "text-blue-400", glow: "from-blue-500/20 to-blue-500/5" },
@@ -32,22 +31,20 @@ export default function DesignerView({ user }: { user: any }) {
     completed: []
   });
 
-  const [selectedTicket, setSelectedTicket] = useState<any>(null);
+  const [selectedDesign, setSelectedDesign] = useState<any>(null);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [detailTicketId, setDetailTicketId] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [priceFilter, setPriceFilter] = useState<"all" | "low" | "medium" | "high">("all");
+  const [detailDesignId, setDetailDesignId] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchTickets();
+    fetchDesigns();
   }, []);
 
-  const fetchTickets = async () => {
-    const res = await api.get("/tickets");
+  const fetchDesigns = async () => {
+    const res = await api.get("/designs");
     const data = res.data;
 
-    // Group tickets
+    // Group designs
     const grouped: Record<string, any[]> = { assigned: [], in_progress: [], review: [], completed: [], pending: [] };
     data.forEach((t: any) => {
       if (grouped[t.status]) {
@@ -63,18 +60,18 @@ export default function DesignerView({ user }: { user: any }) {
   const filterTickets = (tickets: any[]) => {
     return tickets.filter(ticket => {
       // Search filter
-      const matchesSearch = searchQuery === "" || 
+      const matchesSearch = searchQuery === "" ||
         ticket.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         ticket.description?.toLowerCase().includes(searchQuery.toLowerCase());
-      
+
       // Price filter
       const price = parseFloat(ticket.price) || 0;
-      const matchesPrice = 
+      const matchesPrice =
         priceFilter === "all" ||
         (priceFilter === "low" && price < 50) ||
         (priceFilter === "medium" && price >= 50 && price < 150) ||
         (priceFilter === "high" && price >= 150);
-      
+
       return matchesSearch && matchesPrice;
     });
   };
@@ -101,7 +98,7 @@ export default function DesignerView({ user }: { user: any }) {
     const date = new Date(dateString);
     const now = new Date();
     const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-    
+
     if (seconds < 60) return 'Just now';
     if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
     if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
@@ -114,23 +111,23 @@ export default function DesignerView({ user }: { user: any }) {
     if (!destination) return;
     if (source.droppableId === destination.droppableId && source.index === destination.index) return;
 
-    // Completed tickets shouldn't be moved manually via drag if we strictly allow only admin, 
+    // Completed designs shouldn't be moved manually via drag if we strictly allow only admin, 
     // but we can allow designer to move back to progress if needed.
     if (destination.droppableId === "completed") {
       // Prevent designers from marking as completed directly
-      toast("Only Admins can mark a ticket as Complete.", "error");
+      toast("Only Admins can mark a design as Complete.", "error");
       return;
     }
 
     const startCol = columns[source.droppableId];
     const endCol = columns[destination.droppableId];
-    const movedTicket = startCol[source.index];
+    const movedDesign = startCol[source.index];
 
     // Optimistic UI Update
     const newStart = Array.from(startCol);
     newStart.splice(source.index, 1);
     const newEnd = Array.from(endCol);
-    newEnd.splice(destination.index, 0, movedTicket);
+    newEnd.splice(destination.index, 0, movedDesign);
 
     setColumns({
       ...columns,
@@ -139,16 +136,16 @@ export default function DesignerView({ user }: { user: any }) {
     });
 
     // Update Status API
-    await api.patch(`/tickets/${movedTicket.id}/status`, { status: destination.droppableId });
+    await api.patch(`/designs/${movedDesign.id}/status`, { status: destination.droppableId });
 
     // Trigger upload modal if dropped in review
-    if (destination.droppableId === "review" && !movedTicket.result_link) {
-      setSelectedTicket(movedTicket);
+    if (destination.droppableId === "review" && !movedDesign.result_link) {
+      setSelectedDesign(movedDesign);
     }
   };
 
   const handleUploadSubmit = async () => {
-    if (!uploadFile || !selectedTicket) return;
+    if (!uploadFile || !selectedDesign) return;
     setUploading(true);
     try {
       // 1. Get Presigned URL
@@ -158,11 +155,11 @@ export default function DesignerView({ user }: { user: any }) {
       await s3Upload(uploadFile, urlRes.data.upload_url);
 
       // 3. Update Result Link
-      await api.patch(`/tickets/${selectedTicket.id}/result`, { result_link: urlRes.data.public_url });
+      await api.patch(`/designs/${selectedDesign.id}/result`, { result_link: urlRes.data.public_url });
 
-      setSelectedTicket(null);
+      setSelectedDesign(null);
       setUploadFile(null);
-      fetchTickets();
+      fetchDesigns();
     } catch (e) {
       console.error(e);
       toast("Failed to upload file. Please try again.", "error");
@@ -216,26 +213,61 @@ export default function DesignerView({ user }: { user: any }) {
       </motion.div>
 
       <DragDropContext onDragEnd={onDragEnd}>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 items-start h-full">
-          {COLUMNS.map((col, colIndex) => {
-            const filteredTickets = filterTickets(columns[col.id] || []);
-            const columnTotal = getColumnTotal(col.id);
-            
-            return (
-              <motion.div
-                key={col.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: colIndex * 0.1, duration: 0.5 }}
-                className="flex flex-col h-full rounded-2xl glass-panel relative overflow-hidden"
-              >
-                {/* Column Header with Gradient Glow */}
-                <div className={`px-5 py-4 border-b border-border bg-gradient-to-br ${col.glow} relative`}>
-                  <div className="flex items-center gap-2 mb-2">
-                    <col.icon className={`w-5 h-5 ${col.color}`} />
-                    <span className="text-sm font-bold uppercase tracking-wider text-foreground">
-                      {col.title}
-                    </span>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-start h-full">
+          {COLUMNS.map(col => (
+            <div key={col.id} className="flex flex-col h-full rounded-2xl glass-panel relative overflow-hidden">
+              {/* Column Header */}
+              <div className="px-5 py-4 border-b border-border flex items-center justify-between">
+                <div className="flex items-center gap-2 font-semibold">
+                  <col.icon className={`w-4 h-4 ${col.color}`} />
+                  <span className="text-sm uppercase tracking-wider text-foreground/80">{col.title}</span>
+                </div>
+                <span className="text-xs font-bold text-muted-foreground bg-foreground/5 px-2 py-0.5 rounded-full">
+                  {columns[col.id]?.length || 0}
+                </span>
+              </div>
+
+              {/* Droppable Area */}
+              <Droppable droppableId={col.id}>
+                {(provided, snapshot) => (
+                  <div
+                    {...provided.droppableProps}
+                    ref={provided.innerRef}
+                    className={`flex-1 p-3 flex flex-col gap-3 min-h-[500px] transition-colors ${snapshot.isDraggingOver ? 'bg-white/5' : ''}`}
+                  >
+                    {columns[col.id]?.map((design, index) => (
+                      <Draggable key={design.id} draggableId={design.id} index={index}>
+                        {(provided, snapshot) => (
+                          <div
+                            ref={provided.innerRef}
+                            {...provided.draggableProps}
+                            {...provided.dragHandleProps}
+                            className={`p-4 rounded-xl border border-border shadow-lg select-none transition-all cursor-pointer ${snapshot.isDragging ? 'bg-[#1a1528] shadow-[0_0_20px_rgba(168,85,247,0.3)] border-primary/50 rotate-2' : 'bg-foreground/5 hover:bg-foreground/10'
+                              }`}
+                            onClick={() => setDetailDesignId(design.id)}
+                          >
+                            <div className="flex justify-between items-start mb-2">
+                              <h4 className="font-semibold text-foreground leading-tight">{design.title}</h4>
+                            </div>
+                            <p className="text-xs text-muted-foreground line-clamp-2 mb-4">
+                              {design.description}
+                            </p>
+
+                            <div className="flex justify-between items-center text-xs">
+                              <div className="text-primary font-medium bg-primary/10 px-2 py-1 rounded-md">
+                                ${design.price}
+                              </div>
+                              {design.result_link && (
+                                <a href={design.result_link} target="_blank" className="text-blue-400 hover:text-blue-300 underline underline-offset-2 flex items-center gap-1">
+                                  <MessageSquare className="w-3 h-3" /> Result
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </Draggable>
+                    ))}
+                    {provided.placeholder}
                   </div>
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-muted-foreground">
@@ -259,204 +291,202 @@ export default function DesignerView({ user }: { user: any }) {
                   </div>
                 </div>
 
-                {/* Droppable Area */}
-                <Droppable droppableId={col.id}>
+                {/* Droppable Area */ }
+            < Droppable droppableId = { col.id } >
+            {(provided, snapshot) => (
+          <div
+            {...provided.droppableProps}
+            ref={provided.innerRef}
+            className={`flex-1 p-3 flex flex-col gap-3 min-h-[500px] transition-all ${snapshot.isDraggingOver
+                ? 'bg-primary/5 border-2 border-dashed border-primary/50 rounded-xl'
+                : 'border-2 border-transparent'
+              }`}
+          >
+            <AnimatePresence>
+              {filteredTickets.length === 0 && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="flex-1 flex flex-col items-center justify-center text-center p-8"
+                >
+                  <col.icon className={`w-16 h-16 ${col.color} opacity-20 mb-4`} />
+                  <p className="text-muted-foreground text-sm font-medium mb-1">
+                    No tasks here {col.id === 'completed' ? '👀' : '🎉'}
+                  </p>
+                  <p className="text-xs text-muted-foreground/70">
+                    {col.id === 'assigned' && 'Wait for new assignments'}
+                    {col.id === 'in_progress' && 'Drag tasks here to start working'}
+                    {col.id === 'review' && 'Submit completed work for review'}
+                    {col.id === 'completed' && 'Completed tasks will appear here'}
+                  </p>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {filteredTickets.map((ticket, index) => {
+              const highPriority = isHighPriority(ticket);
+              const overdue = isOverdue(ticket);
+              const inReview = col.id === 'review';
+
+              return (
+                <Draggable key={ticket.id} draggableId={ticket.id} index={index}>
                   {(provided, snapshot) => (
                     <div
-                      {...provided.droppableProps}
                       ref={provided.innerRef}
-                      className={`flex-1 p-3 flex flex-col gap-3 min-h-[500px] transition-all ${
-                        snapshot.isDraggingOver 
-                          ? 'bg-primary/5 border-2 border-dashed border-primary/50 rounded-xl' 
-                          : 'border-2 border-transparent'
-                      }`}
+                      {...provided.draggableProps}
+                      {...provided.dragHandleProps}
+                      className={`p-4 rounded-xl backdrop-blur-sm select-none cursor-pointer group relative overflow-hidden transition-all duration-200 ${snapshot.isDragging
+                          ? 'bg-background/95 shadow-2xl shadow-primary/30 border-2 border-primary/70 z-50 scale-105 rotate-2'
+                          : 'bg-gradient-to-br from-foreground/10 to-foreground/5 hover:from-foreground/15 hover:to-foreground/10 shadow-lg hover:shadow-xl hover:-translate-y-1 border'
+                        } ${overdue
+                          ? 'border-red-500/50 shadow-red-500/20'
+                          : inReview
+                            ? 'border-amber-500/50 shadow-amber-500/20'
+                            : highPriority
+                              ? 'border-primary/50 shadow-primary/20'
+                              : 'border-border'
+                        }`}
+                      onClick={() => setDetailTicketId(ticket.id)}
                     >
-                      <AnimatePresence>
-                        {filteredTickets.length === 0 && (
-                          <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            className="flex-1 flex flex-col items-center justify-center text-center p-8"
-                          >
-                            <col.icon className={`w-16 h-16 ${col.color} opacity-20 mb-4`} />
-                            <p className="text-muted-foreground text-sm font-medium mb-1">
-                              No tasks here {col.id === 'completed' ? '👀' : '🎉'}
-                            </p>
-                            <p className="text-xs text-muted-foreground/70">
-                              {col.id === 'assigned' && 'Wait for new assignments'}
-                              {col.id === 'in_progress' && 'Drag tasks here to start working'}
-                              {col.id === 'review' && 'Submit completed work for review'}
-                              {col.id === 'completed' && 'Completed tasks will appear here'}
-                            </p>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
+                      {/* High Priority Glow Effect */}
+                      {highPriority && !snapshot.isDragging && (
+                        <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent pointer-events-none" />
+                      )}
 
-                      {filteredTickets.map((ticket, index) => {
-                        const highPriority = isHighPriority(ticket);
-                        const overdue = isOverdue(ticket);
-                        const inReview = col.id === 'review';
-                        
-                        return (
-                          <Draggable key={ticket.id} draggableId={ticket.id} index={index}>
-                            {(provided, snapshot) => (
-                              <div
-                                ref={provided.innerRef}
-                                {...provided.draggableProps}
-                                {...provided.dragHandleProps}
-                                className={`p-4 rounded-xl backdrop-blur-sm select-none cursor-pointer group relative overflow-hidden transition-all duration-200 ${
-                                  snapshot.isDragging 
-                                    ? 'bg-background/95 shadow-2xl shadow-primary/30 border-2 border-primary/70 z-50 scale-105 rotate-2' 
-                                    : 'bg-gradient-to-br from-foreground/10 to-foreground/5 hover:from-foreground/15 hover:to-foreground/10 shadow-lg hover:shadow-xl hover:-translate-y-1 border'
-                                } ${
-                                  overdue 
-                                    ? 'border-red-500/50 shadow-red-500/20' 
-                                    : inReview 
-                                    ? 'border-amber-500/50 shadow-amber-500/20'
-                                    : highPriority 
-                                    ? 'border-primary/50 shadow-primary/20'
-                                    : 'border-border'
-                                }`}
-                                onClick={() => setDetailTicketId(ticket.id)}
-                              >
-                                {/* High Priority Glow Effect */}
-                                {highPriority && !snapshot.isDragging && (
-                                  <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent pointer-events-none" />
-                                )}
+                      {/* Overdue Indicator */}
+                      {overdue && (
+                        <div className="absolute top-2 right-2 z-10">
+                          <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-red-500/20 border border-red-500/50">
+                            <AlertCircle className="w-3 h-3 text-red-400" />
+                            <span className="text-xs font-bold text-red-400">Overdue</span>
+                          </div>
+                        </div>
+                      )}
 
-                                {/* Overdue Indicator */}
-                                {overdue && (
-                                  <div className="absolute top-2 right-2 z-10">
-                                    <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-red-500/20 border border-red-500/50">
-                                      <AlertCircle className="w-3 h-3 text-red-400" />
-                                      <span className="text-xs font-bold text-red-400">Overdue</span>
-                                    </div>
-                                  </div>
-                                )}
+                      <div className="relative z-10">
+                        {/* Header */}
+                        <div className="flex items-start justify-between mb-3">
+                          <h4 className="font-semibold text-foreground leading-tight flex-1 pr-2">
+                            {ticket.title}
+                          </h4>
+                        </div>
 
-                                <div className="relative z-10">
-                                  {/* Header */}
-                                  <div className="flex items-start justify-between mb-3">
-                                    <h4 className="font-semibold text-foreground leading-tight flex-1 pr-2">
-                                      {ticket.title}
-                                    </h4>
-                                  </div>
+                        {/* Description */}
+                        <p className="text-xs text-muted-foreground line-clamp-2 mb-4">
+                          {ticket.description || 'No description provided'}
+                        </p>
 
-                                  {/* Description */}
-                                  <p className="text-xs text-muted-foreground line-clamp-2 mb-4">
-                                    {ticket.description || 'No description provided'}
-                                  </p>
+                        {/* Meta Information */}
+                        <div className="space-y-2 mb-4">
+                          {/* Updated Time */}
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <Clock className="w-3 h-3" />
+                            <span>Updated {getTimeAgo(ticket.updated_at || ticket.created_at)}</span>
+                          </div>
 
-                                  {/* Meta Information */}
-                                  <div className="space-y-2 mb-4">
-                                    {/* Updated Time */}
-                                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                      <Clock className="w-3 h-3" />
-                                      <span>Updated {getTimeAgo(ticket.updated_at || ticket.created_at)}</span>
-                                    </div>
+                          {/* Deadline */}
+                          {ticket.deadline && (
+                            <div className={`flex items-center gap-2 text-xs ${overdue ? 'text-red-400' : 'text-muted-foreground'}`}>
+                              <Calendar className="w-3 h-3" />
+                              <span>Due: {new Date(ticket.deadline).toLocaleDateString()}</span>
+                            </div>
+                          )}
+                        </div>
 
-                                    {/* Deadline */}
-                                    {ticket.deadline && (
-                                      <div className={`flex items-center gap-2 text-xs ${overdue ? 'text-red-400' : 'text-muted-foreground'}`}>
-                                        <Calendar className="w-3 h-3" />
-                                        <span>Due: {new Date(ticket.deadline).toLocaleDateString()}</span>
-                                      </div>
-                                    )}
-                                  </div>
+                        {/* Footer */}
+                        <div className="flex justify-between items-center">
+                          {/* Price - Prominent Display */}
+                          <div className={`px-3 py-2 rounded-lg font-bold text-sm ${highPriority
+                              ? 'bg-gradient-to-r from-primary/30 to-accent/30 text-primary border border-primary/50 shadow-lg shadow-primary/20'
+                              : 'bg-primary/10 text-primary border border-primary/30'
+                            } flex items-center gap-1.5`}>
+                            {highPriority && <TrendingUp className="w-3.5 h-3.5" />}
+                            ${ticket.price}
+                          </div>
 
-                                  {/* Footer */}
-                                  <div className="flex justify-between items-center">
-                                    {/* Price - Prominent Display */}
-                                    <div className={`px-3 py-2 rounded-lg font-bold text-sm ${
-                                      highPriority 
-                                        ? 'bg-gradient-to-r from-primary/30 to-accent/30 text-primary border border-primary/50 shadow-lg shadow-primary/20' 
-                                        : 'bg-primary/10 text-primary border border-primary/30'
-                                    } flex items-center gap-1.5`}>
-                                      {highPriority && <TrendingUp className="w-3.5 h-3.5" />}
-                                      ${ticket.price}
-                                    </div>
+                          {/* Result Link */}
+                          {ticket.result_link && (
+                            <a
+                              href={ticket.result_link}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="text-blue-400 hover:text-blue-300 underline underline-offset-2 flex items-center gap-1 text-xs font-medium transition-colors"
+                            >
+                              <Eye className="w-3 h-3" /> Result
+                            </a>
+                          )}
+                        </div>
 
-                                    {/* Result Link */}
-                                    {ticket.result_link && (
-                                      <a 
-                                        href={ticket.result_link} 
-                                        target="_blank" 
-                                        rel="noopener noreferrer"
-                                        onClick={(e) => e.stopPropagation()}
-                                        className="text-blue-400 hover:text-blue-300 underline underline-offset-2 flex items-center gap-1 text-xs font-medium transition-colors"
-                                      >
-                                        <Eye className="w-3 h-3" /> Result
-                                      </a>
-                                    )}
-                                  </div>
-
-                                  {/* Hover Action Indicator */}
-                                  <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <div className="text-xs text-primary font-medium flex items-center gap-1">
-                                      <Eye className="w-3 h-3" />
-                                      <span>View Details</span>
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            )}
-                          </Draggable>
-                        );
-                      })}
-                      {provided.placeholder}
+                        {/* Hover Action Indicator */}
+                        <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div className="text-xs text-primary font-medium flex items-center gap-1">
+                            <Eye className="w-3 h-3" />
+                            <span>View Details</span>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   )}
-                </Droppable>
-              </motion.div>
-            );
+                </Draggable>
+              );
+            })}
+            {provided.placeholder}
+          </div>
+                  )}
+        </Droppable>
+      </motion.div>
+      );
           })}
-        </div>
-      </DragDropContext>
+    </div>
+      </DragDropContext >
 
-      {/* S3 Upload Modal when moving to Review */}
-      {selectedTicket && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="w-full max-w-md bg-background rounded-3xl border border-border p-6 shadow-2xl">
-            <h3 className="text-xl font-bold mb-2">Upload Final Design</h3>
-            <p className="text-sm text-muted-foreground mb-6">You're submitting {" "}
-              <b className="text-foreground">{selectedTicket.title}</b>. Upload your file to our secure storage.
-            </p>
+    {/* S3 Upload Modal when moving to Review */ }
+  {
+    selectedDesign && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+        <div className="w-full max-w-md bg-background rounded-3xl border border-border p-6 shadow-2xl">
+          <h3 className="text-xl font-bold mb-2">Upload Final Design</h3>
+          <p className="text-sm text-muted-foreground mb-6">You're submitting {" "}
+            <b className="text-foreground">{selectedDesign.title}</b>. Upload your file to our secure storage.
+          </p>
 
-            <div className="border-2 border-dashed border-border rounded-xl p-8 flex flex-col items-center justify-center bg-foreground/5 mb-6 hover:border-primary/50 transition-colors">
-              <UploadCloud className="w-10 h-10 text-muted-foreground mb-3" />
-              <input
-                type="file"
-                className="w-full text-sm text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/20 file:text-primary hover:file:bg-primary/30"
-                onChange={e => setUploadFile(e.target.files?.[0] || null)}
-              />
-              {uploadFile && <p className="mt-3 text-sm text-green-400 font-medium">Ready: {uploadFile.name}</p>}
-            </div>
+          <div className="border-2 border-dashed border-border rounded-xl p-8 flex flex-col items-center justify-center bg-foreground/5 mb-6 hover:border-primary/50 transition-colors">
+            <UploadCloud className="w-10 h-10 text-muted-foreground mb-3" />
+            <input
+              type="file"
+              className="w-full text-sm text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/20 file:text-primary hover:file:bg-primary/30"
+              onChange={e => setUploadFile(e.target.files?.[0] || null)}
+            />
+            {uploadFile && <p className="mt-3 text-sm text-green-400 font-medium">Ready: {uploadFile.name}</p>}
+          </div>
 
-            <div className="flex gap-3 justify-end">
-              <button
-                className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground"
-                onClick={() => setSelectedTicket(null)}
-              >
-                Skip for now
-              </button>
-              <button
-                disabled={!uploadFile || uploading}
-                onClick={handleUploadSubmit}
-                className="bg-primary hover:bg-primary/80 disabled:opacity-50 px-6 py-2 rounded-full text-sm font-bold shadow-lg shadow-primary/30 flex items-center gap-2"
-              >
-                {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Upload File"}
-              </button>
-            </div>
+          <div className="flex gap-3 justify-end">
+            <button
+              className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground"
+              onClick={() => setSelectedDesign(null)}
+            >
+              Skip for now
+            </button>
+            <button
+              disabled={!uploadFile || uploading}
+              onClick={handleUploadSubmit}
+              className="bg-primary hover:bg-primary/80 disabled:opacity-50 px-6 py-2 rounded-full text-sm font-bold shadow-lg shadow-primary/30 flex items-center gap-2"
+            >
+              {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Upload File"}
+            </button>
           </div>
         </div>
-      )}
+      </div>
+    )
+  }
 
-      <TicketDetailDrawer
-        ticketId={detailTicketId}
-        onClose={() => setDetailTicketId(null)}
-        currentUser={user}
-      />
-    </div>
+  <DesignDetailDrawer
+    designId={detailDesignId}
+    onClose={() => setDetailDesignId(null)}
+    currentUser={user}
+  />
+    </div >
   );
 }

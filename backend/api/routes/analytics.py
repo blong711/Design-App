@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from typing import Dict, Any
-from api.deps import get_db, get_current_admin, get_current_user, get_current_manager
+from api.deps import get_db, get_current_admin, get_current_user
 from models.user import UserResponse
 from datetime import datetime, timezone, timedelta
 import calendar
@@ -11,27 +11,18 @@ router = APIRouter()
 @router.get("/overview")
 async def get_overview(
     db=Depends(get_db), 
-    current_user: UserResponse = Depends(get_current_manager)
+    current_user: UserResponse = Depends(get_current_admin)
 ):
-    """Admin/Manager Overview Analytics"""
+    """Admin Overview Analytics"""
     
     query = {"is_deleted": False}
-    if current_user.role == "manager":
-        if not current_user.team_id:
-            return {
-                "total_tickets": 0,
-                "completed_tickets": 0,
-                "total_unpaid": 0,
-                "total_paid": 0
-            }
-        query["team_id"] = ObjectId(current_user.team_id)
 
     # Simple aggregates without complex pipelines for MVP, or we can use $match and $group
     pipeline = [
         {"$match": query},
         {"$group": {
             "_id": None,
-            "total_tickets": {"$sum": 1},
+            "total_designs": {"$sum": 1},
             "total_unpaid": {
                 "$sum": {
                     "$cond": [{"$eq": ["$payment_status", "unpaid"]}, "$price", 0]
@@ -42,7 +33,7 @@ async def get_overview(
                     "$cond": [{"$eq": ["$payment_status", "paid"]}, "$price", 0]
                 }
             },
-            "completed_tickets": {
+            "completed_designs": {
                 "$sum": {
                     "$cond": [{"$eq": ["$status", "completed"]}, 1, 0]
                 }
@@ -50,11 +41,11 @@ async def get_overview(
         }}
     ]
     
-    result = await db["design_tickets"].aggregate(pipeline).to_list(1)
+    result = await db["designs"].aggregate(pipeline).to_list(1)
     if not result:
         return {
-            "total_tickets": 0,
-            "completed_tickets": 0,
+            "total_designs": 0,
+            "completed_designs": 0,
             "total_unpaid": 0,
             "total_paid": 0
         }
@@ -86,7 +77,7 @@ async def get_designer_stats(
         }},
         {"$group": {
             "_id": None,
-            "total_tickets_this_month": {"$sum": 1},
+            "total_designs_this_month": {"$sum": 1},
             "completed_this_month": {
                 "$sum": {"$cond": [{"$eq": ["$status", "completed"]}, 1, 0]}
             },
@@ -98,7 +89,7 @@ async def get_designer_stats(
         }}
     ]
 
-    result = await db["design_tickets"].aggregate(pipeline).to_list(1)
+    result = await db["designs"].aggregate(pipeline).to_list(1)
     
     # Also get unpaid balance across all time
     unpaid_pipeline = [
@@ -113,10 +104,10 @@ async def get_designer_stats(
             "total_unpaid": {"$sum": "$price"}
         }}
     ]
-    unpaid_result = await db["design_tickets"].aggregate(unpaid_pipeline).to_list(1)
+    unpaid_result = await db["designs"].aggregate(unpaid_pipeline).to_list(1)
 
     stats = result[0] if result else {
-        "total_tickets_this_month": 0,
+        "total_designs_this_month": 0,
         "completed_this_month": 0,
         "earnings_this_month": 0
     }

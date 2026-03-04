@@ -17,7 +17,7 @@ export default function DesignerOverview({ user }: { user: any }) {
           const res = await api.get(`/analytics/designer/${user.id}`);
           setStats(res.data);
         }
-      } catch(e) {
+      } catch (e) {
         console.error("Failed to load designer stats", e);
       }
     };
@@ -120,7 +120,7 @@ export default function DesignerOverview({ user }: { user: any }) {
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         {[
-          { title: "Tickets This Month", value: stats.total_tickets_this_month || 0, icon: Activity, color: "text-blue-400" },
+          { title: "Designs This Month", value: stats.total_designs_this_month || 0, icon: Activity, color: "text-blue-400" },
           { title: "Completed This Month", value: stats.completed_this_month || 0, icon: CheckCircle2, color: "text-green-400" },
           { title: "Total Unpaid (Debt)", value: `$${stats.total_unpaid || 0}`, icon: AlertCircle, color: "text-red-400" },
           { title: "Earnings This Month", value: `$${stats.earnings_this_month || 0}`, icon: DollarSign, color: "text-primary" },
@@ -132,15 +132,15 @@ export default function DesignerOverview({ user }: { user: any }) {
             transition={{ delay: i * 0.1, duration: 0.5 }}
             className="p-6 rounded-2xl glass-panel relative overflow-hidden group shadow-xl shadow-black/20"
           >
-           <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
               <card.icon className="w-24 h-24" />
-           </div>
-           <div className="relative z-10 flex flex-col justify-between h-full">
-            <h3 className="text-sm font-medium text-muted-foreground">{card.title}</h3>
-            <div className={`text-4xl font-bold mt-4 tracking-tighter ${card.color}`}>
-              {card.value}
             </div>
-           </div>
+            <div className="relative z-10 flex flex-col justify-between h-full">
+              <h3 className="text-sm font-medium text-muted-foreground">{card.title}</h3>
+              <div className={`text-4xl font-bold mt-4 tracking-tighter ${card.color}`}>
+                {card.value}
+              </div>
+            </div>
           </motion.div>
         ))}
       </div>
