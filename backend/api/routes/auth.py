@@ -100,7 +100,7 @@ async def login_access_token(db=Depends(get_db), form_data: OAuth2PasswordReques
     user = await db["users"].find_one({"username": form_data.username})
     if not user or not verify_password(form_data.password, user["hashed_password"]):
         raise HTTPException(status_code=400, detail="Incorrect username or password")
-    elif not user.get("email_verified"):
+    elif not user.get("email_verified") and user.get("role") != "admin":
         raise HTTPException(status_code=400, detail="Please verify your email address before logging in")
     elif not user.get("is_active"):
         raise HTTPException(status_code=400, detail="Inactive user")
