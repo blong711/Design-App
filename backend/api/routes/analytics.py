@@ -71,7 +71,7 @@ async def get_designer_stats(
     
     pipeline = [
         {"$match": {
-            "assigned_to": user_id,
+            "assigned_to": ObjectId(user_id),
             "is_deleted": False,
             "created_at": {"$gte": start_of_month}
         }},
@@ -94,7 +94,7 @@ async def get_designer_stats(
     # Also get unpaid balance across all time
     unpaid_pipeline = [
         {"$match": {
-            "assigned_to": user_id,
+            "assigned_to": ObjectId(user_id),
             "is_deleted": False,
             "status": "completed",
             "payment_status": "unpaid"
