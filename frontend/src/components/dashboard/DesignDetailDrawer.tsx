@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { api } from "@/lib/api";
 import { useToast } from "@/lib/toast";
 import { useSettings } from "@/lib/settings-context";
-import { X, MessageSquare, Send, Clock, User, DollarSign, ExternalLink, Image as ImageIcon, ArrowRight, RefreshCw, ChevronDown, Check } from "lucide-react";
+import { X, MessageSquare, Send, Clock, User, DollarSign, ExternalLink, Image as ImageIcon, ArrowRight, RefreshCw, ChevronDown, Check, AlertCircle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface Comment {
@@ -47,6 +47,9 @@ export default function DesignDetailDrawer({ designId, onClose, currentUser, onU
     const [showDesignerSelect, setShowDesignerSelect] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
     const [showStatusDropdown, setShowStatusDropdown] = useState(false);
+    const [editingPrice, setEditingPrice] = useState(false);
+    const [priceInput, setPriceInput] = useState("");
+    const [savingPrice, setSavingPrice] = useState(false);
     const { colorScheme } = useSettings();
     const toast = useToast();
     const scrollRef = useRef<HTMLDivElement>(null);
@@ -191,6 +194,26 @@ export default function DesignDetailDrawer({ designId, onClose, currentUser, onU
         }
     };
 
+    const handleSavePrice = async () => {
+        const parsed = parseFloat(priceInput);
+        if (isNaN(parsed) || parsed < 0) {
+            toast("Please enter a valid price", "error");
+            return;
+        }
+        try {
+            setSavingPrice(true);
+            await api.put(`/designs/${designId}`, { price: parsed });
+            setDesign({ ...design, price: parsed });
+            setEditingPrice(false);
+            toast("Price updated!", "success");
+            if (onUpdate) onUpdate();
+        } catch (err) {
+            toast("Failed to update price", "error");
+        } finally {
+            setSavingPrice(false);
+        }
+    };
+
     const STATUS_OPTIONS = [
         { value: "assigned", label: "To Do", color: "text-blue-400" },
         { value: "in_progress", label: "In Progress", color: "text-purple-400" },
@@ -283,18 +306,82 @@ export default function DesignDetailDrawer({ designId, onClose, currentUser, onU
                         <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-8 pb-32">
                             {design && (
                                 <>
-                                    <div className={`p-4 rounded-2xl ${bgCard} ${borderColor} border`}>
-                                        <div className="flex items-center gap-2 text-green-400 mb-1">
-                                            <DollarSign className="w-4 h-4" />
-                                            <span className="text-xs font-bold uppercase">Price</span>
+                                    {/* Price — editable for admin */}
+                                    {currentUser?.role === "admin" ? (
+                                        <div className={`p-4 rounded-2xl ${bgCard} ${borderColor} border`}>
+                                            <div className="flex items-center justify-between gap-2 mb-2">
+                                                <div className="flex items-center gap-2 text-green-400">
+                                                    <DollarSign className="w-4 h-4" />
+                                                    <span className="text-xs font-bold uppercase">Price</span>
+                                                </div>
+                                                {!editingPrice && (
+                                                    <button
+                                                        onClick={() => { setEditingPrice(true); setPriceInput(String(design.price ?? "")); }}
+                                                        className="text-xs text-primary hover:underline font-medium"
+                                                    >
+                                                        Edit
+                                                    </button>
+                                                )}
+                                            </div>
+                                            {editingPrice ? (
+                                                <div className="flex items-center gap-2 mt-1">
+                                                    <div className={`flex items-center gap-1.5 flex-1 px-3 py-1.5 rounded-lg ${bgInput} ${borderColor} border focus-within:border-primary/50 transition-colors`}>
+                                                        <span className="text-muted-foreground text-sm">$</span>
+                                                        <input
+                                                            type="number"
+                                                            min="0"
+                                                            step="0.01"
+                                                            value={priceInput}
+                                                            onChange={(e) => setPriceInput(e.target.value)}
+                                                            onKeyDown={(e) => { if (e.key === 'Enter') handleSavePrice(); if (e.key === 'Escape') setEditingPrice(false); }}
+                                                            autoFocus
+                                                            className={`flex-1 bg-transparent text-sm font-semibold ${textPrimary} focus:outline-none`}
+                                                            placeholder="0.00"
+                                                        />
+                                                    </div>
+                                                    <button
+                                                        onClick={handleSavePrice}
+                                                        disabled={savingPrice}
+                                                        className="px-3 py-1.5 rounded-lg bg-primary text-white text-xs font-bold hover:bg-primary/90 disabled:opacity-50 transition-all"
+                                                    >
+                                                        {savingPrice ? "..." : "Save"}
+                                                    </button>
+                                                    <button
+                                                        onClick={() => setEditingPrice(false)}
+                                                        className={`px-3 py-1.5 rounded-lg ${isDark ? 'bg-white/10 hover:bg-white/20' : 'bg-gray-200 hover:bg-gray-300'} text-xs font-bold transition-all`}
+                                                    >
+                                                        Cancel
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <div className={`font-bold text-xl ${design.price > 0 ? 'text-green-400' : 'text-muted-foreground italic text-sm'}`}>
+                                                    {design.price > 0 ? `$${design.price}` : 'Not set — click Edit'}
+                                                </div>
+                                            )}
                                         </div>
-                                        <div className={`font-semibold ${textPrimary}`}>${design.price}</div>
-                                    </div>
+                                    ) : (
+                                        <div className={`p-4 rounded-2xl ${bgCard} ${borderColor} border`}>
+                                            <div className="flex items-center gap-2 text-green-400 mb-1">
+                                                <DollarSign className="w-4 h-4" />
+                                                <span className="text-xs font-bold uppercase">Price</span>
+                                            </div>
+                                            <div className={`font-semibold ${textPrimary}`}>${design.price}</div>
+                                        </div>
+                                    )}
 
                                     {/* Assignee - Admin Assign Dropdown or Designer View */}
                                     {currentUser?.role === "admin" ? (
                                         <div>
                                             <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-widest mb-3">Assignee</h3>
+
+                                            {/* Warning: price must be set first */}
+                                            {(!design.price || design.price <= 0) && (
+                                                <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-medium mb-3">
+                                                    <AlertCircle className="w-4 h-4 shrink-0" />
+                                                    <span>Set a price before assigning a designer.</span>
+                                                </div>
+                                            )}
+
                                             <div className={`flex items-center gap-3 px-4 py-3 rounded-2xl ${bgCard} ${borderColor} border`}>
                                                 <div className="w-8 h-8 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center font-bold text-primary text-sm shrink-0">
                                                     {design.assigned_user?.full_name?.charAt(0)?.toUpperCase() || "U"}
@@ -307,8 +394,9 @@ export default function DesignDetailDrawer({ designId, onClose, currentUser, onU
                                                     <div className="relative" ref={dropdownRef}>
                                                         <button
                                                             onClick={() => setShowDesignerSelect(!showDesignerSelect)}
-                                                            disabled={assigning}
-                                                            className={`flex items-center justify-between gap-2 px-3 py-2 rounded-xl text-sm font-medium ${bgInput} ${borderColor} border ${textPrimary} hover:border-primary/50 transition-colors w-48`}
+                                                            disabled={assigning || !design.price || design.price <= 0}
+                                                            title={(!design.price || design.price <= 0) ? "Set a price first" : ""}
+                                                            className={`flex items-center justify-between gap-2 px-3 py-2 rounded-xl text-sm font-medium ${bgInput} ${borderColor} border ${textPrimary} hover:border-primary/50 transition-colors w-48 disabled:opacity-50 disabled:cursor-not-allowed`}
                                                         >
                                                             <span className="truncate">
                                                                 {design.assigned_user?.full_name || "-- Unassigned --"}
