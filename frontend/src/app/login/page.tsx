@@ -243,8 +243,15 @@ export default function LoginPage() {
           {/* Form */}
           <form onSubmit={handleLogin} className="space-y-5">
             {error && (
-              <div className="text-red-600 text-sm bg-red-50 border border-red-200 rounded-xl p-3 text-center">
-                {error}
+              <div className="text-red-600 text-sm bg-red-50 border border-red-200 rounded-xl p-3">
+                <p className="text-center">{error}</p>
+                {error.toLowerCase().includes("verify") && (
+                  <p className="text-center mt-2">
+                    <Link href="/resend-verification" className="text-pink-500 font-medium hover:underline">
+                      Resend verification email →
+                    </Link>
+                  </p>
+                )}
               </div>
             )}
 

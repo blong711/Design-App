@@ -10,6 +10,7 @@ class UserBase(BaseModel):
     full_name: str
     role: str = Field(default="customer", description="admin, customer, or designer")
     is_active: bool = True
+    email_verified: bool = False
 
 class UserCreate(UserBase):
     password: str
@@ -32,6 +33,7 @@ class UserInDB(UserBase):
     id: PyObjectId = Field(default_factory=lambda: ObjectId(), alias="_id")
     hashed_password: str
     avatar_url: Optional[str] = None
+    verification_token: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     class Config:

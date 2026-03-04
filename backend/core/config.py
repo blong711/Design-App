@@ -21,6 +21,15 @@ class Settings(BaseSettings):
     AWS_REGION: str = "us-east-1"
     S3_BUCKET_NAME: str = "design-manager-uploads"
 
+    # Email Settings (SMTP)
+    SMTP_HOST: str = "smtp.gmail.com"
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM_EMAIL: str = "noreply@designmanager.com"
+    SMTP_FROM_NAME: str = "Design Manager"
+    FRONTEND_URL: str = "http://localhost:3000"
+
     # External API Keys (Simplistic approach: comma separated keys or valid key)
     # In production, this should be verified against the DB (`api_keys` collection).
     
