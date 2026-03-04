@@ -5,7 +5,7 @@ import { api } from "@/lib/api";
 import { CheckCircle2, DollarSign, Activity, AlertCircle, Eye, Clock, Calendar, ExternalLink, Filter, MessageSquare, ChevronLeft, ChevronRight } from "lucide-react";
 import { motion } from "framer-motion";
 import DesignDetailDrawer from "@/components/dashboard/DesignDetailDrawer";
-import { getTimeAgo } from "@/lib/date-utils";
+import { getTimeAgo, formatVietnamDate } from "@/lib/date-utils";
 
 export default function DesignerOverview({ user }: { user: any }) {
   const [stats, setStats] = useState<any>(null);
@@ -35,6 +35,15 @@ export default function DesignerOverview({ user }: { user: any }) {
     }
   }, [viewedDesignIds, user?.id]);
 
+  const fetchDesigns = async () => {
+    try {
+      const res = await api.get("/designs");
+      setDesigns(res.data);
+    } catch (e) {
+      console.error("Failed to load designs", e);
+    }
+  };
+
   useEffect(() => {
     const fetchStats = async () => {
       try {
@@ -44,15 +53,6 @@ export default function DesignerOverview({ user }: { user: any }) {
         }
       } catch (e) {
         console.error("Failed to load designer stats", e);
-      }
-    };
-
-    const fetchDesigns = async () => {
-      try {
-        const res = await api.get("/designs");
-        setDesigns(res.data);
-      } catch (e) {
-        console.error("Failed to load designs", e);
       }
     };
 
@@ -485,8 +485,8 @@ export default function DesignerOverview({ user }: { user: any }) {
                     key={page}
                     onClick={() => setCompletedPage(page)}
                     className={`w-9 h-9 flex items-center justify-center rounded-lg border text-sm font-semibold transition-all ${completedPage === page
-                        ? 'bg-primary border-primary text-white shadow-md shadow-primary/30'
-                        : 'border-border bg-foreground/5 hover:bg-foreground/10 text-foreground'
+                      ? 'bg-primary border-primary text-white shadow-md shadow-primary/30'
+                      : 'border-border bg-foreground/5 hover:bg-foreground/10 text-foreground'
                       }`}
                   >
                     {page}
@@ -512,9 +512,10 @@ export default function DesignerOverview({ user }: { user: any }) {
         onClose={() => {
           setSelectedDesignId(null);
           // Refresh designs to update comment counts
-          api.get("/designs").then(res => setDesigns(res.data)).catch(console.error);
+          fetchDesigns();
         }}
         currentUser={user}
+        onUpdate={fetchDesigns}
       />
     </div>
   );

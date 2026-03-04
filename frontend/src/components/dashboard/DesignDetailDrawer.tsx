@@ -33,9 +33,10 @@ interface DesignDetailDrawerProps {
     designId: string | null;
     onClose: () => void;
     currentUser: any;
+    onUpdate?: () => void;
 }
 
-export default function DesignDetailDrawer({ designId, onClose, currentUser }: DesignDetailDrawerProps) {
+export default function DesignDetailDrawer({ designId, onClose, currentUser, onUpdate }: DesignDetailDrawerProps) {
     const [design, setDesign] = useState<any>(null);
     const [activity, setActivity] = useState<ActivityItem[]>([]);
     const [designers, setDesigners] = useState<any[]>([]);
@@ -45,6 +46,7 @@ export default function DesignDetailDrawer({ designId, onClose, currentUser }: D
     const [assigning, setAssigning] = useState(false);
     const [showDesignerSelect, setShowDesignerSelect] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
+    const [showStatusDropdown, setShowStatusDropdown] = useState(false);
     const { colorScheme } = useSettings();
     const toast = useToast();
     const scrollRef = useRef<HTMLDivElement>(null);
@@ -95,6 +97,21 @@ export default function DesignDetailDrawer({ designId, onClose, currentUser }: D
             scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
         }
     }, [activity]);
+
+    // Close dropdown when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (e: MouseEvent) => {
+            const target = e.target as HTMLElement;
+            if (!target.closest('.status-dropdown-container')) {
+                setShowStatusDropdown(false);
+            }
+        };
+
+        if (showStatusDropdown) {
+            document.addEventListener('mousedown', handleClickOutside);
+            return () => document.removeEventListener('mousedown', handleClickOutside);
+        }
+    }, [showStatusDropdown]);
 
     const fetchDesignDetails = async () => {
         try {
@@ -157,6 +174,30 @@ export default function DesignDetailDrawer({ designId, onClose, currentUser }: D
         }
     };
 
+    const handleStatusChange = async (newStatus: string) => {
+        if (!design) return;
+
+        try {
+            await api.patch(`/designs/${designId}/status`, { status: newStatus });
+            setDesign({ ...design, status: newStatus });
+            setShowStatusDropdown(false);
+            toast("Status updated successfully!", "success");
+            // Refresh activity to show status change
+            fetchActivity();
+            // Notify parent component to refresh
+            if (onUpdate) onUpdate();
+        } catch (err) {
+            toast("Failed to update status", "error");
+        }
+    };
+
+    const STATUS_OPTIONS = [
+        { value: "assigned", label: "To Do", color: "text-blue-400" },
+        { value: "in_progress", label: "In Progress", color: "text-purple-400" },
+        { value: "review", label: "In Review", color: "text-amber-400" },
+        { value: "completed", label: "Completed", color: "text-green-400" },
+    ];
+
     return (
         <AnimatePresence>
             {designId && (
@@ -179,40 +220,75 @@ export default function DesignDetailDrawer({ designId, onClose, currentUser }: D
                         className={`fixed top-0 right-0 h-full w-full max-w-lg ${bgMain} ${borderColor} border-l shadow-2xl z-[10001] flex flex-col`}
                     >
                         {/* Header */}
-                        <div className={`p-6 ${borderColor} border-b flex items-center justify-between ${isDark ? 'bg-gradient-to-r from-primary/20 to-accent/20' : 'bg-gradient-to-r from-primary/10 to-accent/10'}`}>
+                        <div className={`p-6 ${borderColor} border-b ${isDark ? 'bg-gradient-to-r from-primary/20 to-accent/20' : 'bg-gradient-to-r from-primary/10 to-accent/10'}`}>
+                            {/* Top Row: Status Dropdown & Close Button */}
+                            <div className="flex items-center justify-between gap-3 mb-3">
+                                {/* Status Dropdown */}
+                                {design && (
+                                    <div className="relative status-dropdown-container">
+                                        <button
+                                            onClick={() => setShowStatusDropdown(!showStatusDropdown)}
+                                            className={`flex items-center gap-2 px-4 py-2 rounded-xl ${isDark ? 'bg-white/10 hover:bg-white/20 border-white/20' : 'bg-gray-200 hover:bg-gray-300 border-gray-300'} border transition-all font-semibold text-sm ${textPrimary} whitespace-nowrap`}
+                                        >
+                                            <span className="capitalize">{design.status.replace("_", " ")}</span>
+                                            <ChevronDown className={`w-4 h-4 transition-transform ${showStatusDropdown ? 'rotate-180' : ''}`} />
+                                        </button>
+
+                                        {/* Dropdown Menu */}
+                                        <AnimatePresence>
+                                            {showStatusDropdown && (
+                                                <motion.div
+                                                    initial={{ opacity: 0, y: -10 }}
+                                                    animate={{ opacity: 1, y: 0 }}
+                                                    exit={{ opacity: 0, y: -10 }}
+                                                    className={`absolute top-full left-0 mt-2 w-48 ${bgMain} ${borderColor} border rounded-xl shadow-2xl overflow-hidden z-10`}
+                                                >
+                                                    {STATUS_OPTIONS.map((option) => (
+                                                        <button
+                                                            key={option.value}
+                                                            onClick={() => handleStatusChange(option.value)}
+                                                            className={`w-full px-4 py-3 text-left ${isDark ? 'hover:bg-white/10' : 'hover:bg-gray-100'} transition-colors flex items-center justify-between ${design.status === option.value ? (isDark ? 'bg-white/5' : 'bg-gray-50') : ''
+                                                                }`}
+                                                        >
+                                                            <span className={`font-medium ${option.color}`}>{option.label}</span>
+                                                            {design.status === option.value && (
+                                                                <div className="w-2 h-2 rounded-full bg-primary" />
+                                                            )}
+                                                        </button>
+                                                    ))}
+                                                </motion.div>
+                                            )}
+                                        </AnimatePresence>
+                                    </div>
+                                )}
+
+                                <button
+                                    onClick={onClose}
+                                    className={`p-2 rounded-full ${isDark ? 'hover:bg-white/10' : 'hover:bg-gray-200'} transition-colors`}
+                                >
+                                    <X className="w-5 h-5 text-muted-foreground" />
+                                </button>
+                            </div>
+
+                            {/* Bottom Row: Title */}
                             <div>
-                                <h2 className={`text-xl font-bold ${textPrimary} truncate max-w-[300px]`}>
+                                <h2 className={`text-xl font-bold ${textPrimary} line-clamp-2`}>
                                     {loading ? "Loading..." : design?.title}
                                 </h2>
                                 <span className="text-xs text-muted-foreground uppercase tracking-wider">Design Details</span>
                             </div>
-                            <button
-                                onClick={onClose}
-                                className={`p-2 rounded-full ${isDark ? 'hover:bg-white/10' : 'hover:bg-gray-200'} transition-colors`}
-                            >
-                                <X className="w-5 h-5 text-muted-foreground" />
-                            </button>
                         </div>
 
                         {/* Content */}
                         <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-8 pb-32">
                             {design && (
                                 <>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div className={`p-4 rounded-2xl ${bgCard} ${borderColor} border`}>
-                                            <div className="flex items-center gap-2 text-primary mb-1">
-                                                <Clock className="w-4 h-4" />
-                                                <span className="text-xs font-bold uppercase">Status</span>
-                                            </div>
-                                            <div className={`capitalize font-semibold ${textPrimary}`}>{design.status.replace("_", " ")}</div>
+                                    <div className={`p-4 rounded-2xl ${bgCard} ${borderColor} border`}>
+                                        <div className="flex items-center gap-2 text-green-400 mb-1">
+                                            <DollarSign className="w-4 h-4" />
+                                            <span className="text-xs font-bold uppercase">Price</span>
                                         </div>
-                                        <div className={`p-4 rounded-2xl ${bgCard} ${borderColor} border`}>
-                                            <div className="flex items-center gap-2 text-green-400 mb-1">
-                                                <DollarSign className="w-4 h-4" />
-                                                <span className="text-xs font-bold uppercase">Price</span>
-                                            </div>
-                                            <div className={`font-semibold ${textPrimary}`}>${design.price}</div>
-                                        </div>
+                                        <div className={`font-semibold ${textPrimary}`}>${design.price}</div>
                                     </div>
 
                                     {/* Assignee - Admin Assign Dropdown or Designer View */}

@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { api } from "@/lib/api";
 import { useToast } from "@/lib/toast";
-import { X, MessageSquare, Send, Clock, User, DollarSign, ExternalLink, Image as ImageIcon } from "lucide-react";
+import { X, MessageSquare, Send, Clock, User, DollarSign, ExternalLink, Image as ImageIcon, ChevronDown } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface Comment {
@@ -26,6 +26,7 @@ export default function TicketDetailDrawer({ ticketId, onClose, currentUser }: T
     const [newComment, setNewComment] = useState("");
     const [loading, setLoading] = useState(false);
     const [sending, setSending] = useState(false);
+    const [showStatusDropdown, setShowStatusDropdown] = useState(false);
     const toast = useToast();
     const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -48,6 +49,21 @@ export default function TicketDetailDrawer({ ticketId, onClose, currentUser }: T
             scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
         }
     }, [comments]);
+
+    // Close dropdown when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (e: MouseEvent) => {
+            const target = e.target as HTMLElement;
+            if (!target.closest('.status-dropdown-container')) {
+                setShowStatusDropdown(false);
+            }
+        };
+
+        if (showStatusDropdown) {
+            document.addEventListener('mousedown', handleClickOutside);
+            return () => document.removeEventListener('mousedown', handleClickOutside);
+        }
+    }, [showStatusDropdown]);
 
     const fetchTicketDetails = async () => {
         try {
@@ -86,6 +102,26 @@ export default function TicketDetailDrawer({ ticketId, onClose, currentUser }: T
         }
     };
 
+    const handleStatusChange = async (newStatus: string) => {
+        if (!ticket) return;
+        
+        try {
+            await api.patch(`/designs/${ticketId}/status`, { status: newStatus });
+            setTicket({ ...ticket, status: newStatus });
+            setShowStatusDropdown(false);
+            toast("Status updated successfully!", "success");
+        } catch (err) {
+            toast("Failed to update status", "error");
+        }
+    };
+
+    const STATUS_OPTIONS = [
+        { value: "assigned", label: "To Do", color: "text-blue-400" },
+        { value: "in_progress", label: "In Progress", color: "text-purple-400" },
+        { value: "review", label: "In Review", color: "text-amber-400" },
+        { value: "completed", label: "Completed", color: "text-green-400" },
+    ];
+
     return (
         <AnimatePresence>
             {ticketId && (
@@ -108,19 +144,64 @@ export default function TicketDetailDrawer({ ticketId, onClose, currentUser }: T
                         className="fixed top-0 right-0 h-full w-full max-w-lg bg-[#1a1a24] border-l border-white/10 shadow-2xl z-50 flex flex-col"
                     >
                         {/* Header */}
-                        <div className="px-6 py-4 border-b border-transparent flex items-center justify-between" style={{ background: "linear-gradient(135deg, #ec4899, #a855f7)" }}>
+                        <div className="px-6 py-4 border-b border-transparent" style={{ background: "linear-gradient(135deg, #ec4899, #a855f7)" }}>
+                            {/* Top Row: Status Dropdown & Close Button */}
+                            <div className="flex items-center justify-between gap-3 mb-3">
+                                {/* Status Dropdown */}
+                                {ticket && (
+                                    <div className="relative status-dropdown-container">
+                                        <button
+                                            onClick={() => setShowStatusDropdown(!showStatusDropdown)}
+                                            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/20 hover:bg-white/30 transition-all text-white font-semibold text-sm backdrop-blur-sm border border-white/30 whitespace-nowrap"
+                                        >
+                                            <span className="capitalize">{ticket.status.replace("_", " ")}</span>
+                                            <ChevronDown className={`w-4 h-4 transition-transform ${showStatusDropdown ? 'rotate-180' : ''}`} />
+                                        </button>
+                                        
+                                        {/* Dropdown Menu */}
+                                        <AnimatePresence>
+                                            {showStatusDropdown && (
+                                                <motion.div
+                                                    initial={{ opacity: 0, y: -10 }}
+                                                    animate={{ opacity: 1, y: 0 }}
+                                                    exit={{ opacity: 0, y: -10 }}
+                                                    className="absolute top-full left-0 mt-2 w-48 bg-[#1a1a24] border border-white/10 rounded-xl shadow-2xl overflow-hidden z-10"
+                                                >
+                                                    {STATUS_OPTIONS.map((option) => (
+                                                        <button
+                                                            key={option.value}
+                                                            onClick={() => handleStatusChange(option.value)}
+                                                            className={`w-full px-4 py-3 text-left hover:bg-white/10 transition-colors flex items-center justify-between ${
+                                                                ticket.status === option.value ? 'bg-white/5' : ''
+                                                            }`}
+                                                        >
+                                                            <span className={`font-medium ${option.color}`}>{option.label}</span>
+                                                            {ticket.status === option.value && (
+                                                                <div className="w-2 h-2 rounded-full bg-pink-400" />
+                                                            )}
+                                                        </button>
+                                                    ))}
+                                                </motion.div>
+                                            )}
+                                        </AnimatePresence>
+                                    </div>
+                                )}
+                                
+                                <button
+                                    onClick={onClose}
+                                    className="p-2 rounded-xl hover:bg-white/20 transition-all duration-300 hover:scale-110 active:scale-95"
+                                >
+                                    <X className="w-5 h-5 text-white" />
+                                </button>
+                            </div>
+                            
+                            {/* Bottom Row: Title */}
                             <div>
-                                <h2 className="text-lg font-bold text-white truncate max-w-[300px]">
+                                <h2 className="text-lg font-bold text-white line-clamp-2">
                                     {loading ? "Loading..." : ticket?.title}
                                 </h2>
                                 <span className="text-[10px] text-white/70 uppercase tracking-widest font-semibold">Ticket Details</span>
                             </div>
-                            <button
-                                onClick={onClose}
-                                className="p-2 rounded-xl hover:bg-white/20 transition-all duration-300 hover:scale-110 active:scale-95"
-                            >
-                                <X className="w-5 h-5 text-white" />
-                            </button>
                         </div>
 
                         {/* Content */}
@@ -128,21 +209,12 @@ export default function TicketDetailDrawer({ ticketId, onClose, currentUser }: T
                             {ticket && (
                                 <>
                                     {/* Info Grid */}
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <div className="p-4 rounded-xl bg-white/5 border border-white/10 transition-all hover:border-pink-500/30 hover:bg-white/10">
-                                            <div className="flex items-center gap-2 text-pink-400 mb-1.5">
-                                                <Clock className="w-4 h-4" />
-                                                <span className="text-[10px] font-bold uppercase tracking-widest">Status</span>
-                                            </div>
-                                            <div className="capitalize font-semibold text-white text-sm">{ticket.status.replace("_", " ")}</div>
+                                    <div className="p-4 rounded-xl bg-white/5 border border-white/10 transition-all hover:border-green-500/30 hover:bg-white/10">
+                                        <div className="flex items-center gap-2 text-green-400 mb-1.5">
+                                            <DollarSign className="w-4 h-4" />
+                                            <span className="text-[10px] font-bold uppercase tracking-widest">Price</span>
                                         </div>
-                                        <div className="p-4 rounded-xl bg-white/5 border border-white/10 transition-all hover:border-green-500/30 hover:bg-white/10">
-                                            <div className="flex items-center gap-2 text-green-400 mb-1.5">
-                                                <DollarSign className="w-4 h-4" />
-                                                <span className="text-[10px] font-bold uppercase tracking-widest">Price</span>
-                                            </div>
-                                            <div className="font-semibold text-white text-sm">${ticket.price}</div>
-                                        </div>
+                                        <div className="font-semibold text-white text-sm">${ticket.price}</div>
                                     </div>
 
                                     {/* Description */}

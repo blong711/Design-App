@@ -293,6 +293,7 @@ export default function CustomerView({ user: initialUser }: { user: any }) {
                 designId={detailDesignId}
                 onClose={() => setDetailDesignId(null)}
                 currentUser={user}
+                onUpdate={fetchData}
             />
         </>
     );

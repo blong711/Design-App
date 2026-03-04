@@ -415,6 +415,7 @@ export default function DesignsPage() {
         designId={selectedDesignId}
         onClose={() => setSelectedDesignId(null)}
         currentUser={currentUser}
+        onUpdate={fetchDesigns}
       />
 
       <NewDesignDrawer
