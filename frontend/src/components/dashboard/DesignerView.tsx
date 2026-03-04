@@ -27,6 +27,7 @@ function ActivityIcon(props: any) {
 export default function DesignerView({ user }: { user: any }) {
   const toast = useToast();
   const [viewMode, setViewMode] = useState<"kanban" | "cart">("kanban");
+  const [density, setDensity] = useState<"comfortable" | "compact">("comfortable");
   const [columns, setColumns] = useState<Record<string, any[]>>({
     assigned: [],
     in_progress: [],
@@ -144,129 +145,183 @@ export default function DesignerView({ user }: { user: any }) {
   };
 
   return (
-    <div className="h-full flex flex-col">
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h2 className="text-3xl font-bold tracking-tight">Design Board</h2>
-          <p className="text-muted-foreground mt-1 text-sm">Drag tasks across columns to update their status.</p>
-        </div>
-        
-        {/* View Mode Toggle */}
-        <div className="flex items-center gap-2 bg-foreground/5 rounded-full p-1 border border-border">
-          <button
-            onClick={() => setViewMode("kanban")}
-            className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${
-              viewMode === "kanban"
-                ? "bg-primary text-primary-foreground shadow-lg"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <LayoutGrid className="w-4 h-4" />
-            Kanban
-          </button>
-          <button
-            onClick={() => setViewMode("cart")}
-            className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${
-              viewMode === "cart"
-                ? "bg-primary text-primary-foreground shadow-lg"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <List className="w-4 h-4" />
-            List
-          </button>
+    <div className="flex flex-col h-screen">
+      {/* Fixed Header */}
+      <div className="flex-shrink-0 px-6 py-4 border-b border-border bg-background">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-3xl font-bold tracking-tight">Design Board</h2>
+            <p className="text-muted-foreground mt-1 text-sm">Drag tasks across columns to update their status.</p>
+          </div>
+          
+          <div className="flex items-center gap-3">
+            {/* Density Toggle */}
+            {viewMode === "kanban" && (
+              <div className="flex items-center gap-2 bg-foreground/5 rounded-full p-1 border border-border">
+                <button
+                  onClick={() => setDensity("comfortable")}
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                    density === "comfortable"
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  Comfortable
+                </button>
+                <button
+                  onClick={() => setDensity("compact")}
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                    density === "compact"
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  Compact
+                </button>
+              </div>
+            )}
+            
+            {/* View Mode Toggle */}
+            <div className="flex items-center gap-2 bg-foreground/5 rounded-full p-1 border border-border">
+              <button
+                onClick={() => setViewMode("kanban")}
+                className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                  viewMode === "kanban"
+                    ? "bg-primary text-primary-foreground shadow-lg"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <LayoutGrid className="w-4 h-4" />
+                Kanban
+              </button>
+              <button
+                onClick={() => setViewMode("cart")}
+                className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                  viewMode === "cart"
+                    ? "bg-primary text-primary-foreground shadow-lg"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <List className="w-4 h-4" />
+                List
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
       {viewMode === "kanban" ? (
-        // Kanban Board View
-        <DragDropContext onDragEnd={onDragEnd}>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-start">
-          {COLUMNS.map(col => (
-            <div key={col.id} className="flex flex-col rounded-2xl glass-panel relative overflow-hidden">
-              {/* Column Header */}
-              <div className="px-5 py-4 border-b border-border flex items-center justify-between">
-                <div className="flex items-center gap-2 font-semibold">
-                  <col.icon className={`w-4 h-4 ${col.color}`} />
-                  <span className="text-sm uppercase tracking-wider text-foreground/80">{col.title}</span>
-                </div>
-                <span className="text-xs font-bold text-muted-foreground bg-foreground/5 px-2 py-0.5 rounded-full">
-                  {columns[col.id]?.length || 0}
-                </span>
-              </div>
-
-              {/* Droppable Area */}
-              < Droppable droppableId={col.id} >
-                {(provided, snapshot) => (
-                  <div
-                    {...provided.droppableProps}
-                    ref={provided.innerRef}
-                    className={`flex-1 p-3 flex flex-col gap-3 min-h-[500px] transition-colors ${snapshot.isDraggingOver ? 'bg-primary/5' : ''}`}
-                  >
-                    {columns[col.id]?.length === 0 ? (
-                      <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
-                        <col.icon className={`w-16 h-16 ${col.color} opacity-20 mb-4`} />
-                        <p className="text-muted-foreground text-sm font-medium mb-1">
-                          No tasks here
-                        </p>
-                        <p className="text-xs text-muted-foreground/70">
-                          {col.id === 'assigned' && 'Wait for new assignments'}
-                          {col.id === 'in_progress' && 'Drag tasks here to start working'}
-                          {col.id === 'review' && 'Submit completed work for review'}
-                          {col.id === 'completed' && 'Completed tasks will appear here'}
-                        </p>
-                      </div>
-                    ) : (
-                      columns[col.id]?.map((design, index) => (
-                        <Draggable key={design.id} draggableId={design.id} index={index}>
-                          {(provided, snapshot) => (
-                            <div
-                              ref={provided.innerRef}
-                              {...provided.draggableProps}
-                              {...provided.dragHandleProps}
-                              className={`p-4 rounded-xl border border-border shadow-lg select-none transition-all cursor-pointer ${snapshot.isDragging
-                                  ? 'bg-[#1a1528] shadow-[0_0_20px_rgba(168,85,247,0.3)] border-primary/50 rotate-2'
-                                  : 'bg-foreground/5 hover:bg-foreground/10'
-                                }`}
-                              onClick={() => setDetailDesignId(design.id)}
-                            >
-                              <div className="flex justify-between items-start mb-2">
-                                <h4 className="font-semibold text-foreground leading-tight">{design.title}</h4>
-                              </div>
-                              <p className="text-xs text-muted-foreground line-clamp-2 mb-4">
-                                {design.description || 'No description provided'}
-                              </p>
-
-                              <div className="flex justify-between items-center text-xs">
-                                <div className="flex items-center gap-1.5 text-muted-foreground">
-                                  <Clock className="w-3.5 h-3.5" />
-                                  <span>{getTimeAgo(design.updated_at || design.created_at)}</span>
-                                </div>
-                                {design.result_link && (
-                                  <a
-                                    href={design.result_link}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    onClick={(e) => e.stopPropagation()}
-                                    className="text-blue-400 hover:text-blue-300 underline underline-offset-2 flex items-center gap-1"
-                                  >
-                                    <Eye className="w-3 h-3" /> Result
-                                  </a>
-                                )}
-                              </div>
-                            </div>
-                          )}
-                        </Draggable>
-                      ))
-                    )}
-                    {provided.placeholder}
+        // Kanban Board View - Scrollable Columns
+        <div className="flex-1 overflow-hidden">
+          <DragDropContext onDragEnd={onDragEnd}>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 h-full px-6 py-4">
+              {COLUMNS.map(col => (
+                <div key={col.id} className="flex flex-col rounded-xl glass-panel border border-border overflow-hidden">
+                  {/* Sticky Column Header */}
+                  <div className="sticky top-0 z-10 px-4 py-3 bg-background/95 backdrop-blur-sm border-b border-border flex items-center justify-between">
+                    <div className="flex items-center gap-2 font-semibold">
+                      <col.icon className={`w-4 h-4 ${col.color}`} />
+                      <span className="text-xs uppercase tracking-wider text-foreground/80">{col.title}</span>
+                    </div>
+                    <span className="text-xs font-bold text-muted-foreground bg-foreground/10 px-2 py-0.5 rounded-full">
+                      {columns[col.id]?.length || 0}
+                    </span>
                   </div>
-                )}
-              </Droppable>
+
+                  {/* Scrollable Droppable Area */}
+                  <Droppable droppableId={col.id}>
+                    {(provided, snapshot) => (
+                      <div
+                        {...provided.droppableProps}
+                        ref={provided.innerRef}
+                        className={`flex-1 overflow-y-auto custom-scrollbar p-2 flex flex-col gap-2 transition-colors ${snapshot.isDraggingOver ? 'bg-primary/5' : ''}`}
+                        style={{ maxHeight: 'calc(100vh - 180px)' }}
+                      >
+                        {columns[col.id]?.length === 0 ? (
+                          <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
+                            <col.icon className={`w-12 h-12 ${col.color} opacity-20 mb-3`} />
+                            <p className="text-muted-foreground text-xs font-medium mb-1">
+                              No tasks
+                            </p>
+                            <p className="text-xs text-muted-foreground/60">
+                              {col.id === 'assigned' && 'New assignments'}
+                              {col.id === 'in_progress' && 'Drag to start'}
+                              {col.id === 'review' && 'Submit for review'}
+                              {col.id === 'completed' && 'Done tasks'}
+                            </p>
+                          </div>
+                        ) : (
+                          columns[col.id]?.map((design, index) => {
+                            const isCompact = density === "compact";
+                            const cardPadding = isCompact ? "p-2.5" : "p-3";
+                            const titleSize = isCompact ? "text-xs" : "text-sm";
+                            const badgeSize = isCompact ? "text-[10px]" : "text-xs";
+                            
+                            return (
+                              <Draggable key={design.id} draggableId={design.id} index={index}>
+                                {(provided, snapshot) => (
+                                  <div
+                                    ref={provided.innerRef}
+                                    {...provided.draggableProps}
+                                    {...provided.dragHandleProps}
+                                    className={`${cardPadding} rounded-lg border border-border select-none transition-all cursor-pointer group ${snapshot.isDragging
+                                        ? 'bg-[#1a1528] shadow-[0_0_20px_rgba(168,85,247,0.3)] border-primary/50 rotate-1'
+                                        : 'bg-foreground/5 hover:bg-foreground/10 hover:border-primary/30'
+                                      }`}
+                                    onClick={() => setDetailDesignId(design.id)}
+                                  >
+                                    {/* Title - Single Line */}
+                                    <h4 className={`font-semibold text-foreground leading-tight line-clamp-1 mb-2 ${titleSize}`} title={design.title}>
+                                      {design.title}
+                                    </h4>
+
+                                    {/* Metadata Row */}
+                                    <div className="flex items-center justify-between gap-2">
+                                      <div className="flex items-center gap-1.5">
+                                        {/* Time Badge */}
+                                        <div className={`flex items-center gap-1 text-muted-foreground ${badgeSize}`}>
+                                          <Clock className="w-3 h-3" />
+                                          <span className="line-clamp-1">{getTimeAgo(design.updated_at || design.created_at)}</span>
+                                        </div>
+                                      </div>
+                                      
+                                      {/* Result Link Icon */}
+                                      {design.result_link && (
+                                        <a
+                                          href={design.result_link}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          onClick={(e) => e.stopPropagation()}
+                                          className="text-blue-400 hover:text-blue-300 transition-colors"
+                                          title="View result"
+                                        >
+                                          <Eye className="w-3.5 h-3.5" />
+                                        </a>
+                                      )}
+                                      
+                                      {/* Comment Count */}
+                                      {design.comment_count > 0 && (
+                                        <div className="flex items-center gap-1 text-muted-foreground">
+                                          <MessageSquare className="w-3 h-3" />
+                                          <span className={badgeSize}>{design.comment_count}</span>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
+                              </Draggable>
+                            );
+                          })
+                        )}
+                        {provided.placeholder}
+                      </div>
+                    )}
+                  </Droppable>
+                </div>
+              ))}
             </div>
-          ))}
+          </DragDropContext>
         </div>
-      </DragDropContext>
       ) : (
         // Cart/List View
         <div className="space-y-4">
