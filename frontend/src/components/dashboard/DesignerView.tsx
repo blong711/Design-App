@@ -261,9 +261,10 @@ export default function DesignerView({ user }: { user: any }) {
                         ) : (
                           columns[col.id]?.map((design, index) => {
                             const isCompact = density === "compact";
-                            const cardPadding = isCompact ? "p-2.5" : "p-3";
+                            const cardPadding = isCompact ? "p-0" : "p-0";
                             const titleSize = isCompact ? "text-xs" : "text-sm";
                             const badgeSize = isCompact ? "text-[10px]" : "text-xs";
+                            const imageHeight = isCompact ? "h-24" : "h-32";
                             
                             return (
                               <Draggable key={design.id} draggableId={design.id} index={index}>
@@ -272,48 +273,62 @@ export default function DesignerView({ user }: { user: any }) {
                                     ref={provided.innerRef}
                                     {...provided.draggableProps}
                                     {...provided.dragHandleProps}
-                                    className={`${cardPadding} rounded-lg border border-border select-none transition-all cursor-pointer group ${snapshot.isDragging
+                                    className={`rounded-lg border border-border select-none transition-all cursor-pointer group overflow-hidden ${snapshot.isDragging
                                         ? 'bg-[#1a1528] shadow-[0_0_20px_rgba(168,85,247,0.3)] border-primary/50 rotate-1'
                                         : 'bg-foreground/5 hover:bg-foreground/10 hover:border-primary/30'
                                       }`}
                                     onClick={() => setDetailDesignId(design.id)}
                                   >
-                                    {/* Title - Single Line */}
-                                    <h4 className={`font-semibold text-foreground leading-tight line-clamp-1 mb-2 ${titleSize}`} title={design.title}>
-                                      {design.title}
-                                    </h4>
-
-                                    {/* Metadata Row */}
-                                    <div className="flex items-center justify-between gap-2">
-                                      <div className="flex items-center gap-1.5">
-                                        {/* Time Badge */}
-                                        <div className={`flex items-center gap-1 text-muted-foreground ${badgeSize}`}>
-                                          <Clock className="w-3 h-3" />
-                                          <span className="line-clamp-1">{getTimeAgo(design.updated_at || design.created_at)}</span>
-                                        </div>
+                                    {/* Image */}
+                                    {design.image_url && (
+                                      <div className={`relative w-full ${imageHeight} overflow-hidden bg-background/50`}>
+                                        <img 
+                                          src={design.image_url} 
+                                          alt={design.title}
+                                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                        />
                                       </div>
-                                      
-                                      {/* Result Link Icon */}
-                                      {design.result_link && (
-                                        <a
-                                          href={design.result_link}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          onClick={(e) => e.stopPropagation()}
-                                          className="text-blue-400 hover:text-blue-300 transition-colors"
-                                          title="View result"
-                                        >
-                                          <Eye className="w-3.5 h-3.5" />
-                                        </a>
-                                      )}
-                                      
-                                      {/* Comment Count */}
-                                      {design.comment_count > 0 && (
-                                        <div className="flex items-center gap-1 text-muted-foreground">
-                                          <MessageSquare className="w-3 h-3" />
-                                          <span className={badgeSize}>{design.comment_count}</span>
+                                    )}
+
+                                    {/* Content */}
+                                    <div className={isCompact ? "p-2.5" : "p-3"}>
+                                      {/* Title - Single Line */}
+                                      <h4 className={`font-semibold text-foreground leading-tight line-clamp-1 mb-2 ${titleSize}`} title={design.title}>
+                                        {design.title}
+                                      </h4>
+
+                                      {/* Metadata Row */}
+                                      <div className="flex items-center justify-between gap-2">
+                                        <div className="flex items-center gap-1.5">
+                                          {/* Time Badge */}
+                                          <div className={`flex items-center gap-1 text-muted-foreground ${badgeSize}`}>
+                                            <Clock className="w-3 h-3" />
+                                            <span className="line-clamp-1">{getTimeAgo(design.updated_at || design.created_at)}</span>
+                                          </div>
                                         </div>
-                                      )}
+                                        
+                                        {/* Result Link Icon */}
+                                        {design.result_link && (
+                                          <a
+                                            href={design.result_link}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            onClick={(e) => e.stopPropagation()}
+                                            className="text-blue-400 hover:text-blue-300 transition-colors"
+                                            title="View result"
+                                          >
+                                            <Eye className="w-3.5 h-3.5" />
+                                          </a>
+                                        )}
+                                        
+                                        {/* Comment Count */}
+                                        {design.comment_count > 0 && (
+                                          <div className="flex items-center gap-1 text-muted-foreground">
+                                            <MessageSquare className="w-3 h-3" />
+                                            <span className={badgeSize}>{design.comment_count}</span>
+                                          </div>
+                                        )}
+                                      </div>
                                     </div>
                                   </div>
                                 )}
