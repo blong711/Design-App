@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { CheckCircle2, DollarSign, Activity, AlertCircle, Eye, Clock, TrendingUp, Calendar, Wallet, ExternalLink, Filter } from "lucide-react";
 import { motion } from "framer-motion";
+import { formatVietnamDate, getTimeAgo } from "@/lib/date-utils";
 
 export default function DesignerOverview({ user }: { user: any }) {
   const [stats, setStats] = useState<any>(null);
@@ -21,47 +22,47 @@ export default function DesignerOverview({ user }: { user: any }) {
         console.error("Failed to load designer stats", e);
       }
     };
-    
+
     const fetchTickets = async () => {
       try {
         const res = await api.get("/tickets/");
         setTickets(res.data);
-      } catch(e) {
+      } catch (e) {
         console.error("Failed to load tickets", e);
       }
     };
-    
+
     fetchStats();
     fetchTickets();
   }, [user]);
 
   // Get active tickets (not completed)
   const activeTickets = tickets.filter(t => t.status !== 'completed');
-  
+
   // Get completed tickets
   const completedTickets = tickets.filter(t => t.status === 'completed');
-  
+
   // Calculate earnings breakdown
   const getEarningsBreakdown = () => {
     const totalEarned = completedTickets.reduce((sum, t) => sum + (parseFloat(t.price) || 0), 0);
     const totalPaid = completedTickets.filter(t => t.payment_status === 'paid').reduce((sum, t) => sum + (parseFloat(t.price) || 0), 0);
     const totalUnpaid = completedTickets.filter(t => t.payment_status === 'unpaid').reduce((sum, t) => sum + (parseFloat(t.price) || 0), 0);
-    
+
     return { totalEarned, totalPaid, totalUnpaid };
   };
-  
+
   // Get completed tickets by week for chart
   const getWeeklyCompletedData = () => {
     const weeks: { [key: string]: number } = {};
     const now = new Date();
-    
+
     for (let i = 3; i >= 0; i--) {
       const weekStart = new Date(now);
       weekStart.setDate(now.getDate() - (i * 7) - now.getDay());
       const weekKey = `Week ${4 - i}`;
       weeks[weekKey] = 0;
     }
-    
+
     completedTickets.forEach(ticket => {
       const completedDate = new Date(ticket.updated_at || ticket.created_at);
       const weeksAgo = Math.floor((now.getTime() - completedDate.getTime()) / (7 * 24 * 60 * 60 * 1000));
@@ -72,18 +73,18 @@ export default function DesignerOverview({ user }: { user: any }) {
         }
       }
     });
-    
+
     return weeks;
   };
-  
+
   // Filter completed tickets by month
   const getFilteredCompletedTickets = () => {
     if (selectedHistoryMonth === "all") return completedTickets;
-    
+
     const now = new Date();
     const monthsAgo = parseInt(selectedHistoryMonth);
     const filterDate = new Date(now.getFullYear(), now.getMonth() - monthsAgo, 1);
-    
+
     return completedTickets.filter(ticket => {
       const completedDate = new Date(ticket.updated_at || ticket.created_at);
       return completedDate >= filterDate;
@@ -91,21 +92,13 @@ export default function DesignerOverview({ user }: { user: any }) {
   };
 
   // Format time ago
-  const getTimeAgo = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-    
-    if (seconds < 60) return 'Just now';
-    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
-    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
-    if (seconds < 172800) return 'Yesterday';
-    if (seconds < 604800) return `${Math.floor(seconds / 86400)}d ago`;
-    return date.toLocaleDateString();
+  const formatDate = (dateString: string) => {
+    return formatVietnamDate(dateString);
   };
 
   if (!stats) return <div className="animate-pulse">Loading overview...</div>;
-  
+
+
   const earningsBreakdown = getEarningsBreakdown();
   const weeklyData = getWeeklyCompletedData();
   const maxWeeklyCount = Math.max(...Object.values(weeklyData), 1);
@@ -195,10 +188,10 @@ export default function DesignerOverview({ user }: { user: any }) {
                   <td className="py-4 px-4">
                     <div className="flex items-center gap-3">
                       {ticket.image_url && (
-                        <img 
-                          src={ticket.image_url} 
-                          alt="" 
-                          className="w-12 h-12 rounded-lg object-cover border border-border shrink-0" 
+                        <img
+                          src={ticket.image_url}
+                          alt=""
+                          className="w-12 h-12 rounded-lg object-cover border border-border shrink-0"
                         />
                       )}
                       <div className="flex-1">
@@ -212,24 +205,24 @@ export default function DesignerOverview({ user }: { user: any }) {
                     </div>
                   </td>
                   <td className="py-4 px-4">
-                    <span 
+                    <span
                       className="px-3 py-1.5 rounded-full text-xs font-medium border"
                       style={{
                         backgroundColor:
                           ticket.status === 'review' ? 'rgba(250, 204, 21, 0.1)' :
-                          ticket.status === 'in_progress' ? 'rgba(96, 165, 250, 0.1)' :
-                          ticket.status === 'assigned' ? 'rgba(147, 51, 234, 0.1)' :
-                          'rgba(128,128,128,0.1)',
+                            ticket.status === 'in_progress' ? 'rgba(96, 165, 250, 0.1)' :
+                              ticket.status === 'assigned' ? 'rgba(147, 51, 234, 0.1)' :
+                                'rgba(128,128,128,0.1)',
                         color:
                           ticket.status === 'review' ? '#facc15' :
-                          ticket.status === 'in_progress' ? '#60a5fa' :
-                          ticket.status === 'assigned' ? '#9333ea' :
-                          '#a1a1aa',
+                            ticket.status === 'in_progress' ? '#60a5fa' :
+                              ticket.status === 'assigned' ? '#9333ea' :
+                                '#a1a1aa',
                         borderColor:
                           ticket.status === 'review' ? 'rgba(250, 204, 21, 0.3)' :
-                          ticket.status === 'in_progress' ? 'rgba(96, 165, 250, 0.3)' :
-                          ticket.status === 'assigned' ? 'rgba(147, 51, 234, 0.3)' :
-                          'rgba(128,128,128,0.3)'
+                            ticket.status === 'in_progress' ? 'rgba(96, 165, 250, 0.3)' :
+                              ticket.status === 'assigned' ? 'rgba(147, 51, 234, 0.3)' :
+                                'rgba(128,128,128,0.3)'
                       }}
                     >
                       {ticket.status.replace("_", " ").toUpperCase()}
@@ -272,14 +265,14 @@ export default function DesignerOverview({ user }: { user: any }) {
             <Wallet className="w-6 h-6 text-primary" />
             <h3 className="text-xl font-semibold">Earnings Breakdown</h3>
           </div>
-          
+
           <div className="space-y-4">
             <div className="p-4 rounded-xl bg-gradient-to-br from-primary/20 to-accent/20 border border-primary/30">
               <div className="text-sm text-muted-foreground mb-1">Total Lifetime Earnings</div>
               <div className="text-3xl font-bold text-primary">${earningsBreakdown.totalEarned.toFixed(2)}</div>
               <div className="text-xs text-muted-foreground mt-2">{completedTickets.length} completed tickets</div>
             </div>
-            
+
             <div className="grid grid-cols-2 gap-4">
               <div className="p-4 rounded-xl bg-green-500/10 border border-green-500/30">
                 <div className="flex items-center gap-2 mb-2">
@@ -288,7 +281,7 @@ export default function DesignerOverview({ user }: { user: any }) {
                 </div>
                 <div className="text-2xl font-bold text-green-400">${earningsBreakdown.totalPaid.toFixed(2)}</div>
               </div>
-              
+
               <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/30">
                 <div className="flex items-center gap-2 mb-2">
                   <AlertCircle className="w-4 h-4 text-red-400" />
@@ -311,7 +304,7 @@ export default function DesignerOverview({ user }: { user: any }) {
             <TrendingUp className="w-6 h-6 text-primary" />
             <h3 className="text-xl font-semibold">Weekly Progress</h3>
           </div>
-          
+
           <div className="space-y-4">
             {Object.entries(weeklyData).map(([week, count], index) => (
               <motion.div
@@ -335,7 +328,7 @@ export default function DesignerOverview({ user }: { user: any }) {
               </motion.div>
             ))}
           </div>
-          
+
           <div className="mt-6 p-4 rounded-xl bg-primary/5 border border-primary/20">
             <div className="flex items-center justify-between">
               <div className="text-sm text-muted-foreground">Total (Last 4 Weeks)</div>
@@ -359,7 +352,7 @@ export default function DesignerOverview({ user }: { user: any }) {
             <Calendar className="w-6 h-6 text-primary" />
             <h3 className="text-xl font-semibold">My Completed Tickets</h3>
           </div>
-          
+
           <div className="flex items-center gap-2">
             <Filter className="w-4 h-4 text-muted-foreground" />
             <select
@@ -409,10 +402,10 @@ export default function DesignerOverview({ user }: { user: any }) {
                   <td className="py-4 px-4">
                     <div className="flex items-center gap-3">
                       {ticket.image_url && (
-                        <img 
-                          src={ticket.image_url} 
-                          alt="" 
-                          className="w-10 h-10 rounded-lg object-cover border border-border shrink-0" 
+                        <img
+                          src={ticket.image_url}
+                          alt=""
+                          className="w-10 h-10 rounded-lg object-cover border border-border shrink-0"
                         />
                       )}
                       <div className="flex-1">
@@ -431,17 +424,17 @@ export default function DesignerOverview({ user }: { user: any }) {
                     </div>
                   </td>
                   <td className="py-4 px-4">
-                    <span 
+                    <span
                       className="px-3 py-1.5 rounded-full text-xs font-medium border"
                       style={{
-                        backgroundColor: ticket.payment_status === 'paid' 
-                          ? 'rgba(74, 222, 128, 0.1)' 
+                        backgroundColor: ticket.payment_status === 'paid'
+                          ? 'rgba(74, 222, 128, 0.1)'
                           : 'rgba(239, 68, 68, 0.1)',
-                        color: ticket.payment_status === 'paid' 
-                          ? '#4ade80' 
+                        color: ticket.payment_status === 'paid'
+                          ? '#4ade80'
                           : '#ef4444',
-                        borderColor: ticket.payment_status === 'paid' 
-                          ? 'rgba(74, 222, 128, 0.3)' 
+                        borderColor: ticket.payment_status === 'paid'
+                          ? 'rgba(74, 222, 128, 0.3)'
                           : 'rgba(239, 68, 68, 0.3)'
                       }}
                     >
@@ -473,7 +466,7 @@ export default function DesignerOverview({ user }: { user: any }) {
             </tbody>
           </table>
         </div>
-        
+
         {filteredCompletedTickets.length > 10 && (
           <div className="mt-4 text-center text-sm text-muted-foreground">
             Showing 10 of {filteredCompletedTickets.length} completed tickets

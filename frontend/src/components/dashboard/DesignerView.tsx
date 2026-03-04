@@ -298,8 +298,8 @@ export default function DesignerView({ user }: { user: any }) {
             {...provided.droppableProps}
             ref={provided.innerRef}
             className={`flex-1 p-3 flex flex-col gap-3 min-h-[500px] transition-all ${snapshot.isDraggingOver
-                ? 'bg-primary/5 border-2 border-dashed border-primary/50 rounded-xl'
-                : 'border-2 border-transparent'
+              ? 'bg-primary/5 border-2 border-dashed border-primary/50 rounded-xl'
+              : 'border-2 border-transparent'
               }`}
           >
             <AnimatePresence>
@@ -337,8 +337,8 @@ export default function DesignerView({ user }: { user: any }) {
                       {...provided.draggableProps}
                       {...provided.dragHandleProps}
                       className={`p-4 rounded-xl backdrop-blur-sm select-none cursor-pointer group relative overflow-hidden transition-all duration-200 ${snapshot.isDragging
-                          ? 'bg-background/95 shadow-2xl shadow-primary/30 border-2 border-primary/70 z-50 scale-105 rotate-2'
-                          : 'bg-gradient-to-br from-foreground/10 to-foreground/5 hover:from-foreground/15 hover:to-foreground/10 shadow-lg hover:shadow-xl hover:-translate-y-1 border'
+                        ? 'bg-background/95 shadow-2xl shadow-primary/30 border-2 border-primary/70 z-50 scale-105 rotate-2'
+                        : 'bg-gradient-to-br from-foreground/10 to-foreground/5 hover:from-foreground/15 hover:to-foreground/10 shadow-lg hover:shadow-xl hover:-translate-y-1 border'
                         } ${overdue
                           ? 'border-red-500/50 shadow-red-500/20'
                           : inReview
@@ -398,8 +398,8 @@ export default function DesignerView({ user }: { user: any }) {
                         <div className="flex justify-between items-center">
                           {/* Price - Prominent Display */}
                           <div className={`px-3 py-2 rounded-lg font-bold text-sm ${highPriority
-                              ? 'bg-gradient-to-r from-primary/30 to-accent/30 text-primary border border-primary/50 shadow-lg shadow-primary/20'
-                              : 'bg-primary/10 text-primary border border-primary/30'
+                            ? 'bg-gradient-to-r from-primary/30 to-accent/30 text-primary border border-primary/50 shadow-lg shadow-primary/20'
+                            : 'bg-primary/10 text-primary border border-primary/30'
                             } flex items-center gap-1.5`}>
                             {highPriority && <TrendingUp className="w-3.5 h-3.5" />}
                             ${ticket.price}
@@ -435,7 +435,7 @@ export default function DesignerView({ user }: { user: any }) {
             {provided.placeholder}
           </div>
                   )}
-        </Droppable>
+        </>
       </motion.div>
       );
           })}

@@ -9,6 +9,7 @@ class UserBase(BaseModel):
     email: EmailStr
     full_name: str
     role: str = Field(default="customer", description="admin, customer, or designer")
+    balance: float = 0.0
     is_active: bool = True
 
 class UserCreate(UserBase):
@@ -32,6 +33,7 @@ class UserInDB(UserBase):
     id: PyObjectId = Field(default_factory=lambda: ObjectId(), alias="_id")
     hashed_password: str
     avatar_url: Optional[str] = None
+    balance: float = 0.0
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     class Config:
@@ -41,6 +43,7 @@ class UserInDB(UserBase):
 class UserResponse(UserBase):
     id: str
     avatar_url: Optional[str] = None
+    balance: float = 0.0
 
     @classmethod
     def from_mongo(cls, data: dict):

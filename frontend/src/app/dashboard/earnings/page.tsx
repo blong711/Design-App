@@ -3,12 +3,13 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { motion } from "framer-motion";
-import { 
-  Wallet, 
-  DollarSign, 
-  CheckCircle2, 
-  AlertCircle, 
-  TrendingUp, 
+import { formatVietnamDate, getTimeAgo } from "@/lib/date-utils";
+import {
+  Wallet,
+  DollarSign,
+  CheckCircle2,
+  AlertCircle,
+  TrendingUp,
   Calendar,
   Eye,
   ExternalLink,
@@ -64,20 +65,20 @@ export default function EarningsPage() {
     const totalEarned = completedTickets.reduce((sum, t) => sum + (parseFloat(t.price) || 0), 0);
     const totalPaid = completedTickets.filter(t => t.payment_status === 'paid').reduce((sum, t) => sum + (parseFloat(t.price) || 0), 0);
     const totalUnpaid = completedTickets.filter(t => t.payment_status === 'unpaid').reduce((sum, t) => sum + (parseFloat(t.price) || 0), 0);
-    
+
     return { totalEarned, totalPaid, totalUnpaid };
   };
 
   // Filter unpaid tickets by month
   const getFilteredUnpaidTickets = () => {
     const unpaidTickets = completedTickets.filter(t => t.payment_status === 'unpaid');
-    
+
     if (selectedMonth === "all") return unpaidTickets;
-    
+
     const now = new Date();
     const monthsAgo = parseInt(selectedMonth);
     const filterDate = new Date(now.getFullYear(), now.getMonth() - monthsAgo, 1);
-    
+
     return unpaidTickets.filter(ticket => {
       const completedDate = new Date(ticket.updated_at || ticket.created_at);
       return completedDate >= filterDate;
@@ -88,17 +89,17 @@ export default function EarningsPage() {
   const getMonthlyEarningsHistory = () => {
     const months: { [key: string]: { earned: number; paid: number; unpaid: number } } = {};
     const now = new Date();
-    
+
     for (let i = 5; i >= 0; i--) {
       const monthDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const monthKey = monthDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
       months[monthKey] = { earned: 0, paid: 0, unpaid: 0 };
     }
-    
+
     completedTickets.forEach(ticket => {
       const completedDate = new Date(ticket.updated_at || ticket.created_at);
       const monthKey = completedDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-      
+
       if (months[monthKey]) {
         const price = parseFloat(ticket.price) || 0;
         months[monthKey].earned += price;
@@ -109,23 +110,12 @@ export default function EarningsPage() {
         }
       }
     });
-    
+
     return months;
   };
 
-  // Format time ago
-  const getTimeAgo = (dateString: string) => {
-    if (!dateString) return '';
-    const date = new Date(dateString);
-    const now = new Date();
-    const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-    
-    if (seconds < 60) return 'Just now';
-    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
-    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
-    if (seconds < 172800) return 'Yesterday';
-    if (seconds < 604800) return `${Math.floor(seconds / 86400)}d ago`;
-    return date.toLocaleDateString();
+  const formatDate = (dateString: string) => {
+    return formatVietnamDate(dateString);
   };
 
   const earningsBreakdown = getEarningsBreakdown();
@@ -195,7 +185,7 @@ export default function EarningsPage() {
             </div>
             <div className="flex items-center gap-2">
               <div className="flex-1 h-2 bg-foreground/10 rounded-full overflow-hidden">
-                <div 
+                <div
                   className="h-full bg-gradient-to-r from-green-500 to-green-400 rounded-full transition-all duration-500"
                   style={{ width: `${earningsBreakdown.totalEarned > 0 ? (earningsBreakdown.totalPaid / earningsBreakdown.totalEarned) * 100 : 0}%` }}
                 />
@@ -350,7 +340,7 @@ export default function EarningsPage() {
               {filteredUnpaidTickets.map((ticket, index) => {
                 const completedDate = new Date(ticket.updated_at || ticket.created_at);
                 const daysWaiting = Math.floor((new Date().getTime() - completedDate.getTime()) / (1000 * 60 * 60 * 24));
-                
+
                 return (
                   <motion.tr
                     key={ticket.id}
@@ -362,10 +352,10 @@ export default function EarningsPage() {
                     <td className="py-4 px-4">
                       <div className="flex items-center gap-3">
                         {ticket.image_url && (
-                          <img 
-                            src={ticket.image_url} 
-                            alt="" 
-                            className="w-12 h-12 rounded-lg object-cover border border-border shrink-0" 
+                          <img
+                            src={ticket.image_url}
+                            alt=""
+                            className="w-12 h-12 rounded-lg object-cover border border-border shrink-0"
                           />
                         )}
                         <div className="flex-1">
@@ -387,13 +377,12 @@ export default function EarningsPage() {
                       </div>
                     </td>
                     <td className="py-4 px-4">
-                      <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${
-                        daysWaiting > 30 
-                          ? 'bg-red-500/20 text-red-400 border border-red-500/30' 
-                          : daysWaiting > 14 
+                      <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${daysWaiting > 30
+                        ? 'bg-red-500/20 text-red-400 border border-red-500/30'
+                        : daysWaiting > 14
                           ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
                           : 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
-                      }`}>
+                        }`}>
                         <Calendar className="w-3 h-3" />
                         {daysWaiting} day{daysWaiting !== 1 ? 's' : ''}
                       </div>

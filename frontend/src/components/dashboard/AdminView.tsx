@@ -2,8 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
-import { Plus, DollarSign, Activity, FileCheck, AlertCircle, X, Upload, ImageIcon, Loader2, CheckCircle2, UserPlus, ChevronDown, Paintbrush, Calendar, Filter, Check, Clock, AlertTriangle } from "lucide-react";
+import { useToast } from "@/lib/toast";
+import { Plus, DollarSign, Activity, FileCheck, AlertCircle, X, Upload, ImageIcon, Loader2, CheckCircle2, UserPlus, ChevronDown, Paintbrush, Calendar, Filter, Check, Clock, AlertTriangle, ArrowUpRight, History } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { formatVietnamDate, formatVietnamDateTime } from "@/lib/date-utils";
 
 // ─── Designer Picker ─────────────────────────────────────────────────────────
 
@@ -61,7 +63,7 @@ function DesignerPicker({
       </button>
 
       {open && (
-        <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-[100] bg-background border border-border rounded-xl shadow-2xl shadow-black/40 overflow-hidden">
+        <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-[100] bg-background border border-border rounded-xl shadow-2xl shadow-black/10 overflow-hidden">
           {/* Unassigned option */}
           <button
             type="button"
@@ -146,7 +148,7 @@ function NewDesignDrawer({ open, onClose, onCreated, designers }: { open: boolea
         const r = await api.post("/s3/upload/design-image", fd, { headers: { "Content-Type": "multipart/form-data" } });
         image_url = r.data.public_url;
       }
-      await api.post("/designs/", {
+      await api.post("/designs", {
         title: title.trim(),
         description: description.trim(),
         price: parseFloat(price) || 0,
@@ -178,7 +180,7 @@ function NewDesignDrawer({ open, onClose, onCreated, designers }: { open: boolea
             key="drawer"
             initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }}
             transition={{ type: "spring", stiffness: 300, damping: 35 }}
-            className="fixed right-0 top-0 h-full w-full max-w-lg bg-background border-l border-border z-[70] flex flex-col shadow-2xl"
+            className="fixed inset-y-0 right-0 h-screen w-full max-w-lg bg-background border-l border-border z-[70] flex flex-col shadow-2xl"
           >
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-5 border-b border-border">
@@ -329,11 +331,17 @@ function AssignModal({ design, designers, onClose, onAssigned }: { design: any; 
   const [selectedDesigner, setSelectedDesigner] = useState(design.assigned_to || "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [price, setPrice] = useState(design.price?.toString() || "");
 
   const handleSubmit = async () => {
     setLoading(true);
     setError(null);
     try {
+      // First update price if it changed or is 0
+      if (parseFloat(price) !== design.price) {
+        await api.put(`/designs/${design.id}`, { price: parseFloat(price) || 0 });
+      }
+
       await api.patch(`/designs/${design.id}/assign`, { assigned_to: selectedDesigner || null });
       onAssigned();
       onClose();
@@ -382,9 +390,23 @@ function AssignModal({ design, designers, onClose, onAssigned }: { design: any; 
           {/* Body */}
           <div className="px-6 py-6 space-y-4">
             {/* Current status info */}
-            <div className="flex items-center justify-between px-5 py-4 rounded-2xl bg-white/[0.03] border border-white/5 text-sm shadow-inner group">
+            <div className="flex items-center justify-between px-5 py-4 rounded-2xl bg-muted/30 border border-border text-sm shadow-inner group">
               <span className="text-muted-foreground font-semibold uppercase tracking-wider text-[11px]">Current Status</span>
-              <span className="font-bold text-foreground/90 uppercase tracking-widest text-xs px-2.5 py-1 rounded bg-black/20 border border-white/5">{design.status.replace("_", " ")}</span>
+              <span className="font-bold text-foreground/90 uppercase tracking-widest text-xs px-2.5 py-1 rounded bg-muted border border-border">{design.status.replace("_", " ")}</span>
+            </div>
+
+            {/* Price Setting */}
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Set Price (Customer Balance check will occur)</label>
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground font-medium">$</span>
+                <input
+                  type="number" min="0" step="0.01"
+                  value={price} onChange={e => setPrice(e.target.value)}
+                  placeholder="0.00"
+                  className="w-full pl-8 pr-4 py-3 rounded-xl bg-foreground/5 border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-all text-sm"
+                />
+              </div>
             </div>
 
             {/* Designer select */}
@@ -430,9 +452,11 @@ function AssignModal({ design, designers, onClose, onAssigned }: { design: any; 
 }
 
 export default function AdminView() {
+  const toast = useToast();
   const [stats, setStats] = useState<any>(null);
   const [designs, setDesigns] = useState<any[]>([]);
   const [designers, setDesigners] = useState<any[]>([]);
+  const [deposits, setDeposits] = useState<any[]>([]);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [assigningDesign, setAssigningDesign] = useState<any | null>(null);
   const [user, setUser] = useState<any>(null);
@@ -458,6 +482,7 @@ export default function AdminView() {
     fetchStats();
     fetchDesigns();
     fetchDesigners();
+    fetchDeposits();
   }, []);
 
   const fetchStats = async () => {
@@ -488,6 +513,36 @@ export default function AdminView() {
       setDesigns(res.data);
     } catch (e) {
       console.error("Failed to load designs", e);
+    }
+  };
+
+  const fetchDeposits = async () => {
+    try {
+      const res = await api.get("/deposits?status=pending");
+      setDeposits(res.data);
+    } catch (e) {
+      console.error("Failed to load deposits", e);
+    }
+  };
+
+  const handleApproveDeposit = async (id: string) => {
+    try {
+      await api.patch(`/deposits/${id}/approve`);
+      fetchDeposits();
+      fetchStats();
+      toast("Deposit approved!", "success");
+    } catch (e) {
+      toast("Failed to approve deposit", "error");
+    }
+  };
+
+  const handleRejectDeposit = async (id: string) => {
+    try {
+      await api.patch(`/deposits/${id}/reject`, { admin_notes: "Rejected by admin" });
+      fetchDeposits();
+      toast("Deposit rejected", "info");
+    } catch (e) {
+      toast("Failed to reject deposit", "error");
     }
   };
 
@@ -730,10 +785,10 @@ export default function AdminView() {
     try {
       await Promise.all(
         unpaidTickets.map(ticket =>
-          api.patch(`/tickets/${ticket.id}`, { payment_status: 'paid' })
+          api.put(`/designs/${ticket.id}`, { payment_status: 'paid' })
         )
       );
-      fetchTickets();
+      fetchDesigns();
       fetchStats();
     } catch (e) {
       console.error("Failed to mark tickets as paid", e);
@@ -751,7 +806,7 @@ export default function AdminView() {
     for (let i = 0; i < 12; i++) {
       const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-      const label = date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+      const label = formatVietnamDate(date, { month: 'long', year: 'numeric' });
       options.push({ value, label });
     }
     return options;
@@ -824,7 +879,711 @@ export default function AdminView() {
   ];
 
   return (
-    <div className="space-y-8 animate-in fade-in zoom-in duration-500">
+    <>
+      <div className="space-y-8 animate-in fade-in zoom-in duration-500">
+
+        <div className="flex justify-between items-center">
+          <div>
+            <h2 className="text-3xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70">
+              Overview
+            </h2>
+            <p className="text-muted-foreground mt-1 text-sm font-medium">
+              Welcome back, here's what's happening today.
+            </p>
+          </div>
+          <button
+            onClick={() => setDrawerOpen(true)}
+            className="bg-primary hover:bg-primary/90 px-5 py-2.5 rounded-xl font-semibold text-primary-foreground shadow-lg shadow-primary/30 transition-all flex items-center gap-2"
+          >
+            <Plus className="w-5 h-5 drop-shadow-md" />
+            <span>New Design</span>
+          </button>
+        </div>
+
+        {/* Stats Grid */}
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+          {statCards.map((card, i) => (
+            <motion.div
+              key={card.title}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.1, duration: 0.5 }}
+              className="p-6 rounded-2xl glass-panel relative overflow-hidden group"
+            >
+              <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                <card.icon className="w-24 h-24" />
+              </div>
+              <div className="relative z-10 flex flex-col justify-between h-full">
+                <h3 className="text-sm font-medium text-muted-foreground">{card.title}</h3>
+                <div className={`text-4xl font-bold mt-4 tracking-tighter ${card.color}`}>
+                  {card.value}
+                </div>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+
+        {/* Deposit Requests Section */}
+        {deposits.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="rounded-[2rem] glass-panel p-8 relative z-10 shadow-2xl overflow-hidden"
+          >
+            <div className="absolute top-0 right-0 p-8 opacity-5">
+              <History className="w-32 h-32" />
+            </div>
+
+            <div className="flex items-center justify-between mb-6 relative z-10">
+              <div>
+                <h3 className="text-2xl font-bold flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center">
+                    <DollarSign className="w-6 h-6 text-primary" />
+                  </div>
+                  Pending Deposits
+                </h3>
+                <p className="text-muted-foreground text-sm mt-1">Review and approve customer deposit requests</p>
+              </div>
+              <span className="px-3 py-1 bg-primary/20 text-primary text-xs font-bold rounded-full border border-primary/30 animate-pulse">
+                {deposits.length} ACTION REQUIRED
+              </span>
+            </div>
+
+            <div className="overflow-x-auto relative z-10">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-white/10 text-muted-foreground text-[10px] font-bold uppercase tracking-widest">
+                    <th className="pb-4 px-4 font-bold">User</th>
+                    <th className="pb-4 px-4 font-bold">Amount</th>
+                    <th className="pb-4 px-4 font-bold">Submitted</th>
+                    <th className="pb-4 px-4 font-bold text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                  {deposits.map((dep, idx) => (
+                    <motion.tr
+                      key={dep.id}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.1 * idx }}
+                      className="hover:bg-white/[0.02] transition-colors"
+                    >
+                      <td className="py-4 px-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-foreground/10 flex items-center justify-center font-bold text-xs text-foreground">
+                            {designerMap[dep.user_id]?.charAt(0) || "U"}
+                          </div>
+                          <span className="font-semibold text-foreground">{designerMap[dep.user_id] || "Unknown User"}</span>
+                        </div>
+                      </td>
+                      <td className="py-4 px-4 font-bold text-xl text-primary">${dep.amount.toFixed(2)}</td>
+                      <td className="py-4 px-4 text-xs text-muted-foreground">{formatVietnamDateTime(dep.created_at)}</td>
+                      <td className="py-4 px-4 text-right space-x-2">
+                        <button
+                          onClick={() => handleRejectDeposit(dep.id)}
+                          className="px-4 py-2 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20 text-xs font-bold transition-all"
+                        >
+                          Reject
+                        </button>
+                        <button
+                          onClick={() => handleApproveDeposit(dep.id)}
+                          className="px-6 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/80 text-xs font-bold transition-all shadow-lg shadow-primary/20"
+                        >
+                          Approve
+                        </button>
+                      </td>
+                    </motion.tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Recent Designs Table */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5, duration: 0.5 }}
+          className="rounded-[2rem] glass-panel p-8 relative z-10 shadow-2xl"
+        >
+          <div className="flex justify-between items-center mb-8">
+            <div>
+              <h3 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70">Recent Assignments</h3>
+              <p className="text-sm text-muted-foreground mt-1">Latest designs across all designers.</p>
+            </div>
+          </div>
+
+          {/* Active Filter Badge */}
+          {statusFilter && (
+            <div className="mb-4 flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Filtered by:</span>
+              <button
+                onClick={() => setStatusFilter('')}
+                className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/30 text-primary text-sm font-medium hover:bg-primary/20 transition-colors"
+              >
+                {statusFilter.replace('_', ' ')}
+                <X className="w-3 h-3" />
+              </button>
+            </div>
+          )}
+
+          <div className="flex flex-col lg:flex-row items-center gap-8">
+            {/* Pie Chart */}
+            <div className="relative w-64 h-64 shrink-0">
+              <svg viewBox="0 0 200 200" className="transform -rotate-90">
+                {(() => {
+                  let cumulativePercent = 0;
+                  return statusDistribution.map((item, index) => {
+                    const startPercent = cumulativePercent;
+                    cumulativePercent += item.percentage;
+                    const endPercent = cumulativePercent;
+
+                    // Calculate arc path
+                    const startAngle = (startPercent / 100) * 2 * Math.PI;
+                    const endAngle = (endPercent / 100) * 2 * Math.PI;
+                    const largeArcFlag = endPercent - startPercent > 50 ? 1 : 0;
+
+                    const startX = 100 + 80 * Math.cos(startAngle);
+                    const startY = 100 + 80 * Math.sin(startAngle);
+                    const endX = 100 + 80 * Math.cos(endAngle);
+                    const endY = 100 + 80 * Math.sin(endAngle);
+
+                    const pathData = item.percentage > 0
+                      ? `M 100 100 L ${startX} ${startY} A 80 80 0 ${largeArcFlag} 1 ${endX} ${endY} Z`
+                      : '';
+
+                    const isSelected = statusFilter === item.status;
+                    const isHovered = hoveredStatus === item.status;
+
+                    return (
+                      <g key={item.label}>
+                        <motion.path
+                          initial={{ opacity: 0, scale: 0 }}
+                          animate={{
+                            opacity: isSelected || isHovered ? 1 : (statusFilter ? 0.3 : 1),
+                            scale: isSelected || isHovered ? 1.05 : 1
+                          }}
+                          transition={{ delay: 0.6 + index * 0.1, duration: 0.3, type: "spring" }}
+                          d={pathData}
+                          fill={item.color}
+                          className="transition-all cursor-pointer"
+                          style={{ transformOrigin: 'center' }}
+                          onClick={() => setStatusFilter(statusFilter === item.status ? '' : item.status)}
+                          onMouseEnter={() => setHoveredStatus(item.status)}
+                          onMouseLeave={() => setHoveredStatus(null)}
+                        />
+
+                        {/* Percentage label inside segment */}
+                        {item.percentage > 5 && (
+                          <text
+                            x={100 + 55 * Math.cos((startAngle + endAngle) / 2)}
+                            y={100 + 55 * Math.sin((startAngle + endAngle) / 2)}
+                            className="text-[10px] font-bold pointer-events-none"
+                            fill="white"
+                            textAnchor="middle"
+                            dominantBaseline="middle"
+                            transform={`rotate(90, ${100 + 55 * Math.cos((startAngle + endAngle) / 2)}, ${100 + 55 * Math.sin((startAngle + endAngle) / 2)})`}
+                          >
+                            {item.percentage}%
+                          </text>
+                        )}
+                      </g>
+                    );
+                  });
+                })()}
+
+                {/* Center circle for donut effect */}
+                <circle cx="100" cy="100" r="50" fill="var(--background)" />
+              </svg>
+
+              {/* Center text */}
+              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                <div className="text-3xl font-bold text-foreground">{totalTickets}</div>
+                <div className="text-xs text-muted-foreground uppercase tracking-wider">
+                  {timeFilter === 'all' ? 'Total' : timeFilter === 'today' ? 'Today' : timeFilter === 'week' ? 'This Week' : 'This Month'}
+                </div>
+              </div>
+            </div>
+
+            {/* Legend with interactive stats */}
+            <div className="flex-1 grid grid-cols-2 gap-4">
+              {statusDistribution.map((item, index) => {
+                const isSelected = statusFilter === item.status;
+                const isHovered = hoveredStatus === item.status;
+
+                return (
+                  <motion.div
+                    key={item.label}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.7 + index * 0.1, duration: 0.5 }}
+                    onClick={() => setStatusFilter(statusFilter === item.status ? '' : item.status)}
+                    onMouseEnter={() => setHoveredStatus(item.status)}
+                    onMouseLeave={() => setHoveredStatus(null)}
+                    className={`flex items-start gap-3 p-3 rounded-lg transition-all cursor-pointer border ${isSelected
+                      ? 'bg-foreground/10 border-primary shadow-lg'
+                      : isHovered
+                        ? 'bg-foreground/5 border-foreground/20'
+                        : 'bg-transparent border-transparent hover:bg-foreground/5'
+                      }`}
+                  >
+                    <div
+                      className="w-4 h-4 rounded-sm shrink-0 mt-0.5"
+                      style={{ backgroundColor: item.color }}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium text-foreground truncate">{item.label}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {item.value} ticket{item.value !== 1 ? 's' : ''} ({item.percentage}%)
+                      </div>
+
+                      {/* Tooltip info on hover */}
+                      {(isHovered || isSelected) && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          className="mt-2 pt-2 border-t border-border/50 space-y-1"
+                        >
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-muted-foreground">Avg. time:</span>
+                            <span className="font-medium text-foreground">{item.avgDays} days</span>
+                          </div>
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-muted-foreground">Total value:</span>
+                            <span className="font-semibold text-emerald-400">${item.revenue.toFixed(2)}</span>
+                          </div>
+                        </motion.div>
+                      )}
+                    </div>
+
+                    {isSelected && (
+                      <CheckCircle2 className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                    )}
+                  </motion.div>
+                );
+              })}
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Recent Tickets Table */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.6, duration: 0.5 }}
+          className="rounded-2xl glass-panel p-6"
+        >
+          <div className="flex justify-between items-center mb-6">
+            <div>
+              <h3 className="text-xl font-semibold">Recent Assignments</h3>
+              {statusFilter && (
+                <p className="text-sm text-muted-foreground mt-1">
+                  Showing <span className="text-primary font-medium">{statusFilter.replace('_', ' ')}</span> tickets
+                </p>
+              )}
+            </div>
+            <button className="text-sm text-primary hover:text-primary-foreground underline underline-offset-4 transition-colors">View All</button>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="border-b border-border/50 text-muted-foreground text-xs uppercase tracking-wider bg-background/40">
+                  <th className="py-5 font-semibold px-6 rounded-tl-2xl">Design Info</th>
+                  <th className="py-5 font-semibold px-6">Status</th>
+                  <th className="py-5 font-semibold px-6">Price</th>
+                  <th className="py-5 font-semibold px-6">Assignee</th>
+                  <th className="py-5 font-semibold px-6 text-right rounded-tr-2xl">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/30">
+                {designs.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="py-12 text-center text-muted-foreground bg-background/10">No designs found.</td>
+                  </tr>
+                )}
+                {designs.slice(0, 10).map((design) => (
+                  <tr key={design.id} className="hover:bg-white/[0.03] transition-colors group cursor-default">
+                    <td className="py-5 px-6">
+                      <div className="flex items-center gap-4">
+                        {design.image_url ? (
+                          <div className="relative w-12 h-12 rounded-xl border border-white/10 overflow-hidden shadow-md group-hover:shadow-lg transition-shadow">
+                            <img src={design.image_url} alt="" className="w-full h-full object-cover" />
+                          </div>
+                        ) : (
+                          <div className="w-12 h-12 rounded-xl border border-white/10 bg-background/50 flex items-center justify-center shadow-md">
+                            <Activity className="w-5 h-5 text-muted-foreground/50" />
+                          </div>
+                        )}
+                        <div>
+                          <div className="font-semibold text-foreground group-hover:text-primary transition-colors">{design.title}</div>
+                          <div className="text-xs text-muted-foreground mt-1 truncate max-w-[250px]">{design.description}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="py-4 px-4">
+                      <span className="px-3 py-1 rounded-full text-xs font-medium border border-border"
+                        style={{
+                          backgroundColor:
+                            design.status === 'completed' ? 'rgba(74, 222, 128, 0.15)' :
+                              design.status === 'review' ? 'rgba(250, 204, 21, 0.15)' :
+                                design.status === 'in_progress' ? 'rgba(96, 165, 250, 0.15)' : 'rgba(161,161,170,0.15)',
+                          color:
+                            design.status === 'completed' ? '#4ade80' :
+                              design.status === 'review' ? '#facc15' :
+                                design.status === 'in_progress' ? '#60a5fa' : '#a1a1aa'
+                        }}
+                      >
+                        {design.status.replace("_", " ")}
+                      </span>
+                    </td>
+                    <td className="py-5 px-6 font-semibold text-foreground/90">${design.price}</td>
+                    <td className="py-5 px-6 text-sm">
+                      {design.assigned_to ? (
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary/30 to-accent/30 border border-white/10 flex items-center justify-center text-foreground font-bold shadow-inner">
+                            {designerMap[design.assigned_to]?.charAt(0)?.toUpperCase() || "?"}
+                          </div>
+                          <span className="text-foreground font-medium">{designerMap[design.assigned_to] || "Unknown"}</span>
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground italic">Unassigned</span>
+                      )}
+                    </td>
+                    <td className="py-4 px-4 text-right">
+                      <div className="relative flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => setAssigningDesign(design)}
+                          className="px-4 py-2 rounded-xl bg-primary/10 hover:bg-primary border border-primary/20 hover:border-primary text-primary hover:text-white text-xs font-bold transition-all duration-300 flex items-center gap-2 opacity-0 group-hover:opacity-100 shadow-lg"
+                        >
+                          <UserPlus className="w-4 h-4" />
+                          {design.assigned_to ? "Reassign" : "Assign"}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </motion.div>
+
+        {/* Overdue/Aging Tickets Section */}
+        {overdueTickets.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.7, duration: 0.5 }}
+            className="rounded-2xl glass-panel p-6 border-2 border-amber-500/30 bg-amber-500/5"
+          >
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center">
+                <AlertTriangle className="w-5 h-5 text-amber-400" />
+              </div>
+              <div>
+                <h3 className="text-xl font-semibold text-foreground">Overdue Tickets</h3>
+                <p className="text-sm text-muted-foreground">{overdueTickets.length} ticket{overdueTickets.length !== 1 ? 's' : ''} need{overdueTickets.length === 1 ? 's' : ''} attention</p>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-border text-muted-foreground text-sm">
+                    <th className="pb-4 font-medium px-4">Ticket</th>
+                    <th className="pb-4 font-medium px-4">Status</th>
+                    <th className="pb-4 font-medium px-4">Assignee</th>
+                    <th className="pb-4 font-medium px-4 text-center">Days in Status</th>
+                    <th className="pb-4 font-medium px-4 text-center">Threshold</th>
+                    <th className="pb-4 font-medium px-4 text-right">Overdue By</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {overdueTickets.map(({ ticket, daysInStatus, threshold, severity }) => (
+                    <tr key={ticket.id} className="border-b border-border hover:bg-foreground/5 transition-colors group">
+                      <td className="py-4 px-4">
+                        <div className="flex items-center gap-3">
+                          {ticket.image_url && (
+                            <img src={ticket.image_url} alt="" className="w-10 h-10 rounded-lg object-cover shrink-0 border border-border" />
+                          )}
+                          <div>
+                            <div className="font-semibold text-foreground flex items-center gap-2">
+                              {ticket.title}
+                              {severity === 'danger' && (
+                                <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" title="Critical" />
+                              )}
+                            </div>
+                            <div className="text-xs text-muted-foreground mt-1 truncate max-w-[200px]">{ticket.description}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-4 px-4">
+                        <span className="px-3 py-1 rounded-full text-xs font-medium border border-border"
+                          style={{
+                            backgroundColor:
+                              ticket.status === 'review' ? 'rgba(250, 204, 21, 0.1)' :
+                                ticket.status === 'in_progress' ? 'rgba(96, 165, 250, 0.1)' :
+                                  ticket.status === 'assigned' ? 'rgba(168, 85, 247, 0.1)' : 'rgba(128,128,128,0.1)',
+                            color:
+                              ticket.status === 'review' ? '#facc15' :
+                                ticket.status === 'in_progress' ? '#60a5fa' :
+                                  ticket.status === 'assigned' ? '#a855f7' : '#a1a1aa'
+                          }}
+                        >
+                          {ticket.status.replace("_", " ").toUpperCase()}
+                        </span>
+                      </td>
+                      <td className="py-4 px-4 text-sm">
+                        {ticket.assigned_to ? (
+                          <div className="flex items-center gap-2">
+                            <div className="w-7 h-7 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center text-primary text-xs font-bold">
+                              {designerMap[ticket.assigned_to]?.charAt(0)?.toUpperCase() || "?"}
+                            </div>
+                            <span className="text-foreground font-medium">{designerMap[ticket.assigned_to] || "Unknown"}</span>
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground italic">Unassigned</span>
+                        )}
+                      </td>
+                      <td className="py-4 px-4 text-center">
+                        <div className="flex items-center justify-center gap-1.5">
+                          <Clock className="w-3.5 h-3.5 text-muted-foreground" />
+                          <span className="font-semibold text-foreground">{daysInStatus}</span>
+                          <span className="text-xs text-muted-foreground">days</span>
+                        </div>
+                      </td>
+                      <td className="py-4 px-4 text-center">
+                        <span className="text-sm text-muted-foreground">{threshold} days</span>
+                      </td>
+                      <td className="py-4 px-4 text-right">
+                        <span className={`font-bold text-lg ${severity === 'danger' ? 'text-red-400' : 'text-amber-400'}`}>
+                          +{daysInStatus - threshold} days
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Summary Stats */}
+            <div className="mt-6 grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="p-4 rounded-xl bg-foreground/5 border border-border">
+                <div className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Pending</div>
+                <div className="text-2xl font-bold text-gray-400">
+                  {overdueTickets.filter(t => t.ticket.status === 'pending').length}
+                </div>
+                <div className="text-xs text-muted-foreground mt-1">&gt; 5 days</div>
+              </div>
+              <div className="p-4 rounded-xl bg-foreground/5 border border-border">
+                <div className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Assigned</div>
+                <div className="text-2xl font-bold text-purple-400">
+                  {overdueTickets.filter(t => t.ticket.status === 'assigned').length}
+                </div>
+                <div className="text-xs text-muted-foreground mt-1">&gt; 2 days</div>
+              </div>
+              <div className="p-4 rounded-xl bg-foreground/5 border border-border">
+                <div className="text-xs text-muted-foreground uppercase tracking-wider mb-1">In Progress</div>
+                <div className="text-2xl font-bold text-blue-400">
+                  {overdueTickets.filter(t => t.ticket.status === 'in_progress').length}
+                </div>
+                <div className="text-xs text-muted-foreground mt-1">&gt; 7 days</div>
+              </div>
+              <div className="p-4 rounded-xl bg-foreground/5 border border-border">
+                <div className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Review</div>
+                <div className="text-2xl font-bold text-amber-400">
+                  {overdueTickets.filter(t => t.ticket.status === 'review').length}
+                </div>
+                <div className="text-xs text-muted-foreground mt-1">&gt; 3 days</div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Performance Designer Table */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.8, duration: 0.5 }}
+          className="rounded-2xl glass-panel p-6"
+        >
+          <h3 className="text-xl font-semibold mb-6">Performance Designer</h3>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="border-b border-border text-muted-foreground text-sm">
+                  <th className="pb-4 font-medium px-4">Designer</th>
+                  <th className="pb-4 font-medium px-4 text-center">Completed</th>
+                  <th className="pb-4 font-medium px-4 text-right">Unpaid</th>
+                  <th className="pb-4 font-medium px-4 text-right">Total Earned</th>
+                  <th className="pb-4 font-medium px-4 text-right">This Month</th>
+                </tr>
+              </thead>
+              <tbody>
+                {designerPerformance.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="py-8 text-center text-muted-foreground">No designers found.</td>
+                  </tr>
+                )}
+                {designerPerformance.map((designer) => (
+                  <tr key={designer.id} className="border-b border-border hover:bg-foreground/5 transition-colors">
+                    <td className="py-4 px-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center text-primary text-xs font-bold">
+                          {designer.name.charAt(0).toUpperCase()}
+                        </div>
+                        <span className="font-medium text-foreground">{designer.name}</span>
+                      </div>
+                    </td>
+                    <td className="py-4 px-4 text-center">
+                      <span className="inline-flex items-center justify-center px-3 py-1 rounded-full bg-green-500/10 text-green-400 text-sm font-semibold">
+                        {designer.completed}
+                      </span>
+                    </td>
+                    <td className="py-4 px-4 text-right">
+                      <span className={`font-semibold ${designer.unpaid > 0 ? 'text-red-400' : 'text-muted-foreground'}`}>
+                        ${designer.unpaid.toFixed(2)}
+                      </span>
+                    </td>
+                    <td className="py-4 px-4 text-right">
+                      <span className="font-semibold text-emerald-400">
+                        ${designer.totalEarned.toFixed(2)}
+                      </span>
+                    </td>
+                    <td className="py-4 px-4 text-right">
+                      <span className="font-medium text-blue-400">
+                        ${designer.thisMonth.toFixed(2)}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </motion.div>
+
+        {/* Debt Management Section */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.9, duration: 0.5 }}
+          className="rounded-2xl glass-panel p-6"
+        >
+          <h3 className="text-xl font-semibold mb-6">Debt Management</h3>
+
+          {/* Filters */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            {/* Month Filter */}
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                <Calendar className="w-3 h-3 inline mr-1" /> Filter by Month
+              </label>
+              <select
+                value={selectedMonth}
+                onChange={(e) => setSelectedMonth(e.target.value)}
+                className="w-full px-4 py-2.5 rounded-xl bg-foreground/5 border border-border text-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-all text-sm"
+              >
+                <option value="">All Months</option>
+                {monthOptions.map(option => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Designer Filter */}
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                <Filter className="w-3 h-3 inline mr-1" /> Select Designer
+              </label>
+              <select
+                value={selectedDesigner}
+                onChange={(e) => setSelectedDesigner(e.target.value)}
+                className="w-full px-4 py-2.5 rounded-xl bg-foreground/5 border border-border text-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-all text-sm"
+              >
+                <option value="">All Designers</option>
+                {designers.filter(d => d.role === "designer").map(designer => (
+                  <option key={designer.id} value={designer.id}>{designer.full_name}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Summary Card */}
+            <div className="flex flex-col justify-center p-4 rounded-xl bg-red-500/10 border border-red-500/30">
+              <div className="text-xs text-red-300 uppercase tracking-wider mb-1">Total Unpaid</div>
+              <div className="text-2xl font-bold text-red-400">${totalUnpaidAmount.toFixed(2)}</div>
+              <div className="text-xs text-red-300 mt-1">{filteredUnpaidTickets.length} ticket{filteredUnpaidTickets.length !== 1 ? 's' : ''}</div>
+            </div>
+          </div>
+
+          {/* Unpaid Tickets List */}
+          <div className="overflow-x-auto mb-4">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="border-b border-border text-muted-foreground text-sm">
+                  <th className="pb-4 font-medium px-4">Ticket</th>
+                  <th className="pb-4 font-medium px-4">Designer</th>
+                  <th className="pb-4 font-medium px-4">Completed Date</th>
+                  <th className="pb-4 font-medium px-4 text-right">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredUnpaidTickets.length === 0 && (
+                  <tr>
+                    <td colSpan={4} className="py-8 text-center text-muted-foreground">
+                      {selectedMonth || selectedDesigner ? 'No unpaid tickets match the filters.' : 'All tickets have been paid!'}
+                    </td>
+                  </tr>
+                )}
+                {filteredUnpaidTickets.map((ticket) => (
+                  <tr key={ticket.id} className="border-b border-border hover:bg-foreground/5 transition-colors">
+                    <td className="py-4 px-4">
+                      <div className="font-semibold text-foreground">{ticket.title}</div>
+                      <div className="text-xs text-muted-foreground mt-1">ID: {ticket.id}</div>
+                    </td>
+                    <td className="py-4 px-4">
+                      {ticket.assigned_to ? (
+                        <div className="flex items-center gap-2">
+                          <div className="w-6 h-6 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center text-primary text-xs font-bold">
+                            {designerMap[ticket.assigned_to]?.charAt(0)?.toUpperCase() || "?"}
+                          </div>
+                          <span className="text-sm text-foreground">{designerMap[ticket.assigned_to] || "Unknown"}</span>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground italic">Unassigned</span>
+                      )}
+                    </td>
+                    <td className="py-4 px-4 text-sm text-muted-foreground">
+                      {(ticket.completed_at || ticket.updated_at) ? formatVietnamDate(ticket.completed_at || ticket.updated_at, {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric'
+                      }) : 'N/A'}
+                    </td>
+                    <td className="py-4 px-4 text-right">
+                      <span className="font-semibold text-red-400">${parseFloat(ticket.price || 0).toFixed(2)}</span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mark as Paid Button */}
+          {filteredUnpaidTickets.length > 0 && (
+            <div className="flex justify-end">
+              <button
+                onClick={handleMarkAsPaid}
+                className="px-6 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-semibold shadow-lg shadow-emerald-500/30 transition-all flex items-center gap-2"
+              >
+                <Check className="w-5 h-5" />
+                Mark as Paid ({filteredUnpaidTickets.length} ticket{filteredUnpaidTickets.length !== 1 ? 's' : ''})
+              </button>
+            </div>
+          )}
+        </motion.div>
+      </div>
+
       <NewDesignDrawer
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
@@ -840,631 +1599,6 @@ export default function AdminView() {
           onAssigned={() => { fetchDesigns(); fetchStats(); setAssigningDesign(null); }}
         />
       )}
-
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-3xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70">
-            Overview
-          </h2>
-          <p className="text-muted-foreground mt-1 text-sm font-medium">
-            Welcome back, here's what's happening today.
-          </p>
-        </div>
-        <button
-          onClick={() => setDrawerOpen(true)}
-          className="bg-primary hover:bg-primary/90 px-5 py-2.5 rounded-xl font-semibold text-primary-foreground shadow-lg shadow-primary/30 transition-all flex items-center gap-2"
-        >
-          <Plus className="w-5 h-5 drop-shadow-md" />
-          <span>New Design</span>
-        </button>
-      </div>
-
-      {/* Stats Grid */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        {statCards.map((card, i) => (
-          <motion.div
-            key={card.title}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.1, duration: 0.5 }}
-            className="p-6 rounded-2xl glass-panel relative overflow-hidden group"
-          >
-            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-              <card.icon className="w-24 h-24" />
-            </div>
-            <div className="relative z-10 flex flex-col justify-between h-full">
-              <h3 className="text-sm font-medium text-muted-foreground">{card.title}</h3>
-              <div className={`text-4xl font-bold mt-4 tracking-tighter ${card.color}`}>
-                {card.value}
-              </div>
-            </div>
-          </motion.div>
-        ))}
-      </div>
-
-      {/* Recent Designs Table */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.5, duration: 0.5 }}
-        className="rounded-[2rem] glass-panel p-8 relative z-10 shadow-2xl"
-      >
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h3 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70">Recent Assignments</h3>
-            <p className="text-sm text-muted-foreground mt-1">Latest designs across all designers.</p>
-          </div>
-        </div>
-
-        {/* Active Filter Badge */}
-        {statusFilter && (
-          <div className="mb-4 flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">Filtered by:</span>
-            <button
-              onClick={() => setStatusFilter('')}
-              className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/30 text-primary text-sm font-medium hover:bg-primary/20 transition-colors"
-            >
-              {statusFilter.replace('_', ' ')}
-              <X className="w-3 h-3" />
-            </button>
-          </div>
-        )}
-
-        <div className="flex flex-col lg:flex-row items-center gap-8">
-          {/* Pie Chart */}
-          <div className="relative w-64 h-64 shrink-0">
-            <svg viewBox="0 0 200 200" className="transform -rotate-90">
-              {(() => {
-                let cumulativePercent = 0;
-                return statusDistribution.map((item, index) => {
-                  const startPercent = cumulativePercent;
-                  cumulativePercent += item.percentage;
-                  const endPercent = cumulativePercent;
-
-                  // Calculate arc path
-                  const startAngle = (startPercent / 100) * 2 * Math.PI;
-                  const endAngle = (endPercent / 100) * 2 * Math.PI;
-                  const largeArcFlag = endPercent - startPercent > 50 ? 1 : 0;
-
-                  const startX = 100 + 80 * Math.cos(startAngle);
-                  const startY = 100 + 80 * Math.sin(startAngle);
-                  const endX = 100 + 80 * Math.cos(endAngle);
-                  const endY = 100 + 80 * Math.sin(endAngle);
-
-                  const pathData = item.percentage > 0
-                    ? `M 100 100 L ${startX} ${startY} A 80 80 0 ${largeArcFlag} 1 ${endX} ${endY} Z`
-                    : '';
-
-                  const isSelected = statusFilter === item.status;
-                  const isHovered = hoveredStatus === item.status;
-
-                  return (
-                    <g key={item.label}>
-                      <motion.path
-                        initial={{ opacity: 0, scale: 0 }}
-                        animate={{
-                          opacity: isSelected || isHovered ? 1 : (statusFilter ? 0.3 : 1),
-                          scale: isSelected || isHovered ? 1.05 : 1
-                        }}
-                        transition={{ delay: 0.6 + index * 0.1, duration: 0.3, type: "spring" }}
-                        d={pathData}
-                        fill={item.color}
-                        className="transition-all cursor-pointer"
-                        style={{ transformOrigin: 'center' }}
-                        onClick={() => setStatusFilter(statusFilter === item.status ? '' : item.status)}
-                        onMouseEnter={() => setHoveredStatus(item.status)}
-                        onMouseLeave={() => setHoveredStatus(null)}
-                      />
-
-                      {/* Percentage label inside segment */}
-                      {item.percentage > 5 && (
-                        <text
-                          x={100 + 55 * Math.cos((startAngle + endAngle) / 2)}
-                          y={100 + 55 * Math.sin((startAngle + endAngle) / 2)}
-                          className="text-[10px] font-bold pointer-events-none"
-                          fill="white"
-                          textAnchor="middle"
-                          dominantBaseline="middle"
-                          transform={`rotate(90, ${100 + 55 * Math.cos((startAngle + endAngle) / 2)}, ${100 + 55 * Math.sin((startAngle + endAngle) / 2)})`}
-                        >
-                          {item.percentage}%
-                        </text>
-                      )}
-                    </g>
-                  );
-                });
-              })()}
-
-              {/* Center circle for donut effect */}
-              <circle cx="100" cy="100" r="50" fill="var(--background)" />
-            </svg>
-
-            {/* Center text */}
-            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-              <div className="text-3xl font-bold text-foreground">{totalTickets}</div>
-              <div className="text-xs text-muted-foreground uppercase tracking-wider">
-                {timeFilter === 'all' ? 'Total' : timeFilter === 'today' ? 'Today' : timeFilter === 'week' ? 'This Week' : 'This Month'}
-              </div>
-            </div>
-          </div>
-
-          {/* Legend with interactive stats */}
-          <div className="flex-1 grid grid-cols-2 gap-4">
-            {statusDistribution.map((item, index) => {
-              const isSelected = statusFilter === item.status;
-              const isHovered = hoveredStatus === item.status;
-
-              return (
-                <motion.div
-                  key={item.label}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.7 + index * 0.1, duration: 0.5 }}
-                  onClick={() => setStatusFilter(statusFilter === item.status ? '' : item.status)}
-                  onMouseEnter={() => setHoveredStatus(item.status)}
-                  onMouseLeave={() => setHoveredStatus(null)}
-                  className={`flex items-start gap-3 p-3 rounded-lg transition-all cursor-pointer border ${isSelected
-                    ? 'bg-foreground/10 border-primary shadow-lg'
-                    : isHovered
-                      ? 'bg-foreground/5 border-foreground/20'
-                      : 'bg-transparent border-transparent hover:bg-foreground/5'
-                    }`}
-                >
-                  <div
-                    className="w-4 h-4 rounded-sm shrink-0 mt-0.5"
-                    style={{ backgroundColor: item.color }}
-                  />
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-foreground truncate">{item.label}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {item.value} ticket{item.value !== 1 ? 's' : ''} ({item.percentage}%)
-                    </div>
-
-                    {/* Tooltip info on hover */}
-                    {(isHovered || isSelected) && (
-                      <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        className="mt-2 pt-2 border-t border-border/50 space-y-1"
-                      >
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="text-muted-foreground">Avg. time:</span>
-                          <span className="font-medium text-foreground">{item.avgDays} days</span>
-                        </div>
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="text-muted-foreground">Total value:</span>
-                          <span className="font-semibold text-emerald-400">${item.revenue.toFixed(2)}</span>
-                        </div>
-                      </motion.div>
-                    )}
-                  </div>
-
-                  {isSelected && (
-                    <CheckCircle2 className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-                  )}
-                </motion.div>
-              );
-            })}
-          </div>
-        </div>
-      </motion.div>
-
-      {/* Recent Tickets Table */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.6, duration: 0.5 }}
-        className="rounded-2xl glass-panel p-6"
-      >
-        <div className="flex justify-between items-center mb-6">
-          <div>
-            <h3 className="text-xl font-semibold">Recent Assignments</h3>
-            {statusFilter && (
-              <p className="text-sm text-muted-foreground mt-1">
-                Showing <span className="text-primary font-medium">{statusFilter.replace('_', ' ')}</span> tickets
-              </p>
-            )}
-          </div>
-          <button className="text-sm text-primary hover:text-primary-foreground underline underline-offset-4 transition-colors">View All</button>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="border-b border-border/50 text-muted-foreground text-xs uppercase tracking-wider bg-background/40">
-                <th className="py-5 font-semibold px-6 rounded-tl-2xl">Design Info</th>
-                <th className="py-5 font-semibold px-6">Status</th>
-                <th className="py-5 font-semibold px-6">Price</th>
-                <th className="py-5 font-semibold px-6">Assignee</th>
-                <th className="py-5 font-semibold px-6 text-right rounded-tr-2xl">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border/30">
-              {designs.length === 0 && (
-                <tr>
-                  <td colSpan={5} className="py-12 text-center text-muted-foreground bg-background/10">No designs found.</td>
-                </tr>
-              )}
-              {designs.slice(0, 10).map((design) => (
-                <tr key={design.id} className="hover:bg-white/[0.03] transition-colors group cursor-default">
-                  <td className="py-5 px-6">
-                    <div className="flex items-center gap-4">
-                      {design.image_url ? (
-                        <div className="relative w-12 h-12 rounded-xl border border-white/10 overflow-hidden shadow-md group-hover:shadow-lg transition-shadow">
-                          <img src={design.image_url} alt="" className="w-full h-full object-cover" />
-                        </div>
-                      ) : (
-                        <div className="w-12 h-12 rounded-xl border border-white/10 bg-background/50 flex items-center justify-center shadow-md">
-                          <Activity className="w-5 h-5 text-muted-foreground/50" />
-                        </div>
-                      )}
-                      <div>
-                        <div className="font-semibold text-foreground group-hover:text-primary transition-colors">{design.title}</div>
-                        <div className="text-xs text-muted-foreground mt-1 truncate max-w-[250px]">{design.description}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="py-4 px-4">
-                    <span className="px-3 py-1 rounded-full text-xs font-medium border border-border"
-                      style={{
-                        backgroundColor:
-                          design.status === 'completed' ? 'rgba(74, 222, 128, 0.15)' :
-                            design.status === 'review' ? 'rgba(250, 204, 21, 0.15)' :
-                              design.status === 'in_progress' ? 'rgba(96, 165, 250, 0.15)' : 'rgba(161,161,170,0.15)',
-                        color:
-                          design.status === 'completed' ? '#4ade80' :
-                            design.status === 'review' ? '#facc15' :
-                              design.status === 'in_progress' ? '#60a5fa' : '#a1a1aa'
-                      }}
-                    >
-                      {design.status.replace("_", " ")}
-                    </span>
-                  </td>
-                  <td className="py-5 px-6 font-semibold text-foreground/90">${design.price}</td>
-                  <td className="py-5 px-6 text-sm">
-                    {design.assigned_to ? (
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary/30 to-accent/30 border border-white/10 flex items-center justify-center text-foreground font-bold shadow-inner">
-                          {designerMap[design.assigned_to]?.charAt(0)?.toUpperCase() || "?"}
-                        </div>
-                        <span className="text-foreground font-medium">{designerMap[design.assigned_to] || "Unknown"}</span>
-                      </div>
-                    ) : (
-                      <span className="text-muted-foreground italic">Unassigned</span>
-                    )}
-                  </td>
-                  <td className="py-4 px-4 text-right">
-                    <div className="relative flex items-center justify-end gap-2">
-                      <button
-                        onClick={() => setAssigningDesign(design)}
-                        className="px-4 py-2 rounded-xl bg-primary/10 hover:bg-primary border border-primary/20 hover:border-primary text-primary hover:text-white text-xs font-bold transition-all duration-300 flex items-center gap-2 opacity-0 group-hover:opacity-100 shadow-lg"
-                      >
-                        <UserPlus className="w-4 h-4" />
-                        {design.assigned_to ? "Reassign" : "Assign"}
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </motion.div>
-
-      {/* Overdue/Aging Tickets Section */}
-      {overdueTickets.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.7, duration: 0.5 }}
-          className="rounded-2xl glass-panel p-6 border-2 border-amber-500/30 bg-amber-500/5"
-        >
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center">
-              <AlertTriangle className="w-5 h-5 text-amber-400" />
-            </div>
-            <div>
-              <h3 className="text-xl font-semibold text-foreground">Overdue Tickets</h3>
-              <p className="text-sm text-muted-foreground">{overdueTickets.length} ticket{overdueTickets.length !== 1 ? 's' : ''} need{overdueTickets.length === 1 ? 's' : ''} attention</p>
-            </div>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-border text-muted-foreground text-sm">
-                  <th className="pb-4 font-medium px-4">Ticket</th>
-                  <th className="pb-4 font-medium px-4">Status</th>
-                  <th className="pb-4 font-medium px-4">Assignee</th>
-                  <th className="pb-4 font-medium px-4 text-center">Days in Status</th>
-                  <th className="pb-4 font-medium px-4 text-center">Threshold</th>
-                  <th className="pb-4 font-medium px-4 text-right">Overdue By</th>
-                </tr>
-              </thead>
-              <tbody>
-                {overdueTickets.map(({ ticket, daysInStatus, threshold, severity }) => (
-                  <tr key={ticket.id} className="border-b border-border hover:bg-foreground/5 transition-colors group">
-                    <td className="py-4 px-4">
-                      <div className="flex items-center gap-3">
-                        {ticket.image_url && (
-                          <img src={ticket.image_url} alt="" className="w-10 h-10 rounded-lg object-cover shrink-0 border border-border" />
-                        )}
-                        <div>
-                          <div className="font-semibold text-foreground flex items-center gap-2">
-                            {ticket.title}
-                            {severity === 'danger' && (
-                              <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" title="Critical" />
-                            )}
-                          </div>
-                          <div className="text-xs text-muted-foreground mt-1 truncate max-w-[200px]">{ticket.description}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="py-4 px-4">
-                      <span className="px-3 py-1 rounded-full text-xs font-medium border border-border"
-                        style={{
-                          backgroundColor:
-                            ticket.status === 'review' ? 'rgba(250, 204, 21, 0.1)' :
-                              ticket.status === 'in_progress' ? 'rgba(96, 165, 250, 0.1)' :
-                                ticket.status === 'assigned' ? 'rgba(168, 85, 247, 0.1)' : 'rgba(128,128,128,0.1)',
-                          color:
-                            ticket.status === 'review' ? '#facc15' :
-                              ticket.status === 'in_progress' ? '#60a5fa' :
-                                ticket.status === 'assigned' ? '#a855f7' : '#a1a1aa'
-                        }}
-                      >
-                        {ticket.status.replace("_", " ").toUpperCase()}
-                      </span>
-                    </td>
-                    <td className="py-4 px-4 text-sm">
-                      {ticket.assigned_to ? (
-                        <div className="flex items-center gap-2">
-                          <div className="w-7 h-7 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center text-primary text-xs font-bold">
-                            {designerMap[ticket.assigned_to]?.charAt(0)?.toUpperCase() || "?"}
-                          </div>
-                          <span className="text-foreground font-medium">{designerMap[ticket.assigned_to] || "Unknown"}</span>
-                        </div>
-                      ) : (
-                        <span className="text-muted-foreground italic">Unassigned</span>
-                      )}
-                    </td>
-                    <td className="py-4 px-4 text-center">
-                      <div className="flex items-center justify-center gap-1.5">
-                        <Clock className="w-3.5 h-3.5 text-muted-foreground" />
-                        <span className="font-semibold text-foreground">{daysInStatus}</span>
-                        <span className="text-xs text-muted-foreground">days</span>
-                      </div>
-                    </td>
-                    <td className="py-4 px-4 text-center">
-                      <span className="text-sm text-muted-foreground">{threshold} days</span>
-                    </td>
-                    <td className="py-4 px-4 text-right">
-                      <span className={`font-bold text-lg ${severity === 'danger' ? 'text-red-400' : 'text-amber-400'}`}>
-                        +{daysInStatus - threshold} days
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Summary Stats */}
-          <div className="mt-6 grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="p-4 rounded-xl bg-foreground/5 border border-border">
-              <div className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Pending</div>
-              <div className="text-2xl font-bold text-gray-400">
-                {overdueTickets.filter(t => t.ticket.status === 'pending').length}
-              </div>
-              <div className="text-xs text-muted-foreground mt-1">&gt; 5 days</div>
-            </div>
-            <div className="p-4 rounded-xl bg-foreground/5 border border-border">
-              <div className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Assigned</div>
-              <div className="text-2xl font-bold text-purple-400">
-                {overdueTickets.filter(t => t.ticket.status === 'assigned').length}
-              </div>
-              <div className="text-xs text-muted-foreground mt-1">&gt; 2 days</div>
-            </div>
-            <div className="p-4 rounded-xl bg-foreground/5 border border-border">
-              <div className="text-xs text-muted-foreground uppercase tracking-wider mb-1">In Progress</div>
-              <div className="text-2xl font-bold text-blue-400">
-                {overdueTickets.filter(t => t.ticket.status === 'in_progress').length}
-              </div>
-              <div className="text-xs text-muted-foreground mt-1">&gt; 7 days</div>
-            </div>
-            <div className="p-4 rounded-xl bg-foreground/5 border border-border">
-              <div className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Review</div>
-              <div className="text-2xl font-bold text-amber-400">
-                {overdueTickets.filter(t => t.ticket.status === 'review').length}
-              </div>
-              <div className="text-xs text-muted-foreground mt-1">&gt; 3 days</div>
-            </div>
-          </div>
-        </motion.div>
-      )}
-
-      {/* Performance Designer Table */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.8, duration: 0.5 }}
-        className="rounded-2xl glass-panel p-6"
-      >
-        <h3 className="text-xl font-semibold mb-6">Performance Designer</h3>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="border-b border-border text-muted-foreground text-sm">
-                <th className="pb-4 font-medium px-4">Designer</th>
-                <th className="pb-4 font-medium px-4 text-center">Completed</th>
-                <th className="pb-4 font-medium px-4 text-right">Unpaid</th>
-                <th className="pb-4 font-medium px-4 text-right">Total Earned</th>
-                <th className="pb-4 font-medium px-4 text-right">This Month</th>
-              </tr>
-            </thead>
-            <tbody>
-              {designerPerformance.length === 0 && (
-                <tr>
-                  <td colSpan={5} className="py-8 text-center text-muted-foreground">No designers found.</td>
-                </tr>
-              )}
-              {designerPerformance.map((designer) => (
-                <tr key={designer.id} className="border-b border-border hover:bg-foreground/5 transition-colors">
-                  <td className="py-4 px-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center text-primary text-xs font-bold">
-                        {designer.name.charAt(0).toUpperCase()}
-                      </div>
-                      <span className="font-medium text-foreground">{designer.name}</span>
-                    </div>
-                  </td>
-                  <td className="py-4 px-4 text-center">
-                    <span className="inline-flex items-center justify-center px-3 py-1 rounded-full bg-green-500/10 text-green-400 text-sm font-semibold">
-                      {designer.completed}
-                    </span>
-                  </td>
-                  <td className="py-4 px-4 text-right">
-                    <span className={`font-semibold ${designer.unpaid > 0 ? 'text-red-400' : 'text-muted-foreground'}`}>
-                      ${designer.unpaid.toFixed(2)}
-                    </span>
-                  </td>
-                  <td className="py-4 px-4 text-right">
-                    <span className="font-semibold text-emerald-400">
-                      ${designer.totalEarned.toFixed(2)}
-                    </span>
-                  </td>
-                  <td className="py-4 px-4 text-right">
-                    <span className="font-medium text-blue-400">
-                      ${designer.thisMonth.toFixed(2)}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </motion.div>
-
-      {/* Debt Management Section */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.9, duration: 0.5 }}
-        className="rounded-2xl glass-panel p-6"
-      >
-        <h3 className="text-xl font-semibold mb-6">Debt Management</h3>
-
-        {/* Filters */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          {/* Month Filter */}
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-              <Calendar className="w-3 h-3 inline mr-1" /> Filter by Month
-            </label>
-            <select
-              value={selectedMonth}
-              onChange={(e) => setSelectedMonth(e.target.value)}
-              className="w-full px-4 py-2.5 rounded-xl bg-foreground/5 border border-border text-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-all text-sm"
-            >
-              <option value="">All Months</option>
-              {monthOptions.map(option => (
-                <option key={option.value} value={option.value}>{option.label}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* Designer Filter */}
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-              <Filter className="w-3 h-3 inline mr-1" /> Select Designer
-            </label>
-            <select
-              value={selectedDesigner}
-              onChange={(e) => setSelectedDesigner(e.target.value)}
-              className="w-full px-4 py-2.5 rounded-xl bg-foreground/5 border border-border text-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-all text-sm"
-            >
-              <option value="">All Designers</option>
-              {designers.filter(d => d.role === "designer").map(designer => (
-                <option key={designer.id} value={designer.id}>{designer.full_name}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* Summary Card */}
-          <div className="flex flex-col justify-center p-4 rounded-xl bg-red-500/10 border border-red-500/30">
-            <div className="text-xs text-red-300 uppercase tracking-wider mb-1">Total Unpaid</div>
-            <div className="text-2xl font-bold text-red-400">${totalUnpaidAmount.toFixed(2)}</div>
-            <div className="text-xs text-red-300 mt-1">{filteredUnpaidTickets.length} ticket{filteredUnpaidTickets.length !== 1 ? 's' : ''}</div>
-          </div>
-        </div>
-
-        {/* Unpaid Tickets List */}
-        <div className="overflow-x-auto mb-4">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="border-b border-border text-muted-foreground text-sm">
-                <th className="pb-4 font-medium px-4">Ticket</th>
-                <th className="pb-4 font-medium px-4">Designer</th>
-                <th className="pb-4 font-medium px-4">Completed Date</th>
-                <th className="pb-4 font-medium px-4 text-right">Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredUnpaidTickets.length === 0 && (
-                <tr>
-                  <td colSpan={4} className="py-8 text-center text-muted-foreground">
-                    {selectedMonth || selectedDesigner ? 'No unpaid tickets match the filters.' : 'All tickets have been paid!'}
-                  </td>
-                </tr>
-              )}
-              {filteredUnpaidTickets.map((ticket) => (
-                <tr key={ticket.id} className="border-b border-border hover:bg-foreground/5 transition-colors">
-                  <td className="py-4 px-4">
-                    <div className="font-semibold text-foreground">{ticket.title}</div>
-                    <div className="text-xs text-muted-foreground mt-1">ID: {ticket.id}</div>
-                  </td>
-                  <td className="py-4 px-4">
-                    {ticket.assigned_to ? (
-                      <div className="flex items-center gap-2">
-                        <div className="w-6 h-6 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center text-primary text-xs font-bold">
-                          {designerMap[ticket.assigned_to]?.charAt(0)?.toUpperCase() || "?"}
-                        </div>
-                        <span className="text-sm text-foreground">{designerMap[ticket.assigned_to] || "Unknown"}</span>
-                      </div>
-                    ) : (
-                      <span className="text-xs text-muted-foreground italic">Unassigned</span>
-                    )}
-                  </td>
-                  <td className="py-4 px-4 text-sm text-muted-foreground">
-                    {(ticket.completed_at || ticket.updated_at) ? new Date(ticket.completed_at || ticket.updated_at).toLocaleDateString('en-US', {
-                      month: 'short',
-                      day: 'numeric',
-                      year: 'numeric'
-                    }) : 'N/A'}
-                  </td>
-                  <td className="py-4 px-4 text-right">
-                    <span className="font-semibold text-red-400">${parseFloat(ticket.price || 0).toFixed(2)}</span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Mark as Paid Button */}
-        {filteredUnpaidTickets.length > 0 && (
-          <div className="flex justify-end">
-            <button
-              onClick={handleMarkAsPaid}
-              className="px-6 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-semibold shadow-lg shadow-emerald-500/30 transition-all flex items-center gap-2"
-            >
-              <Check className="w-5 h-5" />
-              Mark as Paid ({filteredUnpaidTickets.length} ticket{filteredUnpaidTickets.length !== 1 ? 's' : ''})
-            </button>
-          </div>
-        )}
-      </motion.div>
-
-
-    </div>
+    </>
   );
 }

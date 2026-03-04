@@ -7,6 +7,7 @@ from api.deps import get_db, get_current_user, get_current_admin
 from bson import ObjectId
 from datetime import datetime, timezone
 from pydantic import BaseModel
+from models.transaction import TransactionInDB
 
 router = APIRouter()
 
@@ -48,20 +49,25 @@ async def create_design(
     design_data["created_by"] = current_user.id
     design_data["payment_status"] = "unpaid"
 
-
-    assigned_to_str = design_data.pop("assigned_to", None)
-    if assigned_to_str:
-        # Validate designer exists
-        designer_query = {"_id": ObjectId(assigned_to_str), "role": "designer"}
-        designer = await db["users"].find_one(designer_query)
-        if not designer:
-            raise HTTPException(status_code=404, detail="Designer not found")
-            
-        design_data["status"] = "assigned"
-        design_data["assigned_to"] = ObjectId(assigned_to_str)
-    else:
+    # If customer is creating, force price to 0 and ignore assignment
+    if current_user.role == "customer":
+        design_data["price"] = 0.0
         design_data["status"] = "pending"
         design_data["assigned_to"] = None
+    else:
+        assigned_to_str = design_data.pop("assigned_to", None)
+        if assigned_to_str:
+            # Validate designer exists
+            designer_query = {"_id": ObjectId(assigned_to_str), "role": "designer"}
+            designer = await db["users"].find_one(designer_query)
+            if not designer:
+                raise HTTPException(status_code=404, detail="Designer not found")
+            
+            design_data["status"] = "assigned"
+            design_data["assigned_to"] = ObjectId(assigned_to_str)
+        else:
+            design_data["status"] = "pending"
+            design_data["assigned_to"] = None
 
     design_db = DesignInDB(**design_data)
     result = await db["designs"].insert_one(design_db.model_dump(by_alias=True))
@@ -135,12 +141,47 @@ async def assign_design(
         designer = await db["users"].find_one({"_id": ObjectId(assign_data.assigned_to), "role": "designer"})
         if not designer:
             raise HTTPException(status_code=404, detail="Designer not found")
+        
+        # Check if price is set (Admin should have set it by now or is setting it)
+        # We need the current design or we should allow setting price in this call too?
+        # The design model has price. Let's check if the design has a price > 0.
+        price = d.get("price") or 0.0
+        if price <= 0:
+             raise HTTPException(status_code=400, detail="Cannot assign design without a set price. Please set price first.")
+
+        # Deduct balance from customer
+        customer_id = d.get("created_by")
+        customer = await db["users"].find_one({"_id": ObjectId(customer_id)})
+        if not customer:
+             raise HTTPException(status_code=404, detail="Customer not found")
+        
+        if customer.get("balance", 0) < price:
+             raise HTTPException(status_code=400, detail=f"Insufficient customer balance. (Balance: ${customer.get('balance', 0)}, Required: ${price})")
+
+        # Atomic deduction
+        result = await db["users"].update_one(
+            {"_id": ObjectId(customer_id), "balance": {"$gte": price}},
+            {"$inc": {"balance": -price}}
+        )
+        if result.modified_count == 0:
+             raise HTTPException(status_code=400, detail="Failed to deduct balance. Insufficient funds.")
+
+        # Log Transaction
+        tx = TransactionInDB(
+            user_id=customer_id,
+            amount=-price,
+            type="design_payment",
+            reference_id=id,
+            description=f"Payment for design: {d.get('title')}"
+        )
+        await db["transactions"].insert_one(tx.model_dump(by_alias=True))
+
         update_fields["assigned_to"] = assign_data.assigned_to
         # Auto-promote status from pending -> assigned
         if d.get("status") == "pending":
             update_fields["status"] = "assigned"
     else:
-        # Unassign
+        # Unassign - Note: We probably shouldn't refund automatically here without logic
         update_fields["assigned_to"] = None
         if d.get("status") == "assigned":
             update_fields["status"] = "pending"

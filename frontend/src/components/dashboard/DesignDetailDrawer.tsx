@@ -98,21 +98,21 @@ export default function DesignDetailDrawer({ designId, onClose, currentUser }: D
                         animate={{ x: 0 }}
                         exit={{ x: "100%" }}
                         transition={{ type: "spring", damping: 25, stiffness: 200 }}
-                        className="fixed top-0 right-0 h-full w-full max-w-lg bg-[#0f0a19] border-l border-white/10 shadow-2xl z-50 flex flex-col"
+                        className="fixed inset-y-0 right-0 h-screen w-full max-w-lg bg-background border-l border-border shadow-2xl z-50 flex flex-col"
                     >
                         {/* Header */}
-                        <div className="p-6 border-b border-white/10 flex items-center justify-between bg-white/5">
+                        <div className="p-6 border-b border-border flex items-center justify-between bg-muted/30">
                             <div>
-                                <h2 className="text-xl font-bold text-white truncate max-w-[300px]">
+                                <h2 className="text-xl font-bold text-foreground truncate max-w-[300px]">
                                     {loading ? "Loading..." : design?.title}
                                 </h2>
                                 <span className="text-xs text-muted-foreground uppercase tracking-wider">Design Details</span>
                             </div>
                             <button
                                 onClick={onClose}
-                                className="p-2 rounded-full hover:bg-white/10 transition-colors"
+                                className="p-2 rounded-full hover:bg-foreground/5 transition-colors"
                             >
-                                <X className="w-5 h-5" />
+                                <X className="w-5 h-5 text-muted-foreground" />
                             </button>
                         </div>
 
@@ -120,28 +120,45 @@ export default function DesignDetailDrawer({ designId, onClose, currentUser }: D
                         <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-8 pb-32">
                             {design && (
                                 <>
-                                    {/* Info Grid */}
                                     <div className="grid grid-cols-2 gap-4">
-                                        <div className="p-4 rounded-2xl bg-white/5 border border-white/5">
+                                        <div className="p-4 rounded-2xl bg-muted/50 border border-border">
                                             <div className="flex items-center gap-2 text-primary mb-1">
                                                 <Clock className="w-4 h-4" />
                                                 <span className="text-xs font-bold uppercase">Status</span>
                                             </div>
-                                            <div className="capitalize font-semibold text-white">{design.status.replace("_", " ")}</div>
+                                            <div className="capitalize font-semibold text-foreground">{design.status.replace("_", " ")}</div>
                                         </div>
-                                        <div className="p-4 rounded-2xl bg-white/5 border border-white/5">
-                                            <div className="flex items-center gap-2 text-green-400 mb-1">
+                                        <div className="p-4 rounded-2xl bg-muted/50 border border-border">
+                                            <div className="flex items-center gap-2 text-green-500 mb-1">
                                                 <DollarSign className="w-4 h-4" />
                                                 <span className="text-xs font-bold uppercase">Price</span>
                                             </div>
-                                            <div className="font-semibold text-white">${design.price}</div>
+                                            <div className={`font-semibold ${design.price > 0 ? 'text-foreground' : 'text-amber-500 italic text-xs'}`}>
+                                                {design.price > 0 ? `$${design.price}` : "Price setting pending"}
+                                            </div>
                                         </div>
                                     </div>
 
+                                    {/* Assignee - Hidden for customers */}
+                                    {currentUser?.role !== "customer" && (
+                                        <div>
+                                            <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-widest mb-3">Assignee</h3>
+                                            <div className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-muted/50 border border-border">
+                                                <div className="w-8 h-8 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center font-bold text-primary text-sm shrink-0">
+                                                    {design.assigned_user?.full_name?.charAt(0)?.toUpperCase() || "U"}
+                                                </div>
+                                                <div>
+                                                    <p className="text-sm font-medium text-foreground">{design.assigned_user?.full_name || "Unassigned"}</p>
+                                                    <p className="text-xs text-muted-foreground">{design.assigned_user ? `@${design.assigned_user.username}` : "Pending assignment"}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
                                     {/* Description */}
                                     <div>
-                                        <h3 className="text-sm font-bold text-white/50 uppercase tracking-widest mb-3">Description</h3>
-                                        <p className="text-foreground/90 leading-relaxed bg-white/5 p-4 rounded-2xl border border-white/5">
+                                        <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-widest mb-3">Description</h3>
+                                        <p className="text-foreground/90 leading-relaxed bg-muted/50 p-4 rounded-2xl border border-border">
                                             {design.description}
                                         </p>
                                     </div>
@@ -193,12 +210,12 @@ export default function DesignDetailDrawer({ designId, onClose, currentUser }: D
                                     <div className="pt-4">
                                         <div className="flex items-center gap-2 mb-6">
                                             <MessageSquare className="w-5 h-5 text-primary" />
-                                            <h3 className="text-sm font-bold text-white uppercase tracking-widest">Internal Discussion</h3>
+                                            <h3 className="text-sm font-bold text-foreground uppercase tracking-widest">Internal Discussion</h3>
                                         </div>
 
                                         <div className="space-y-4 mb-4" ref={scrollRef}>
                                             {comments.length === 0 ? (
-                                                <div className="text-center py-8 bg-white/5 rounded-2xl border border-dashed border-white/10">
+                                                <div className="text-center py-8 bg-muted/30 rounded-2xl border border-dashed border-border">
                                                     <p className="text-sm text-muted-foreground">No messages yet. Start the conversation!</p>
                                                 </div>
                                             ) : (
@@ -208,15 +225,15 @@ export default function DesignDetailDrawer({ designId, onClose, currentUser }: D
                                                         className={`flex flex-col ${comment.user_id === currentUser?.id ? 'items-end' : 'items-start'}`}
                                                     >
                                                         <div className="flex items-center gap-2 mb-1 px-2">
-                                                            <span className="text-[10px] font-bold text-white/40 uppercase">{comment.user_name}</span>
-                                                            <span className="text-[10px] text-white/20">
+                                                            <span className="text-[10px] font-bold text-muted-foreground uppercase">{comment.user_name}</span>
+                                                            <span className="text-[10px] text-muted-foreground/60">
                                                                 {new Date(comment.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                                             </span>
                                                         </div>
                                                         <div
                                                             className={`max-w-[85%] px-4 py-3 rounded-2xl text-sm ${comment.user_id === currentUser?.id
-                                                                ? 'bg-primary text-white rounded-tr-none shadow-xl shadow-primary/20'
-                                                                : 'bg-white/10 text-foreground rounded-tl-none border border-white/5'
+                                                                ? 'bg-primary text-primary-foreground rounded-tr-none shadow-xl shadow-primary/20'
+                                                                : 'bg-muted text-foreground rounded-tl-none border border-border'
                                                                 }`}
                                                         >
                                                             {comment.content}
@@ -231,19 +248,19 @@ export default function DesignDetailDrawer({ designId, onClose, currentUser }: D
                         </div>
 
                         {/* Sticky Footer Input */}
-                        <div className="p-6 border-t border-white/10 bg-[#161026] absolute bottom-0 left-0 right-0">
+                        <div className="p-6 border-t border-border bg-background absolute bottom-0 left-0 right-0">
                             <form onSubmit={handleSendComment} className="relative">
                                 <input
                                     type="text"
                                     placeholder="Type a message..."
-                                    className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-4 pr-14 focus:outline-none focus:border-primary/50 transition-colors text-sm"
+                                    className="w-full bg-muted border border-border rounded-2xl py-4 pl-4 pr-14 focus:outline-none focus:border-primary/50 transition-colors text-sm text-foreground"
                                     value={newComment}
                                     onChange={(e) => setNewComment(e.target.value)}
                                 />
                                 <button
                                     type="submit"
                                     disabled={!newComment.trim() || sending}
-                                    className="absolute right-2 top-2 p-3 rounded-xl bg-primary text-white disabled:opacity-50 hover:bg-primary/80 transition-colors"
+                                    className="absolute right-2 top-2 p-3 rounded-xl bg-primary text-primary-foreground disabled:opacity-50 hover:bg-primary/80 transition-colors"
                                 >
                                     {sending ? <Clock className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                                 </button>
@@ -251,7 +268,8 @@ export default function DesignDetailDrawer({ designId, onClose, currentUser }: D
                         </div>
                     </motion.div>
                 </>
-            )}
-        </AnimatePresence>
+            )
+            }
+        </AnimatePresence >
     );
 }

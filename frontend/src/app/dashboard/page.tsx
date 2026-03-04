@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import AdminView from "@/components/dashboard/AdminView";
 import DesignerOverview from "@/components/dashboard/DesignerOverview";
+import CustomerView from "@/components/dashboard/CustomerView";
 
 export default function DashboardPage() {
   const [user, setUser] = useState<any>(null);
@@ -18,7 +19,13 @@ export default function DashboardPage() {
 
   return (
     <>
-      {user.role === "admin" ? <AdminView /> : <DesignerOverview user={user} />}
+      {user.role === "admin" ? (
+        <AdminView />
+      ) : user.role === "customer" ? (
+        <CustomerView user={user} />
+      ) : (
+        <DesignerOverview user={user} />
+      )}
     </>
   );
 }
