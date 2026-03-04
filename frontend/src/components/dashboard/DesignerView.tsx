@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { api, s3Upload, heavyUpload } from "@/lib/api";
 import { useToast } from "@/lib/toast";
-import { CheckCircle2, Clock, Eye, MessageSquare, Loader2, UploadCloud, Search, Filter, AlertCircle, Calendar, TrendingUp, LayoutGrid, List } from "lucide-react";
+import { CheckCircle2, Clock, Eye, MessageSquare, Loader2, UploadCloud, Search, Filter, AlertCircle, Calendar, TrendingUp, LayoutGrid, List, ChevronLeft, ChevronRight } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import DesignDetailDrawer from "@/components/dashboard/DesignDetailDrawer";
 import { getTimeAgo } from "@/lib/date-utils";
@@ -15,6 +15,8 @@ const COLUMNS = [
   { id: "review", title: "In Review", icon: Eye, color: "text-amber-400" },
   { id: "completed", title: "Completed", icon: CheckCircle2, color: "text-green-400" },
 ];
+
+const LIST_PAGE_SIZE = 9; // 3x3 grid
 
 function ActivityIcon(props: any) {
   return (
@@ -33,6 +35,12 @@ export default function DesignerView({ user }: { user: any }) {
     in_progress: [],
     review: [],
     completed: []
+  });
+  const [columnPages, setColumnPages] = useState<Record<string, number>>({
+    assigned: 1,
+    in_progress: 1,
+    review: 1,
+    completed: 1
   });
 
   const [selectedDesign, setSelectedDesign] = useState<any>(null);
@@ -324,10 +332,16 @@ export default function DesignerView({ user }: { user: any }) {
         </div>
       ) : (
         // Cart/List View
-        <div className="space-y-4">
+        <div className="space-y-4 px-6 py-4">
           {COLUMNS.map(col => {
             const designs = columns[col.id] || [];
             if (designs.length === 0) return null;
+            
+            const currentPage = columnPages[col.id] || 1;
+            const totalPages = Math.max(1, Math.ceil(designs.length / LIST_PAGE_SIZE));
+            const startIndex = (currentPage - 1) * LIST_PAGE_SIZE;
+            const endIndex = startIndex + LIST_PAGE_SIZE;
+            const paginatedDesigns = designs.slice(startIndex, endIndex);
             
             return (
               <div key={col.id} className="glass-panel rounded-2xl overflow-hidden">
@@ -344,90 +358,150 @@ export default function DesignerView({ user }: { user: any }) {
 
                 {/* Design Cards */}
                 <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {designs.map((design) => (
+                  {paginatedDesigns.map((design) => (
                     <motion.div
                       key={design.id}
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className="p-5 rounded-xl border border-border bg-foreground/5 hover:bg-foreground/10 transition-all cursor-pointer group"
+                      className="rounded-xl border border-border bg-foreground/5 hover:bg-foreground/10 transition-all cursor-pointer group overflow-hidden"
                       onClick={() => setDetailDesignId(design.id)}
                     >
-                      {/* Title & Status Badge */}
-                      <div className="flex items-start justify-between mb-3">
-                        <h4 className="font-semibold text-foreground leading-tight group-hover:text-primary transition-colors flex-1">
+                      {/* Reference Image */}
+                      {design.image_url && (
+                        <div className="relative w-full h-48 overflow-hidden bg-background/50">
+                          <img 
+                            src={design.image_url} 
+                            alt={design.title}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          />
+                          {/* Status Badge Overlay */}
+                          <div className="absolute top-3 right-3">
+                            <span className={`px-2.5 py-1 rounded-full text-xs font-bold backdrop-blur-sm ${
+                              col.id === 'completed' ? 'bg-green-500/90 text-white' :
+                              col.id === 'review' ? 'bg-amber-500/90 text-white' :
+                              col.id === 'in_progress' ? 'bg-purple-500/90 text-white' :
+                              'bg-blue-500/90 text-white'
+                            }`}>
+                              {col.title}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="p-4">
+                        {/* Title */}
+                        <h4 className="font-semibold text-foreground leading-tight group-hover:text-primary transition-colors mb-2 line-clamp-1">
                           {design.title}
                         </h4>
-                        <span className={`px-2.5 py-1 rounded-full text-xs font-bold whitespace-nowrap ml-2 ${
-                          col.id === 'completed' ? 'bg-green-500/20 text-green-400' :
-                          col.id === 'review' ? 'bg-amber-500/20 text-amber-400' :
-                          col.id === 'in_progress' ? 'bg-purple-500/20 text-purple-400' :
-                          'bg-blue-500/20 text-blue-400'
-                        }`}>
-                          {col.title}
-                        </span>
-                      </div>
 
-                      {/* Description */}
-                      <p className="text-sm text-muted-foreground line-clamp-2 mb-4">
-                        {design.description || 'No description provided'}
-                      </p>
+                        {/* Description */}
+                        <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
+                          {design.description || 'No description provided'}
+                        </p>
 
-                      {/* Metadata Row */}
-                      <div className="flex items-center justify-between text-xs">
-                        <div className="flex items-center gap-3">
+                        {/* Metadata Row */}
+                        <div className="flex items-center justify-between text-xs pt-3 border-t border-border/50">
                           <div className="flex items-center gap-1.5 text-muted-foreground">
                             <Clock className="w-3.5 h-3.5" />
                             <span>{getTimeAgo(design.updated_at || design.created_at)}</span>
                           </div>
-                        </div>
 
-                        {/* Action Buttons */}
-                        <div className="flex items-center gap-2">
-                          {design.result_link && (
-                            <a
-                              href={design.result_link}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              onClick={(e) => e.stopPropagation()}
-                              className="text-blue-400 hover:text-blue-300 underline underline-offset-2 flex items-center gap-1 font-medium"
-                            >
-                              <Eye className="w-3.5 h-3.5" /> View
-                            </a>
-                          )}
-                          
-                          {/* Status Change Buttons */}
-                          {col.id === 'assigned' && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleStatusChange(design.id, 'in_progress');
-                              }}
-                              className="px-3 py-1 rounded-full bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 font-medium transition-colors"
-                            >
-                              Start
-                            </button>
-                          )}
-                          
-                          {col.id === 'in_progress' && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (!design.result_link) {
-                                  setSelectedDesign(design);
-                                } else {
-                                  handleStatusChange(design.id, 'review');
-                                }
-                              }}
-                              className="px-3 py-1 rounded-full bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 font-medium transition-colors"
-                            >
-                              Submit
-                            </button>
-                          )}
+                          {/* Action Buttons */}
+                          <div className="flex items-center gap-2">
+                            {design.result_link && (
+                              <a
+                                href={design.result_link}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                className="text-blue-400 hover:text-blue-300 underline underline-offset-2 flex items-center gap-1 font-medium"
+                              >
+                                <Eye className="w-3.5 h-3.5" /> View
+                              </a>
+                            )}
+                            
+                            {/* Status Change Buttons */}
+                            {col.id === 'assigned' && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleStatusChange(design.id, 'in_progress');
+                                }}
+                                className="px-3 py-1 rounded-full bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 font-medium transition-colors"
+                              >
+                                Start
+                              </button>
+                            )}
+                            
+                            {col.id === 'in_progress' && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (!design.result_link) {
+                                    setSelectedDesign(design);
+                                  } else {
+                                    handleStatusChange(design.id, 'review');
+                                  }
+                                }}
+                                className="px-3 py-1 rounded-full bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 font-medium transition-colors"
+                              >
+                                Submit
+                              </button>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </motion.div>
                   ))}
                 </div>
+
+                {/* Pagination Controls */}
+                {totalPages > 1 && (
+                  <div className="px-6 py-4 border-t border-border bg-foreground/5 flex items-center justify-between">
+                    <p className="text-sm text-muted-foreground">
+                      Showing{" "}
+                      <span className="font-semibold text-foreground">{startIndex + 1}</span>
+                      {"–"}
+                      <span className="font-semibold text-foreground">{Math.min(endIndex, designs.length)}</span>
+                      {" of "}
+                      <span className="font-semibold text-foreground">{designs.length}</span> tasks
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setColumnPages({ ...columnPages, [col.id]: Math.max(1, currentPage - 1) })}
+                        disabled={currentPage === 1}
+                        className="w-9 h-9 flex items-center justify-center rounded-lg border border-border bg-foreground/5 hover:bg-foreground/10 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                      </button>
+                      {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                        const startPage = Math.max(1, Math.min(currentPage - 2, totalPages - 4));
+                        const p = startPage + i;
+                        if (p > totalPages) return null;
+                        return (
+                          <button
+                            key={p}
+                            onClick={() => setColumnPages({ ...columnPages, [col.id]: p })}
+                            className={`w-9 h-9 flex items-center justify-center rounded-lg border text-sm font-semibold transition-all ${
+                              currentPage === p
+                                ? "bg-primary border-primary text-primary-foreground shadow-md shadow-primary/30"
+                                : "border-border bg-foreground/5 hover:bg-foreground/10 text-foreground"
+                            }`}
+                          >
+                            {p}
+                          </button>
+                        );
+                      })}
+                      <button
+                        onClick={() => setColumnPages({ ...columnPages, [col.id]: Math.min(totalPages, currentPage + 1) })}
+                        disabled={currentPage === totalPages}
+                        className="w-9 h-9 flex items-center justify-center rounded-lg border border-border bg-foreground/5 hover:bg-foreground/10 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                      >
+                        <ChevronRight className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })}
