@@ -6,8 +6,27 @@ from core.config import settings
 from api.deps import get_current_user
 from models.user import UserResponse
 import uuid
+from typing import List
+
+from pydantic import BaseModel
 
 router = APIRouter()
+
+class MultipartStartRequest(BaseModel):
+    filename: str
+    content_type: str
+
+class MultipartUrlsRequest(BaseModel):
+    object_key: str
+    parts: int
+
+class MultipartCompletePart(BaseModel):
+    ETag: str
+    PartNumber: int
+
+class MultipartCompleteRequest(BaseModel):
+    object_key: str
+    parts: List[MultipartCompletePart]
 
 ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/gif", "image/webp"}
 
@@ -159,3 +178,82 @@ async def upload_design_image(
     public_url = upload_to_s3(file_bytes, object_key, file.content_type)
 
     return {"public_url": public_url}
+
+# ─── Multipart S3 Upload Endpoints ──────────────────────────────────────────
+
+@router.post("/multipart/start")
+def multipart_start(
+    req: MultipartStartRequest,
+    current_user: UserResponse = Depends(get_current_user),
+):
+    """Initiate a multipart upload."""
+    if not is_s3_configured():
+        raise HTTPException(status_code=400, detail="Multipart upload is only supported with S3.")
+        
+    ext = req.filename.rsplit(".", 1)[-1] if "." in req.filename else ""
+    unique_filename = f"{uuid.uuid4()}.{ext}" if ext else str(uuid.uuid4())
+    object_key = f"results/{current_user.id}/{unique_filename}"
+    
+    s3_client = get_s3_client()
+    try:
+        response = s3_client.create_multipart_upload(
+            Bucket=settings.S3_BUCKET_NAME,
+            Key=object_key,
+            ContentType=req.content_type,
+        )
+        return {"upload_id": response["UploadId"], "object_key": object_key}
+    except ClientError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/multipart/{upload_id}/urls")
+def multipart_urls(
+    upload_id: str,
+    req: MultipartUrlsRequest,
+    current_user: UserResponse = Depends(get_current_user),
+):
+    """Generate pre-signed URLs for each part."""
+    if not is_s3_configured():
+        raise HTTPException(status_code=400, detail="Multipart upload is only supported with S3.")
+
+    s3_client = get_s3_client()
+    urls = []
+    try:
+        for part_number in range(1, req.parts + 1):
+            url = s3_client.generate_presigned_url(
+                'upload_part',
+                Params={
+                    'Bucket': settings.S3_BUCKET_NAME,
+                    'Key': req.object_key,
+                    'UploadId': upload_id,
+                    'PartNumber': part_number,
+                },
+                ExpiresIn=3600, # 1 hour
+            )
+            urls.append({"part_number": part_number, "url": url})
+        return {"urls": urls}
+    except ClientError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/multipart/{upload_id}/complete")
+def multipart_complete(
+    upload_id: str,
+    req: MultipartCompleteRequest,
+    current_user: UserResponse = Depends(get_current_user),
+):
+    """Complete a multipart upload, stitching the parts together."""
+    if not is_s3_configured():
+        raise HTTPException(status_code=400, detail="Multipart upload is only supported with S3.")
+
+    s3_client = get_s3_client()
+    try:
+        s3_client.complete_multipart_upload(
+            Bucket=settings.S3_BUCKET_NAME,
+            Key=req.object_key,
+            UploadId=upload_id,
+            MultipartUpload={
+                'Parts': [{"ETag": part.ETag, "PartNumber": part.PartNumber} for part in req.parts]
+            }
+        )
+        return {"public_url": s3_public_url(req.object_key)}
+    except ClientError as e:
+        raise HTTPException(status_code=500, detail=str(e))
