@@ -56,9 +56,10 @@ class DesignResponse(DesignBase):
     updated_at: datetime
     completed_at: Optional[datetime] = None
     is_deleted: bool
+    comment_count: int = 0
 
     @classmethod
-    def from_mongo(cls, data: dict):
+    def from_mongo(cls, data: dict, comment_count: int = 0):
         if not data:
             return data
         data_copy = {k: v for k, v in data.items() if k not in ["_id", "assigned_to"]}
@@ -67,5 +68,6 @@ class DesignResponse(DesignBase):
         return cls(
             **data_copy,
             id=str(id) if id else "",
-            assigned_to=str(assigned_to) if assigned_to else None
+            assigned_to=str(assigned_to) if assigned_to else None,
+            comment_count=comment_count
         )

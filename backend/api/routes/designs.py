@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
-from typing import List, Optional
+from typing import List, Optional, Union
 from models.design import DesignCreate, DesignUpdate, DesignInDB, DesignResponse
 from models.comment import CommentCreate, CommentInDB, CommentResponse
+from models.status_history import StatusHistoryInDB, StatusHistoryResponse
 from models.user import UserResponse
 from api.deps import get_db, get_current_user, get_current_admin
 from bson import ObjectId
@@ -10,6 +11,18 @@ from pydantic import BaseModel
 from models.transaction import TransactionInDB
 
 router = APIRouter()
+
+# Helper function to log status changes
+async def log_status_change(db, design_id: str, old_status: Optional[str], new_status: str, user_id: str, user_name: str):
+    if old_status != new_status:
+        history_entry = StatusHistoryInDB(
+            design_id=design_id,
+            old_status=old_status,
+            new_status=new_status,
+            changed_by=user_id,
+            changed_by_name=user_name
+        )
+        await db["status_history"].insert_one(history_entry.model_dump(by_alias=True, exclude=["id"]))
 
 @router.get("/", response_model=List[DesignResponse])
 async def list_designs(
@@ -27,17 +40,29 @@ async def list_designs(
 
     if current_user.role == "designer":
         # Designer sees only their assigned designs
-        query["assigned_to"] = current_user.id
+        query["assigned_to"] = ObjectId(current_user.id)
     elif current_user.role == "customer":
         # Customer sees only designs they created
         query["created_by"] = current_user.id
     else:
         # Admin sees everything, but can filter by assignee
         if assigned_to:
-            query["assigned_to"] = assigned_to
+            query["assigned_to"] = ObjectId(assigned_to)
 
     designs = await db["designs"].find(query).sort("created_at", -1).to_list(length=200)
-    return [DesignResponse.from_mongo(d) for d in designs]
+    
+    # Fetch comment counts for each design
+    design_ids = [d["_id"] for d in designs]
+    comment_counts = {}
+    if design_ids:
+        pipeline = [
+            {"$match": {"design_id": {"$in": design_ids}}},
+            {"$group": {"_id": "$design_id", "count": {"$sum": 1}}}
+        ]
+        comment_results = await db["design_comments"].aggregate(pipeline).to_list(length=None)
+        comment_counts = {str(r["_id"]): r["count"] for r in comment_results}
+    
+    return [DesignResponse.from_mongo(d, comment_counts.get(str(d["_id"]), 0)) for d in designs]
 
 @router.post("/", response_model=DesignResponse)
 async def create_design(
@@ -97,6 +122,11 @@ async def update_design(
     db=Depends(get_db),
     current_user: UserResponse = Depends(get_current_admin)
 ):
+    existing = await db["designs"].find_one({"_id": ObjectId(id)})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Design not found")
+    
+    old_status = existing.get("status")
     update_data = {k: v for k, v in design_in.model_dump(exclude_unset=True).items() if v is not None}
     update_data["updated_at"] = datetime.now(timezone.utc)
 
@@ -106,8 +136,7 @@ async def update_design(
         designer = await db["users"].find_one({"_id": ObjectId(designer_id), "role": "designer"})
         if not designer:
             raise HTTPException(status_code=404, detail="Designer not found")
-        existing = await db["designs"].find_one({"_id": ObjectId(id)})
-        if existing and existing.get("status") == "pending":
+        if existing.get("status") == "pending":
             update_data["status"] = "assigned"
 
     result = await db["designs"].update_one(
@@ -116,6 +145,10 @@ async def update_design(
     )
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Design not found")
+
+    # Log status change if status was updated
+    if "status" in update_data:
+        await log_status_change(db, id, old_status, update_data["status"], current_user.id, current_user.full_name)
 
     updated = await db["designs"].find_one({"_id": ObjectId(id)})
     return DesignResponse.from_mongo(updated)
@@ -135,12 +168,14 @@ async def assign_design(
     if not d:
         raise HTTPException(status_code=404, detail="Design not found")
 
+    old_status = d.get("status")
     update_fields = {"updated_at": datetime.now(timezone.utc)}
 
     if assign_data.assigned_to:
         designer = await db["users"].find_one({"_id": ObjectId(assign_data.assigned_to), "role": "designer"})
         if not designer:
             raise HTTPException(status_code=404, detail="Designer not found")
+
         
         # Check if price is set (Admin should have set it by now or is setting it)
         # We need the current design or we should allow setting price in this call too?
@@ -175,8 +210,7 @@ async def assign_design(
             description=f"Payment for design: {d.get('title')}"
         )
         await db["transactions"].insert_one(tx.model_dump(by_alias=True))
-
-        update_fields["assigned_to"] = assign_data.assigned_to
+        update_fields["assigned_to"] = ObjectId(assign_data.assigned_to)
         # Auto-promote status from pending -> assigned
         if d.get("status") == "pending":
             update_fields["status"] = "assigned"
@@ -187,6 +221,11 @@ async def assign_design(
             update_fields["status"] = "pending"
 
     await db["designs"].update_one({"_id": ObjectId(id)}, {"$set": update_fields})
+    
+    # Log status change if status was changed
+    if "status" in update_fields and update_fields["status"] != old_status:
+        await log_status_change(db, id, old_status, update_fields["status"], current_user.id, current_user.full_name)
+    
     updated = await db["designs"].find_one({"_id": ObjectId(id)})
     return DesignResponse.from_mongo(updated)
 
@@ -207,11 +246,16 @@ async def update_status(
     if current_user.role == "designer" and str(d.get("assigned_to")) != current_user.id:
          raise HTTPException(status_code=403, detail="Forbidden")
 
+    old_status = d.get("status")
     update_fields = {"status": status_update.status, "updated_at": datetime.now(timezone.utc)}
     if status_update.status == "completed":
         update_fields["completed_at"] = datetime.now(timezone.utc)
 
     await db["designs"].update_one({"_id": ObjectId(id)}, {"$set": update_fields})
+    
+    # Log status change
+    await log_status_change(db, id, old_status, status_update.status, current_user.id, current_user.full_name)
+    
     updated = await db["designs"].find_one({"_id": ObjectId(id)})
     return DesignResponse.from_mongo(updated)
 
@@ -296,3 +340,42 @@ async def create_design_comment(
     result = await db["design_comments"].insert_one(comment_db.model_dump(by_alias=True))
     created = await db["design_comments"].find_one({"_id": result.inserted_id})
     return CommentResponse.from_mongo(created)
+
+@router.get("/{id}/activity")
+async def get_design_activity(
+    id: str,
+    db=Depends(get_db),
+    current_user: UserResponse = Depends(get_current_user)
+):
+    """Get combined activity timeline (comments + status changes) for a design."""
+    # Get design to check access
+    design = await db["designs"].find_one({"_id": ObjectId(id)})
+    if not design:
+        raise HTTPException(status_code=404, detail="Design not found")
+    
+    # Check permission
+    if current_user.role == "designer" and str(design.get("assigned_to")) != current_user.id:
+        raise HTTPException(status_code=403, detail="Forbidden")
+    
+    # Fetch comments
+    comments = await db["design_comments"].find({"design_id": ObjectId(id)}).to_list(length=500)
+    comment_items = [
+        {
+            **CommentResponse.from_mongo(c).model_dump(),
+            "type": "comment"
+        }
+        for c in comments
+    ]
+    
+    # Fetch status history
+    status_history = await db["status_history"].find({"design_id": id}).to_list(length=500)
+    status_items = [
+        StatusHistoryResponse.from_mongo(s).model_dump()
+        for s in status_history
+    ]
+    
+    # Combine and sort by created_at
+    all_activity = comment_items + status_items
+    all_activity.sort(key=lambda x: x["created_at"])
+    
+    return all_activity
