@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
-import { LogOut, Palette, LayoutDashboard, Briefcase, Settings, Activity, Users, UserCircle2, ShoppingCart } from "lucide-react";
+import { LogOut, Palette, LayoutDashboard, Briefcase, Settings, Activity, Users, UserCircle2, ShoppingCart, Wallet } from "lucide-react";
 import { motion } from "framer-motion";
 import { useSettings } from "@/lib/settings-context";
 

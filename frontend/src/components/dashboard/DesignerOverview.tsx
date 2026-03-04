@@ -5,6 +5,7 @@ import { api } from "@/lib/api";
 import { CheckCircle2, DollarSign, Activity, AlertCircle, Eye, Clock, Calendar, ExternalLink, Filter, MessageSquare } from "lucide-react";
 import { motion } from "framer-motion";
 import DesignDetailDrawer from "@/components/dashboard/DesignDetailDrawer";
+import { getTimeAgo, formatVietnamDate } from "@/lib/date-utils";
 
 export default function DesignerOverview({ user }: { user: any }) {
   const [stats, setStats] = useState<any>(null);
@@ -30,6 +31,15 @@ export default function DesignerOverview({ user }: { user: any }) {
     }
   }, [viewedDesignIds, user?.id]);
 
+  const fetchDesigns = async () => {
+    try {
+      const res = await api.get("/designs");
+      setDesigns(res.data);
+    } catch (e) {
+      console.error("Failed to load designs", e);
+    }
+  };
+
   useEffect(() => {
     const fetchStats = async () => {
       try {
@@ -39,15 +49,6 @@ export default function DesignerOverview({ user }: { user: any }) {
         }
       } catch (e) {
         console.error("Failed to load designer stats", e);
-      }
-    };
-
-    const fetchDesigns = async () => {
-      try {
-        const res = await api.get("/designs");
-        setDesigns(res.data);
-      } catch (e) {
-        console.error("Failed to load designs", e);
       }
     };
 
@@ -416,9 +417,10 @@ export default function DesignerOverview({ user }: { user: any }) {
         onClose={() => {
           setSelectedDesignId(null);
           // Refresh designs to update comment counts
-          api.get("/designs").then(res => setDesigns(res.data)).catch(console.error);
+          fetchDesigns();
         }}
         currentUser={user}
+        onUpdate={fetchDesigns}
       />
     </div>
   );

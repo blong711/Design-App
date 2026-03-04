@@ -4,9 +4,10 @@ import { useEffect, useState } from "react";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { api, s3Upload, heavyUpload } from "@/lib/api";
 import { useToast } from "@/lib/toast";
-import { CheckCircle2, Clock, Eye, MessageSquare, Loader2, UploadCloud, Search, Filter, AlertCircle, Calendar, TrendingUp } from "lucide-react";
+import { CheckCircle2, Clock, Eye, MessageSquare, Loader2, UploadCloud, Search, Filter, AlertCircle, Calendar, TrendingUp, LayoutGrid, List } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import DesignDetailDrawer from "@/components/dashboard/DesignDetailDrawer";
+import { getTimeAgo } from "@/lib/date-utils";
 
 const COLUMNS = [
   { id: "assigned", title: "To Do", icon: Clock, color: "text-blue-400" },
@@ -25,6 +26,7 @@ function ActivityIcon(props: any) {
 
 export default function DesignerView({ user }: { user: any }) {
   const toast = useToast();
+  const [viewMode, setViewMode] = useState<"kanban" | "cart">("kanban");
   const [columns, setColumns] = useState<Record<string, any[]>>({
     assigned: [],
     in_progress: [],
@@ -121,14 +123,64 @@ export default function DesignerView({ user }: { user: any }) {
     }
   };
 
+  const handleStatusChange = async (designId: string, newStatus: string) => {
+    try {
+      // Update status via API
+      await api.patch(`/designs/${designId}/status`, { status: newStatus });
+      toast("Status updated successfully!", "success");
+      
+      // Refresh designs
+      fetchDesigns();
+      
+      // If moving to review and no result link, show upload modal
+      const design = Object.values(columns).flat().find(d => d.id === designId);
+      if (newStatus === 'review' && design && !design.result_link) {
+        setSelectedDesign(design);
+      }
+    } catch (e) {
+      console.error(e);
+      toast("Failed to update status. Please try again.", "error");
+    }
+  };
+
   return (
     <div className="h-full flex flex-col">
-      <div className="mb-6">
-        <h2 className="text-3xl font-bold tracking-tight">Design Board</h2>
-        <p className="text-muted-foreground mt-1 text-sm">Drag tasks across columns to update their status.</p>
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight">Design Board</h2>
+          <p className="text-muted-foreground mt-1 text-sm">Drag tasks across columns to update their status.</p>
+        </div>
+        
+        {/* View Mode Toggle */}
+        <div className="flex items-center gap-2 bg-foreground/5 rounded-full p-1 border border-border">
+          <button
+            onClick={() => setViewMode("kanban")}
+            className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${
+              viewMode === "kanban"
+                ? "bg-primary text-primary-foreground shadow-lg"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <LayoutGrid className="w-4 h-4" />
+            Kanban
+          </button>
+          <button
+            onClick={() => setViewMode("cart")}
+            className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${
+              viewMode === "cart"
+                ? "bg-primary text-primary-foreground shadow-lg"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <List className="w-4 h-4" />
+            List
+          </button>
+        </div>
       </div>
 
-      <DragDropContext onDragEnd={onDragEnd}>
+      {viewMode === "kanban" ? (
+        // Kanban Board View
+        <DragDropContext onDragEnd={onDragEnd}>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-start">
           {COLUMNS.map(col => (
             <div key={col.id} className="flex flex-col rounded-2xl glass-panel relative overflow-hidden">
@@ -186,8 +238,9 @@ export default function DesignerView({ user }: { user: any }) {
                               </p>
 
                               <div className="flex justify-between items-center text-xs">
-                                <div className="text-primary font-medium bg-primary/10 px-2 py-1 rounded-md">
-                                  ${design.price}
+                                <div className="flex items-center gap-1.5 text-muted-foreground">
+                                  <Clock className="w-3.5 h-3.5" />
+                                  <span>{getTimeAgo(design.updated_at || design.created_at)}</span>
                                 </div>
                                 {design.result_link && (
                                   <a
@@ -214,6 +267,125 @@ export default function DesignerView({ user }: { user: any }) {
           ))}
         </div>
       </DragDropContext>
+      ) : (
+        // Cart/List View
+        <div className="space-y-4">
+          {COLUMNS.map(col => {
+            const designs = columns[col.id] || [];
+            if (designs.length === 0) return null;
+            
+            return (
+              <div key={col.id} className="glass-panel rounded-2xl overflow-hidden">
+                {/* Section Header */}
+                <div className="px-6 py-4 border-b border-border bg-foreground/5 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <col.icon className={`w-5 h-5 ${col.color}`} />
+                    <h3 className="font-semibold text-lg">{col.title}</h3>
+                    <span className="text-xs font-bold text-muted-foreground bg-foreground/10 px-2.5 py-1 rounded-full">
+                      {designs.length}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Design Cards */}
+                <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {designs.map((design) => (
+                    <motion.div
+                      key={design.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="p-5 rounded-xl border border-border bg-foreground/5 hover:bg-foreground/10 transition-all cursor-pointer group"
+                      onClick={() => setDetailDesignId(design.id)}
+                    >
+                      {/* Title & Status Badge */}
+                      <div className="flex items-start justify-between mb-3">
+                        <h4 className="font-semibold text-foreground leading-tight group-hover:text-primary transition-colors flex-1">
+                          {design.title}
+                        </h4>
+                        <span className={`px-2.5 py-1 rounded-full text-xs font-bold whitespace-nowrap ml-2 ${
+                          col.id === 'completed' ? 'bg-green-500/20 text-green-400' :
+                          col.id === 'review' ? 'bg-amber-500/20 text-amber-400' :
+                          col.id === 'in_progress' ? 'bg-purple-500/20 text-purple-400' :
+                          'bg-blue-500/20 text-blue-400'
+                        }`}>
+                          {col.title}
+                        </span>
+                      </div>
+
+                      {/* Description */}
+                      <p className="text-sm text-muted-foreground line-clamp-2 mb-4">
+                        {design.description || 'No description provided'}
+                      </p>
+
+                      {/* Metadata Row */}
+                      <div className="flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-1.5 text-muted-foreground">
+                            <Clock className="w-3.5 h-3.5" />
+                            <span>{getTimeAgo(design.updated_at || design.created_at)}</span>
+                          </div>
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="flex items-center gap-2">
+                          {design.result_link && (
+                            <a
+                              href={design.result_link}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="text-blue-400 hover:text-blue-300 underline underline-offset-2 flex items-center gap-1 font-medium"
+                            >
+                              <Eye className="w-3.5 h-3.5" /> View
+                            </a>
+                          )}
+                          
+                          {/* Status Change Buttons */}
+                          {col.id === 'assigned' && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleStatusChange(design.id, 'in_progress');
+                              }}
+                              className="px-3 py-1 rounded-full bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 font-medium transition-colors"
+                            >
+                              Start
+                            </button>
+                          )}
+                          
+                          {col.id === 'in_progress' && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (!design.result_link) {
+                                  setSelectedDesign(design);
+                                } else {
+                                  handleStatusChange(design.id, 'review');
+                                }
+                              }}
+                              className="px-3 py-1 rounded-full bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 font-medium transition-colors"
+                            >
+                              Submit
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+          
+          {Object.values(columns).every(col => col.length === 0) && (
+            <div className="glass-panel rounded-2xl p-12 text-center">
+              <LayoutGrid className="w-16 h-16 text-muted-foreground/20 mx-auto mb-4" />
+              <p className="text-muted-foreground font-medium">No designs assigned yet</p>
+              <p className="text-xs text-muted-foreground/70 mt-1">Check back later for new tasks</p>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* S3 Upload Modal when moving to Review */}
       {selectedDesign && (
@@ -267,6 +439,7 @@ export default function DesignerView({ user }: { user: any }) {
         designId={detailDesignId}
         onClose={() => setDetailDesignId(null)}
         currentUser={user}
+        onUpdate={fetchDesigns}
       />
     </div>
   );
