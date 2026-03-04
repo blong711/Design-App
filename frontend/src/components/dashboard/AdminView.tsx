@@ -1200,72 +1200,90 @@ export default function AdminView() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/30">
-                {designs.length === 0 && (
-                  <tr>
-                    <td colSpan={5} className="py-12 text-center text-muted-foreground bg-background/10">No designs found.</td>
-                  </tr>
-                )}
-                {designs.slice(0, 10).map((design) => (
-                  <tr key={design.id} className="hover:bg-white/[0.03] transition-colors group cursor-default">
-                    <td className="py-5 px-6">
-                      <div className="flex items-center gap-4">
-                        {design.image_url ? (
-                          <div className="relative w-12 h-12 rounded-xl border border-white/10 overflow-hidden shadow-md group-hover:shadow-lg transition-shadow">
-                            <img src={design.image_url} alt="" className="w-full h-full object-cover" />
+                {(() => {
+                  // Filter designs based on status filter
+                  const filteredDesigns = statusFilter 
+                    ? designs.filter(d => {
+                        // 'pending' includes both 'pending' and 'assigned' statuses
+                        if (statusFilter === 'pending') {
+                          return d.status === 'pending' || d.status === 'assigned';
+                        }
+                        return d.status === statusFilter;
+                      })
+                    : designs;
+
+                  if (filteredDesigns.length === 0) {
+                    return (
+                      <tr>
+                        <td colSpan={5} className="py-12 text-center text-muted-foreground bg-background/10">
+                          No designs found.
+                        </td>
+                      </tr>
+                    );
+                  }
+
+                  return filteredDesigns.slice(0, 10).map((design) => (
+                    <tr key={design.id} className="hover:bg-white/[0.03] transition-colors group cursor-default">
+                      <td className="py-5 px-6">
+                        <div className="flex items-center gap-4">
+                          {design.image_url ? (
+                            <div className="relative w-12 h-12 rounded-xl border border-white/10 overflow-hidden shadow-md group-hover:shadow-lg transition-shadow">
+                              <img src={design.image_url} alt="" className="w-full h-full object-cover" />
+                            </div>
+                          ) : (
+                            <div className="w-12 h-12 rounded-xl border border-white/10 bg-background/50 flex items-center justify-center shadow-md">
+                              <Activity className="w-5 h-5 text-muted-foreground/50" />
+                            </div>
+                          )}
+                          <div>
+                            <div className="font-semibold text-foreground group-hover:text-primary transition-colors">{design.title}</div>
+                            <div className="text-xs text-muted-foreground mt-1 truncate max-w-[250px]">{design.description}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-4 px-4">
+                        <span className="px-3 py-1 rounded-full text-xs font-medium border border-border"
+                          style={{
+                            backgroundColor:
+                              design.status === 'completed' ? 'rgba(74, 222, 128, 0.15)' :
+                                design.status === 'review' ? 'rgba(250, 204, 21, 0.15)' :
+                                  design.status === 'in_progress' ? 'rgba(96, 165, 250, 0.15)' : 'rgba(161,161,170,0.15)',
+                            color:
+                              design.status === 'completed' ? '#4ade80' :
+                                design.status === 'review' ? '#facc15' :
+                                  design.status === 'in_progress' ? '#60a5fa' : '#a1a1aa'
+                          }}
+                        >
+                          {design.status.replace("_", " ")}
+                        </span>
+                      </td>
+                      <td className="py-5 px-6 font-semibold text-foreground/90">${design.price}</td>
+                      <td className="py-5 px-6 text-sm">
+                        {design.assigned_to ? (
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary/30 to-accent/30 border border-white/10 flex items-center justify-center text-foreground font-bold shadow-inner">
+                              {designerMap[design.assigned_to]?.charAt(0)?.toUpperCase() || "?"}
+                            </div>
+                            <span className="text-foreground font-medium">{designerMap[design.assigned_to] || "Unknown"}</span>
                           </div>
                         ) : (
-                          <div className="w-12 h-12 rounded-xl border border-white/10 bg-background/50 flex items-center justify-center shadow-md">
-                            <Activity className="w-5 h-5 text-muted-foreground/50" />
-                          </div>
+                          <span className="text-muted-foreground italic">Unassigned</span>
                         )}
-                        <div>
-                          <div className="font-semibold text-foreground group-hover:text-primary transition-colors">{design.title}</div>
-                          <div className="text-xs text-muted-foreground mt-1 truncate max-w-[250px]">{design.description}</div>
+                      </td>
+                      <td className="py-4 px-4 text-right">
+                        <div className="relative flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => setAssigningDesign(design)}
+                            className="px-4 py-2 rounded-xl bg-primary/10 hover:bg-primary border border-primary/20 hover:border-primary text-primary hover:text-white text-xs font-bold transition-all duration-300 flex items-center gap-2 opacity-0 group-hover:opacity-100 shadow-lg"
+                          >
+                            <UserPlus className="w-4 h-4" />
+                            {design.assigned_to ? "Reassign" : "Assign"}
+                          </button>
                         </div>
-                      </div>
-                    </td>
-                    <td className="py-4 px-4">
-                      <span className="px-3 py-1 rounded-full text-xs font-medium border border-border"
-                        style={{
-                          backgroundColor:
-                            design.status === 'completed' ? 'rgba(74, 222, 128, 0.15)' :
-                              design.status === 'review' ? 'rgba(250, 204, 21, 0.15)' :
-                                design.status === 'in_progress' ? 'rgba(96, 165, 250, 0.15)' : 'rgba(161,161,170,0.15)',
-                          color:
-                            design.status === 'completed' ? '#4ade80' :
-                              design.status === 'review' ? '#facc15' :
-                                design.status === 'in_progress' ? '#60a5fa' : '#a1a1aa'
-                        }}
-                      >
-                        {design.status.replace("_", " ")}
-                      </span>
-                    </td>
-                    <td className="py-5 px-6 font-semibold text-foreground/90">${design.price}</td>
-                    <td className="py-5 px-6 text-sm">
-                      {design.assigned_to ? (
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary/30 to-accent/30 border border-white/10 flex items-center justify-center text-foreground font-bold shadow-inner">
-                            {designerMap[design.assigned_to]?.charAt(0)?.toUpperCase() || "?"}
-                          </div>
-                          <span className="text-foreground font-medium">{designerMap[design.assigned_to] || "Unknown"}</span>
-                        </div>
-                      ) : (
-                        <span className="text-muted-foreground italic">Unassigned</span>
-                      )}
-                    </td>
-                    <td className="py-4 px-4 text-right">
-                      <div className="relative flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => setAssigningDesign(design)}
-                          className="px-4 py-2 rounded-xl bg-primary/10 hover:bg-primary border border-primary/20 hover:border-primary text-primary hover:text-white text-xs font-bold transition-all duration-300 flex items-center gap-2 opacity-0 group-hover:opacity-100 shadow-lg"
-                        >
-                          <UserPlus className="w-4 h-4" />
-                          {design.assigned_to ? "Reassign" : "Assign"}
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                    </tr>
+                  ));
+                })()}
               </tbody>
             </table>
           </div>
