@@ -24,6 +24,21 @@ async def log_status_change(db, design_id: str, old_status: Optional[str], new_s
         )
         await db["status_history"].insert_one(history_entry.model_dump(by_alias=True, exclude=["id"]))
 
+# Helper function to build populated DesignResponse
+async def get_populated_design_response(db, d: dict, comment_count: int = 0) -> DesignResponse:
+    if not d:
+        return None
+    assigned_user = None
+    if d.get("assigned_to"):
+        user = await db["users"].find_one({"_id": ObjectId(d["assigned_to"])})
+        if user:
+            assigned_user = {
+                "id": str(user["_id"]),
+                "username": user["username"],
+                "full_name": user["full_name"]
+            }
+    return DesignResponse.from_mongo(d, comment_count=comment_count, assigned_user=assigned_user)
+
 @router.get("/", response_model=List[DesignResponse])
 async def list_designs(
     status: Optional[str] = None,
@@ -97,7 +112,7 @@ async def create_design(
     design_db = DesignInDB(**design_data)
     result = await db["designs"].insert_one(design_db.model_dump(by_alias=True))
     created = await db["designs"].find_one({"_id": result.inserted_id})
-    return DesignResponse.from_mongo(created)
+    return await get_populated_design_response(db, created)
 
 @router.get("/{id}", response_model=DesignResponse)
 async def get_design(id: str, db=Depends(get_db), current_user: UserResponse = Depends(get_current_user)):
@@ -113,7 +128,7 @@ async def get_design(id: str, db=Depends(get_db), current_user: UserResponse = D
     if current_user.role == "customer" and str(d.get("created_by")) != current_user.id:
          raise HTTPException(status_code=403, detail="Forbidden")
 
-    return DesignResponse.from_mongo(d)
+    return await get_populated_design_response(db, d)
 
 @router.put("/{id}", response_model=DesignResponse)
 async def update_design(
@@ -151,7 +166,7 @@ async def update_design(
         await log_status_change(db, id, old_status, update_data["status"], current_user.id, current_user.full_name)
 
     updated = await db["designs"].find_one({"_id": ObjectId(id)})
-    return DesignResponse.from_mongo(updated)
+    return await get_populated_design_response(db, updated)
 
 class AssignUpdate(BaseModel):
     assigned_to: Optional[str] = None
@@ -227,7 +242,7 @@ async def assign_design(
         await log_status_change(db, id, old_status, update_fields["status"], current_user.id, current_user.full_name)
     
     updated = await db["designs"].find_one({"_id": ObjectId(id)})
-    return DesignResponse.from_mongo(updated)
+    return await get_populated_design_response(db, updated)
 
 class StatusUpdate(BaseModel):
     status: str
@@ -257,7 +272,7 @@ async def update_status(
     await log_status_change(db, id, old_status, status_update.status, current_user.id, current_user.full_name)
     
     updated = await db["designs"].find_one({"_id": ObjectId(id)})
-    return DesignResponse.from_mongo(updated)
+    return await get_populated_design_response(db, updated)
 
 class ResultUpdate(BaseModel):
     result_link: str
@@ -279,7 +294,7 @@ async def update_result(
     update_fields = {"result_link": result_update.result_link, "updated_at": datetime.now(timezone.utc)}
     await db["designs"].update_one({"_id": ObjectId(id)}, {"$set": update_fields})
     updated = await db["designs"].find_one({"_id": ObjectId(id)})
-    return DesignResponse.from_mongo(updated)
+    return await get_populated_design_response(db, updated)
 
 class BulkPayRequest(BaseModel):
     designer_id: str

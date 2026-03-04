@@ -63,7 +63,7 @@ async def seed():
             "status": "in_progress",
             "price": 150.0,
             "result_link": None,
-            "assigned_to": str(designer_id),
+            "assigned_to": designer_id,
             "external_source": None,
             "external_ref_id": None,
             "payment_status": "unpaid",
