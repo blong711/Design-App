@@ -89,7 +89,7 @@ export default function DashboardLayout({
 
   const customerLinks = [
     { name: "Overview", href: "/dashboard", icon: LayoutDashboard },
-    { name: "My Designs", href: "/dashboard/designs", icon: Briefcase },
+    { name: "My Designs", href: "/dashboard/my-designs", icon: Briefcase },
     { name: "Transactions", href: "/dashboard/transactions", icon: Wallet },
   ];
 

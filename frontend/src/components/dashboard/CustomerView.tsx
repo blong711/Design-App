@@ -43,7 +43,7 @@ const COLUMNS = [
 
 const LIST_PAGE_SIZE = 9; // 3x3 grid
 
-export default function CustomerView({ user: initialUser }: { user: any }) {
+export default function CustomerView({ user: initialUser, initialView = "overview" }: { user: any; initialView?: "overview" | "dashboard" }) {
     const toast = useToast();
     const [user, setUser] = useState(initialUser);
     const [designs, setDesigns] = useState<any[]>([]);
@@ -52,7 +52,7 @@ export default function CustomerView({ user: initialUser }: { user: any }) {
     const [loading, setLoading] = useState(true);
 
     // View modes
-    const [currentView, setCurrentView] = useState<"overview" | "dashboard">("overview");
+    const [currentView, setCurrentView] = useState<"overview" | "dashboard">(initialView);
     const [viewMode, setViewMode] = useState<"kanban" | "cart">("kanban");
     const [density, setDensity] = useState<"comfortable" | "compact">("comfortable");
     const [viewedDesignIds, setViewedDesignIds] = useState<Set<string>>(new Set());
@@ -137,58 +137,24 @@ export default function CustomerView({ user: initialUser }: { user: any }) {
                 <div className="flex-shrink-0 px-6 py-4 border-b border-border bg-background">
                     <div className="flex items-center justify-between">
                         <div>
-                            <h2 className="text-3xl font-bold tracking-tight">Customer Dashboard</h2>
-                            <p className="text-muted-foreground mt-1 text-sm">Welcome! Manage your designs and balance here.</p>
+                            <h2 className="text-3xl font-bold tracking-tight">
+                                {currentView === "overview" ? "Customer Dashboard" : "My Designs"}
+                            </h2>
+                            <p className="text-muted-foreground mt-1 text-sm">
+                                {currentView === "overview" 
+                                    ? "Welcome! Manage your designs and balance here."
+                                    : "Track and manage all your design projects"}
+                            </p>
                         </div>
 
-                        <div className="flex items-center gap-3">
-                            {/* Balance Card */}
-                            <motion.div
-                                initial={{ opacity: 0, scale: 0.9 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                className="glass-panel p-1 rounded-2xl flex items-center gap-1"
-                            >
-                                <div className="px-4 py-2 rounded-xl bg-primary/10 border border-primary/20 flex items-center gap-2">
-                                    <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
-                                        <Wallet className="w-4 h-4 text-primary" />
-                                    </div>
-                                    <div>
-                                        <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Balance</p>
-                                        <p className="text-lg font-bold text-primary">${user.balance?.toFixed(2) || "0.00"}</p>
-                                    </div>
-                                </div>
-                                <button
-                                    onClick={() => setIsDepositOpen(true)}
-                                    className="h-full px-3 py-2 rounded-xl bg-primary hover:bg-primary/80 text-primary-foreground font-bold transition-all shadow-lg shadow-primary/20 text-sm"
-                                >
-                                    Deposit
-                                </button>
-                            </motion.div>
-
-                            {/* View Toggle */}
-                            <div className="flex items-center gap-2 bg-foreground/5 rounded-full p-1 border border-border">
-                                <button
-                                    onClick={() => setCurrentView("overview")}
-                                    className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${currentView === "overview"
-                                        ? "bg-primary text-primary-foreground shadow-lg"
-                                        : "text-muted-foreground hover:text-foreground"
-                                        }`}
-                                >
-                                    <List className="w-4 h-4" />
-                                    Overview
-                                </button>
-                                <button
-                                    onClick={() => setCurrentView("dashboard")}
-                                    className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${currentView === "dashboard"
-                                        ? "bg-primary text-primary-foreground shadow-lg"
-                                        : "text-muted-foreground hover:text-foreground"
-                                        }`}
-                                >
-                                    <LayoutGrid className="w-4 h-4" />
-                                    Dashboard
-                                </button>
-                            </div>
-                        </div>
+                        {/* New Design Button */}
+                        <button
+                            onClick={() => setIsNewDesignOpen(true)}
+                            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary hover:bg-primary/80 text-primary-foreground font-bold transition-all shadow-lg shadow-primary/20"
+                        >
+                            <Plus className="w-5 h-5" />
+                            New Design
+                        </button>
                     </div>
 
                     {/* Dashboard View Controls */}
