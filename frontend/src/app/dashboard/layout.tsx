@@ -6,6 +6,7 @@ import Link from "next/link";
 import { LogOut, Palette, LayoutDashboard, Briefcase, Settings, Activity, Users, UserCircle2, ShoppingCart, Wallet } from "lucide-react";
 import { motion } from "framer-motion";
 import { useSettings } from "@/lib/settings-context";
+import { api } from "@/lib/api";
 
 export default function DashboardLayout({
   children,
@@ -16,6 +17,7 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [customerBalance, setCustomerBalance] = useState<number | null>(null);
   const { layoutMode } = useSettings();
 
   useEffect(() => {
@@ -25,8 +27,14 @@ export default function DashboardLayout({
       router.push("/login");
       return;
     }
-    setUser(JSON.parse(storedUser));
+    const parsedUser = JSON.parse(storedUser);
+    setUser(parsedUser);
     setLoading(false);
+    if (parsedUser?.role === "customer") {
+      api.get("/auth/me").then((res) => {
+        if (res.data?.balance !== undefined) setCustomerBalance(res.data.balance);
+      }).catch(() => { });
+    }
   }, [router]);
 
   // Sync user info when account page updates localStorage
@@ -182,6 +190,7 @@ export default function DashboardLayout({
           })}
         </nav>
 
+
         <div className="p-4 border-t border-border/50 bg-background/20 backdrop-blur-md flex flex-col gap-2">
           <Link href="/dashboard/account">
             <div className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all relative group overflow-hidden cursor-pointer ${pathname.startsWith("/dashboard/account") ? "bg-primary/20 border border-primary/30" : "hover:bg-foreground/5"
@@ -194,6 +203,11 @@ export default function DashboardLayout({
               <div className="flex-1 min-w-0">
                 <p className="font-medium text-sm text-foreground/90 truncate">{user.full_name}</p>
                 <p className="text-xs text-muted-foreground capitalize">{user.role}</p>
+                {user?.role === "customer" && customerBalance !== null && (
+                  <p className="text-[11px] text-primary font-semibold mt-0.5">
+                    ${customerBalance.toFixed(2)}
+                  </p>
+                )}
               </div>
               <UserCircle2 className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
             </div>

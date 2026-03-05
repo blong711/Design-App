@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
-import { CheckCircle2, DollarSign, Activity, AlertCircle, Eye, Clock, Calendar, ExternalLink, Filter, MessageSquare, ChevronLeft, ChevronRight } from "lucide-react";
+import { CheckCircle2, Activity, AlertCircle, Eye, Clock, Calendar, ExternalLink, Filter, MessageSquare, ChevronLeft, ChevronRight } from "lucide-react";
 import { motion } from "framer-motion";
 import DesignDetailDrawer from "@/components/dashboard/DesignDetailDrawer";
 import { getTimeAgo, formatVietnamDate } from "@/lib/date-utils";
@@ -159,7 +159,6 @@ export default function DesignerOverview({ user }: { user: any }) {
               <tr className="border-b border-border text-muted-foreground text-sm">
                 <th className="pb-4 font-semibold px-4">Title</th>
                 <th className="pb-4 font-semibold px-4">Status</th>
-                <th className="pb-4 font-semibold px-4">Price</th>
                 <th className="pb-4 font-semibold px-4">Updated</th>
                 <th className="pb-4 font-semibold px-4 text-right">Action</th>
               </tr>
@@ -245,11 +244,7 @@ export default function DesignerOverview({ user }: { user: any }) {
                       {design.status.replace("_", " ").toUpperCase()}
                     </span>
                   </td>
-                  <td className="py-4 px-4">
-                    <div className="font-semibold text-primary text-lg">
-                      ${design.price}
-                    </div>
-                  </td>
+
                   <td className="py-4 px-4">
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Clock className="w-4 h-4" />
@@ -349,8 +344,6 @@ export default function DesignerOverview({ user }: { user: any }) {
             <thead>
               <tr className="border-b border-border text-muted-foreground text-sm">
                 <th className="pb-4 font-semibold px-4">Title</th>
-                <th className="pb-4 font-semibold px-4">Price</th>
-                <th className="pb-4 font-semibold px-4">Payment Status</th>
                 <th className="pb-4 font-semibold px-4">Completed</th>
                 <th className="pb-4 font-semibold px-4 text-right">Result</th>
               </tr>
@@ -411,29 +404,7 @@ export default function DesignerOverview({ user }: { user: any }) {
                       </div>
                     </div>
                   </td>
-                  <td className="py-4 px-4">
-                    <div className="font-semibold text-primary text-lg">
-                      ${design.price}
-                    </div>
-                  </td>
-                  <td className="py-4 px-4">
-                    <span
-                      className="px-3 py-1.5 rounded-full text-xs font-medium border"
-                      style={{
-                        backgroundColor: design.payment_status === 'paid'
-                          ? 'rgba(74, 222, 128, 0.1)'
-                          : 'rgba(239, 68, 68, 0.1)',
-                        color: design.payment_status === 'paid'
-                          ? '#4ade80'
-                          : '#ef4444',
-                        borderColor: design.payment_status === 'paid'
-                          ? 'rgba(74, 222, 128, 0.3)'
-                          : 'rgba(239, 68, 68, 0.3)'
-                      }}
-                    >
-                      {design.payment_status === 'paid' ? '✓ PAID' : '✗ UNPAID'}
-                    </span>
-                  </td>
+
                   <td className="py-4 px-4">
                     <div className="text-sm text-muted-foreground">
                       {getTimeAgo(design.updated_at || design.created_at)}

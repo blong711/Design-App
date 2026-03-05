@@ -359,7 +359,7 @@ export default function DesignDetailDrawer({ designId, onClose, currentUser, onU
                                                 </div>
                                             )}
                                         </div>
-                                    ) : (
+                                    ) : currentUser?.role === "customer" ? (
                                         <div className={`p-4 rounded-2xl ${bgCard} ${borderColor} border`}>
                                             <div className="flex items-center gap-2 text-green-400 mb-1">
                                                 <DollarSign className="w-4 h-4" />
@@ -367,7 +367,7 @@ export default function DesignDetailDrawer({ designId, onClose, currentUser, onU
                                             </div>
                                             <div className={`font-semibold ${textPrimary}`}>${design.price}</div>
                                         </div>
-                                    )}
+                                    ) : null}
 
                                     {/* Assignee - Admin Assign Dropdown or Designer View */}
                                     {currentUser?.role === "admin" ? (

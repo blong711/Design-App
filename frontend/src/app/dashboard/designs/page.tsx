@@ -92,6 +92,10 @@ export default function DesignsPage() {
 
   const activeFilterCount = statusFilter.length + paymentFilter.length;
 
+  // For customer: payment is "paid" if design has been assigned (balance already deducted), else "unpaid"
+  const getCustomerPaymentStatus = (design: any) =>
+    design.assigned_to ? "paid" : "unpaid";
+
   const filtered = designs.filter((t) => {
     const q = search.toLowerCase();
     const matchSearch =
@@ -101,7 +105,15 @@ export default function DesignsPage() {
       (t.assigned_to && userMap[t.assigned_to]?.full_name.toLowerCase().includes(q));
 
     const matchStatus = statusFilter.length === 0 || statusFilter.includes(t.status);
-    const matchPayment = paymentFilter.length === 0 || paymentFilter.includes(t.payment_status);
+
+    let matchPayment = true;
+    if (paymentFilter.length > 0) {
+      if (currentUser?.role === "customer") {
+        matchPayment = paymentFilter.includes(getCustomerPaymentStatus(t));
+      } else {
+        matchPayment = paymentFilter.includes(t.payment_status);
+      }
+    }
 
     return matchSearch && matchStatus && matchPayment;
   });
@@ -204,34 +216,39 @@ export default function DesignsPage() {
                     </div>
                   </div>
 
-                  {/* Divider */}
-                  <div className="border-t border-border" />
+                  {/* Payment filter – hidden for designers */}
+                  {currentUser?.role !== "designer" && (
+                    <>
+                      {/* Divider */}
+                      <div className="border-t border-border" />
 
-                  {/* Payment */}
-                  <div>
-                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">Payment</p>
-                    <div className="flex gap-2">
-                      {ALL_PAYMENTS.map((p) => {
-                        const active = paymentFilter.includes(p);
-                        return (
-                          <button
-                            key={p}
-                            onClick={() => togglePayment(p)}
-                            className={`flex-1 py-1.5 rounded-xl text-xs font-semibold border transition-all capitalize ${p === "paid"
-                              ? active
-                                ? "bg-green-500/20 text-green-400 border-green-500/50"
-                                : "bg-green-500/5 text-green-400/50 border-green-500/20 hover:opacity-80"
-                              : active
-                                ? "bg-red-500/20 text-red-400 border-red-500/50"
-                                : "bg-red-500/5 text-red-400/50 border-red-500/20 hover:opacity-80"
-                              }`}
-                          >
-                            {p}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
+                      {/* Payment */}
+                      <div>
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">Payment</p>
+                        <div className="flex gap-2">
+                          {ALL_PAYMENTS.map((p) => {
+                            const active = paymentFilter.includes(p);
+                            return (
+                              <button
+                                key={p}
+                                onClick={() => togglePayment(p)}
+                                className={`flex-1 py-1.5 rounded-xl text-xs font-semibold border transition-all capitalize ${p === "paid"
+                                  ? active
+                                    ? "bg-green-500/20 text-green-400 border-green-500/50"
+                                    : "bg-green-500/5 text-green-400/50 border-green-500/20 hover:opacity-80"
+                                  : active
+                                    ? "bg-red-500/20 text-red-400 border-red-500/50"
+                                    : "bg-red-500/5 text-red-400/50 border-red-500/20 hover:opacity-80"
+                                  }`}
+                              >
+                                {p}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
             </div>
@@ -281,8 +298,12 @@ export default function DesignsPage() {
                   {currentUser?.role !== "customer" && (
                     <th className="pb-4 pt-5 font-semibold px-5">Assignee</th>
                   )}
-                  <th className="pb-4 pt-5 font-semibold px-5">Payment</th>
-                  <th className="pb-4 pt-5 font-semibold px-5">Price</th>
+                  {currentUser?.role !== "designer" && (
+                    <th className="pb-4 pt-5 font-semibold px-5">Payment</th>
+                  )}
+                  {currentUser?.role !== "designer" && (
+                    <th className="pb-4 pt-5 font-semibold px-5">Price</th>
+                  )}
                   <th className="pb-4 pt-5 font-semibold px-5 text-right">Created At</th>
                 </tr>
               </thead>
@@ -341,18 +362,35 @@ export default function DesignsPage() {
                         </td>
                       )}
 
-                      {/* Payment */}
-                      <td className="py-4 px-5">
-                        <span className={`px-2.5 py-1 rounded-lg text-xs font-semibold ${design.payment_status === "paid"
-                          ? "bg-green-500/20 text-green-400"
-                          : "bg-red-500/20 text-red-400"
-                          }`}>
-                          {design.payment_status?.toUpperCase()}
-                        </span>
-                      </td>
+                      {/* Payment – role-based display */}
+                      {currentUser?.role === "customer" && (() => {
+                        const pStatus = getCustomerPaymentStatus(design);
+                        return (
+                          <td className="py-4 px-5">
+                            <span className={`px-2.5 py-1 rounded-lg text-xs font-semibold ${pStatus === "paid"
+                              ? "bg-green-500/20 text-green-400"
+                              : "bg-red-500/20 text-red-400"
+                              }`}>
+                              {pStatus.toUpperCase()}
+                            </span>
+                          </td>
+                        );
+                      })()}
+                      {currentUser?.role === "admin" && (
+                        <td className="py-4 px-5">
+                          <span className={`px-2.5 py-1 rounded-lg text-xs font-semibold ${design.payment_status === "paid"
+                            ? "bg-green-500/20 text-green-400"
+                            : "bg-red-500/20 text-red-400"
+                            }`}>
+                            {design.payment_status?.toUpperCase()}
+                          </span>
+                        </td>
+                      )}
 
                       {/* Price */}
-                      <td className="py-4 px-5 font-medium text-foreground">${design.price}</td>
+                      {currentUser?.role !== "designer" && (
+                        <td className="py-4 px-5 font-medium text-foreground">${design.price}</td>
+                      )}
 
                       {/* Created At */}
                       <td className="py-4 px-5 text-right text-xs text-muted-foreground">
