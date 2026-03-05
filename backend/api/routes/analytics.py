@@ -116,3 +116,95 @@ async def get_designer_stats(
     stats["total_unpaid"] = unpaid_result[0]["total_unpaid"] if unpaid_result else 0
     
     return stats
+
+@router.get("/designer/{user_id}/history")
+async def get_designer_history(
+    user_id: str,
+    months: int = 6,
+    db=Depends(get_db),
+    current_user: UserResponse = Depends(get_current_user)
+):
+    """Designer monthly performance history for the past N months."""
+    if current_user.role == "designer" and str(current_user.id) != user_id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    now = datetime.now(timezone.utc)
+    history = []
+
+    for i in range(months - 1, -1, -1):
+        # Calculate start/end of each past month
+        target = now.replace(day=1) - timedelta(days=i * 28)  # approx
+        # Normalize to first day of month
+        year = target.year
+        month = target.month
+        start = datetime(year, month, 1, tzinfo=timezone.utc)
+        last_day = calendar.monthrange(year, month)[1]
+        end = datetime(year, month, last_day, 23, 59, 59, tzinfo=timezone.utc)
+
+        pipeline = [
+            {"$match": {
+                "assigned_to": ObjectId(user_id),
+                "is_deleted": False,
+                "status": "completed",
+                "completed_at": {"$gte": start, "$lte": end}
+            }},
+            {"$group": {
+                "_id": None,
+                "completed": {"$sum": 1},
+                "earnings": {"$sum": "$price"}
+            }}
+        ]
+        result = await db["designs"].aggregate(pipeline).to_list(1)
+        data = result[0] if result else {"completed": 0, "earnings": 0}
+        history.append({
+            "month": start.strftime("%b %Y"),
+            "completed": data.get("completed", 0),
+            "earnings": data.get("earnings", 0)
+        })
+
+    return history
+@router.get("/revenue-history")
+async def get_revenue_history(
+    db=Depends(get_db),
+    current_user: UserResponse = Depends(get_current_admin)
+):
+    """Admin revenue history for the past 6 months."""
+    now = datetime.now(timezone.utc)
+    history = []
+    
+    # Track the 6 most recent months (including current one)
+    for i in range(5, -1, -1):
+        # Calculate month correctly
+        year = now.year
+        month = now.month - i
+        while month <= 0:
+            month += 12
+            year -= 1
+            
+        start = datetime(year, month, 1, tzinfo=timezone.utc)
+        last_day = calendar.monthrange(year, month)[1]
+        end = datetime(year, month, last_day, 23, 59, 59, tzinfo=timezone.utc)
+        
+        pipeline = [
+            {"$match": {
+                "is_deleted": False,
+                "status": "completed",
+                "completed_at": {"$gte": start, "$lte": end}
+            }},
+            {"$group": {
+                "_id": None,
+                "revenue": {"$sum": "$price"},
+                "count": {"$sum": 1}
+            }}
+        ]
+        
+        result = await db["designs"].aggregate(pipeline).to_list(1)
+        data = result[0] if result else {"revenue": 0, "count": 0}
+        
+        history.append({
+            "month": start.strftime("%b %Y"),
+            "revenue": data.get("revenue", 0),
+            "count": data.get("count", 0)
+        })
+        
+    return history

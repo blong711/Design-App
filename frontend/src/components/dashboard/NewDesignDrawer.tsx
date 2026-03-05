@@ -14,8 +14,8 @@ interface NewDesignDrawerProps {
 export default function NewDesignDrawer({ open, onClose, onCreated }: NewDesignDrawerProps) {
     const [title, setTitle] = useState("");
     const [description, setDescription] = useState("");
-    const [imageFile, setImageFile] = useState<File | null>(null);
-    const [imagePreview, setImagePreview] = useState<string | null>(null);
+    const [imageFiles, setImageFiles] = useState<File[]>([]);
+    const [imagePreviews, setImagePreviews] = useState<string[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const fileRef = useRef<HTMLInputElement>(null);
@@ -23,8 +23,9 @@ export default function NewDesignDrawer({ open, onClose, onCreated }: NewDesignD
     const reset = () => {
         setTitle("");
         setDescription("");
-        setImageFile(null);
-        setImagePreview(null);
+        imagePreviews.forEach(p => URL.revokeObjectURL(p));
+        setImageFiles([]);
+        setImagePreviews([]);
         setError(null);
     };
 
@@ -34,11 +35,19 @@ export default function NewDesignDrawer({ open, onClose, onCreated }: NewDesignD
     };
 
     const handleImage = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (file) {
-            setImageFile(file);
-            setImagePreview(URL.createObjectURL(file));
+        const files = Array.from(e.target.files || []);
+        if (files.length > 0) {
+            const newFiles = [...imageFiles, ...files];
+            const newPreviews = [...imagePreviews, ...files.map(f => URL.createObjectURL(f))];
+            setImageFiles(newFiles);
+            setImagePreviews(newPreviews);
         }
+    };
+
+    const removeImage = (index: number) => {
+        URL.revokeObjectURL(imagePreviews[index]);
+        setImageFiles(prev => prev.filter((_, i) => i !== index));
+        setImagePreviews(prev => prev.filter((_, i) => i !== index));
     };
 
     const handleSubmit = async () => {
@@ -48,16 +57,22 @@ export default function NewDesignDrawer({ open, onClose, onCreated }: NewDesignD
         }
         setLoading(true);
         try {
-            let image_url = null;
-            if (imageFile) {
+            const uploadedUrls: string[] = [];
+            for (const file of imageFiles) {
                 const fd = new FormData();
-                fd.append("file", imageFile);
+                fd.append("file", file);
                 const r = await api.post("/s3/upload/design-image", fd, {
                     headers: { "Content-Type": "multipart/form-data" }
                 });
-                image_url = r.data.public_url;
+                uploadedUrls.push(r.data.public_url);
             }
-            await api.post("/designs", { title, description, image_url });
+
+            await api.post("/designs", {
+                title,
+                description,
+                image_url: uploadedUrls[0] || null, // Keep for backward compatibility
+                image_urls: uploadedUrls
+            });
             onCreated();
             handleClose();
         } catch (e: any) {
@@ -111,20 +126,27 @@ export default function NewDesignDrawer({ open, onClose, onCreated }: NewDesignD
                             </div>
 
                             <div className="space-y-2">
-                                <label className="text-xs font-bold uppercase text-muted-foreground tracking-widest">Reference Image</label>
-                                <div
-                                    onClick={() => fileRef.current?.click()}
-                                    className="w-full aspect-video rounded-xl border-2 border-dashed border-border flex flex-col items-center justify-center cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-all overflow-hidden"
-                                >
-                                    {imagePreview ? (
-                                        <img src={imagePreview} className="w-full h-full object-cover" alt="" />
-                                    ) : (
-                                        <>
-                                            <ImageIcon className="w-8 h-8 text-muted-foreground/30 mb-2" />
-                                            <p className="text-sm text-muted-foreground font-medium">Click to upload reference</p>
-                                        </>
-                                    )}
-                                    <input ref={fileRef} type="file" className="hidden" onChange={handleImage} />
+                                <label className="text-xs font-bold uppercase text-muted-foreground tracking-widest">Reference Materials</label>
+                                <div className="grid grid-cols-2 gap-3">
+                                    {imagePreviews.map((preview, idx) => (
+                                        <div key={idx} className="relative aspect-video rounded-xl overflow-hidden border border-border group">
+                                            <img src={preview} className="w-full h-full object-cover" alt="" />
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); removeImage(idx); }}
+                                                className="absolute top-1 right-1 p-1 bg-black/60 rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                                            >
+                                                <X className="w-3 h-3" />
+                                            </button>
+                                        </div>
+                                    ))}
+                                    <div
+                                        onClick={() => fileRef.current?.click()}
+                                        className="aspect-video rounded-xl border-2 border-dashed border-border flex flex-col items-center justify-center cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-all"
+                                    >
+                                        <Plus className="w-6 h-6 text-muted-foreground/30 mb-1" />
+                                        <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-tighter">Add Reference</p>
+                                        <input ref={fileRef} type="file" className="hidden" onChange={handleImage} multiple />
+                                    </div>
                                 </div>
                             </div>
 

@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { api } from "@/lib/api";
 import { useToast } from "@/lib/toast";
 import { useSettings } from "@/lib/settings-context";
-import { X, MessageSquare, Send, Clock, User, ExternalLink, Image as ImageIcon, ArrowRight, RefreshCw, ChevronDown, Check } from "lucide-react";
+import { X, MessageSquare, Send, Clock, User, ExternalLink, Image as ImageIcon, ArrowRight, RefreshCw, ChevronDown, Check, DollarSign, Calendar, AlertTriangle, Trash2, Upload, UploadCloud, FileCheck, Star, StarOff } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface Comment {
@@ -47,6 +47,28 @@ export default function DesignDetailDrawer({ designId, onClose, currentUser, onU
     const [showDesignerSelect, setShowDesignerSelect] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
     const [showStatusDropdown, setShowStatusDropdown] = useState(false);
+    const [editingPrice, setEditingPrice] = useState(false);
+    const [priceInput, setPriceInput] = useState("");
+    const [savingPrice, setSavingPrice] = useState(false);
+    const [editingDueDate, setEditingDueDate] = useState(false);
+    const [dueDateInput, setDueDateInput] = useState("");
+    const [savingDueDate, setSavingDueDate] = useState(false);
+    const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+    const [cancelling, setCancelling] = useState(false);
+    const [showRevisionForm, setShowRevisionForm] = useState(false);
+    const [revisionNote, setRevisionNote] = useState("");
+    const [submittingRevision, setSubmittingRevision] = useState(false);
+    const [editingDesign, setEditingDesign] = useState(false);
+    const [editTitle, setEditTitle] = useState("");
+    const [editDescription, setEditDescription] = useState("");
+    const [savingDesignEdit, setSavingDesignEdit] = useState(false);
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const [uploading, setUploading] = useState(false);
+    const [uploadProgress, setUploadProgress] = useState(0);
+    const [userRating, setUserRating] = useState(0);
+    const [userReview, setUserReview] = useState("");
+    const [submittingRating, setSubmittingRating] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
     const { colorScheme } = useSettings();
     const toast = useToast();
     const scrollRef = useRef<HTMLDivElement>(null);
@@ -191,10 +213,193 @@ export default function DesignDetailDrawer({ designId, onClose, currentUser, onU
         }
     };
 
+    const handleSavePrice = async () => {
+        const price = parseFloat(priceInput);
+        if (isNaN(price) || price < 0) return;
+        setSavingPrice(true);
+        try {
+            const res = await api.put(`/designs/${designId}`, { price });
+            setDesign(res.data);
+            setEditingPrice(false);
+            toast("Price updated!", "success");
+            if (onUpdate) onUpdate();
+        } catch (err: any) {
+            toast(err.response?.data?.detail || "Failed to save price", "error");
+        } finally {
+            setSavingPrice(false);
+        }
+    };
+
+    const handleSaveDueDate = async () => {
+        setSavingDueDate(true);
+        try {
+            const due_date = dueDateInput ? new Date(dueDateInput).toISOString() : null;
+            const res = await api.patch(`/designs/${designId}/due-date`, { due_date });
+            setDesign(res.data);
+            setEditingDueDate(false);
+            toast("Due date updated!", "success");
+            if (onUpdate) onUpdate();
+        } catch (err: any) {
+            toast(err.response?.data?.detail || "Failed to save due date", "error");
+        } finally {
+            setSavingDueDate(false);
+        }
+    };
+
+    const handleCancelDesign = async () => {
+        setCancelling(true);
+        try {
+            await api.patch(`/designs/${designId}/cancel`, {});
+            toast("Design cancelled successfully", "success");
+            setShowCancelConfirm(false);
+            if (onUpdate) onUpdate();
+            onClose();
+        } catch (err: any) {
+            toast(err.response?.data?.detail || "Failed to cancel design", "error");
+        } finally {
+            setCancelling(false);
+        }
+    };
+
+    const handleSaveDesignEdit = async () => {
+        setSavingDesignEdit(true);
+        try {
+            const res = await api.patch(`/designs/${designId}/edit`, {
+                title: editTitle,
+                description: editDescription,
+            });
+            setDesign(res.data);
+            setEditingDesign(false);
+            toast("Design updated!", "success");
+            if (onUpdate) onUpdate();
+        } catch (err: any) {
+            toast(err.response?.data?.detail || "Failed to save changes", "error");
+        } finally {
+            setSavingDesignEdit(false);
+        }
+    };
+
+    const handleUploadResult = async () => {
+        if (!selectedFile || !designId) return;
+        setUploading(true);
+        setUploadProgress(0);
+        try {
+            // Step 1: Get presigned URL (or local upload URL)
+            const presignRes = await api.get(`/s3/presigned-url`, {
+                params: {
+                    filename: selectedFile.name,
+                    content_type: selectedFile.type || "application/octet-stream",
+                }
+            });
+            const { upload_url, public_url } = presignRes.data;
+
+            // Step 2: Upload the file with progress tracking
+            await new Promise<void>((resolve, reject) => {
+                const xhr = new XMLHttpRequest();
+                xhr.upload.addEventListener("progress", (e) => {
+                    if (e.lengthComputable) {
+                        setUploadProgress(Math.round((e.loaded / e.total) * 100));
+                    }
+                });
+                xhr.addEventListener("load", () => {
+                    if (xhr.status >= 200 && xhr.status < 300) resolve();
+                    else reject(new Error(`Upload failed: ${xhr.status}`));
+                });
+                xhr.addEventListener("error", () => reject(new Error("Network error")));
+                xhr.open("PUT", upload_url);
+                xhr.setRequestHeader("Content-Type", selectedFile.type || "application/octet-stream");
+                xhr.send(selectedFile);
+            });
+
+            // Step 3: Save result_link to the design
+            const res = await api.patch(`/designs/${designId}/result`, { result_link: public_url });
+            setDesign(res.data);
+            setSelectedFile(null);
+            setUploadProgress(0);
+            toast("Result uploaded successfully! 🎉", "success");
+            if (onUpdate) onUpdate();
+        } catch (err: any) {
+            toast(err.message || "Upload failed", "error");
+        } finally {
+            setUploading(false);
+        }
+    };
+
+    const handleSaveRating = async () => {
+        if (userRating === 0) {
+            toast("Please select a rating", "error");
+            return;
+        }
+        setSubmittingRating(true);
+        try {
+            const res = await api.put(`/designs/${designId}`, {
+                rating: userRating,
+                review: userReview,
+            });
+            setDesign(res.data);
+            toast("Thank you for your feedback!", "success");
+            if (onUpdate) onUpdate();
+        } catch (err: any) {
+            toast(err.response?.data?.detail || "Failed to save rating", "error");
+        } finally {
+            setSubmittingRating(false);
+        }
+    };
+    const handleRequestRevision = async () => {
+        if (!revisionNote.trim()) return;
+        setSubmittingRevision(true);
+        try {
+            const res = await api.patch(`/designs/${designId}/status`, {
+                status: "needs_revision",
+                rejection_reason: revisionNote
+            });
+            setDesign(res.data);
+            setShowRevisionForm(false);
+            setRevisionNote("");
+            toast("Revision requested", "success");
+            fetchActivity();
+            if (onUpdate) onUpdate();
+        } catch (err: any) {
+            toast(err.response?.data?.detail || "Failed to request revision", "error");
+        } finally {
+            setSubmittingRevision(false);
+        }
+    };
+
+    // Due date helpers
+    const isDueSoon = (dueDateStr: string) => {
+        const due = new Date(dueDateStr);
+        const now = new Date();
+        const diffDays = (due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
+        return diffDays <= 2; // within 2 days or overdue
+    };
+
+    const getDueDateColor = (dueDateStr?: string | null) => {
+        if (!dueDateStr) return "text-muted-foreground";
+        const due = new Date(dueDateStr);
+        const now = new Date();
+        const diffDays = (due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
+        if (diffDays < 0) return "text-red-500";
+        if (diffDays <= 2) return "text-orange-400";
+        return "text-blue-400";
+    };
+
+    const formatDueDate = (dueDateStr: string) => {
+        const due = new Date(dueDateStr);
+        const now = new Date();
+        const diffDays = Math.floor((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+        const formatted = due.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+        if (diffDays < 0) return `${formatted} — Overdue by ${Math.abs(diffDays)} day(s)!`;
+        if (diffDays === 0) return `${formatted} — Due today!`;
+        if (diffDays === 1) return `${formatted} — Due tomorrow`;
+        return `${formatted} — ${diffDays} days left`;
+    };
+
     const STATUS_OPTIONS = [
         { value: "assigned", label: "To Do", color: "text-blue-400" },
         { value: "in_progress", label: "In Progress", color: "text-purple-400" },
         { value: "review", label: "In Review", color: "text-amber-400" },
+        { value: "needs_revision", label: "Needs Revision", color: "text-orange-400" },
         { value: "completed", label: "Completed", color: "text-green-400" },
     ];
 
@@ -346,6 +551,164 @@ export default function DesignDetailDrawer({ designId, onClose, currentUser, onU
                                         </div>
                                     ) : null}
 
+                                    {/* Due Date — admin editable, others read-only */}
+                                    <div className={`p-4 rounded-2xl ${bgCard} ${borderColor} border`}>
+                                        <div className="flex items-center justify-between gap-2 mb-2">
+                                            <div className={`flex items-center gap-2 ${getDueDateColor(design.due_date)}`}>
+                                                <Calendar className="w-4 h-4" />
+                                                <span className="text-xs font-bold uppercase">Due Date</span>
+                                                {design.due_date && isDueSoon(design.due_date) && (
+                                                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-500/20 text-red-400 border border-red-500/30 animate-pulse">
+                                                        URGENT
+                                                    </span>
+                                                )}
+                                            </div>
+                                            {currentUser?.role === "admin" && !editingDueDate && (
+                                                <button
+                                                    onClick={() => {
+                                                        setEditingDueDate(true);
+                                                        setDueDateInput(design.due_date ? new Date(design.due_date).toISOString().slice(0, 10) : "");
+                                                    }}
+                                                    className="text-xs text-primary hover:underline font-medium"
+                                                >
+                                                    {design.due_date ? "Edit" : "Set"}
+                                                </button>
+                                            )}
+                                        </div>
+                                        {currentUser?.role === "admin" && editingDueDate ? (
+                                            <div className="flex items-center gap-2 mt-1">
+                                                <input
+                                                    type="date"
+                                                    value={dueDateInput}
+                                                    onChange={(e) => setDueDateInput(e.target.value)}
+                                                    className={`flex-1 px-3 py-1.5 rounded-lg ${bgInput} ${borderColor} border text-sm ${textPrimary} focus:outline-none focus:border-primary/50`}
+                                                />
+                                                <button
+                                                    onClick={handleSaveDueDate}
+                                                    disabled={savingDueDate}
+                                                    className="px-3 py-1.5 rounded-lg bg-primary text-white text-xs font-bold hover:bg-primary/90 disabled:opacity-50 transition-all"
+                                                >
+                                                    {savingDueDate ? "..." : "Save"}
+                                                </button>
+                                                <button
+                                                    onClick={() => setEditingDueDate(false)}
+                                                    className={`px-3 py-1.5 rounded-lg ${isDark ? 'bg-white/10 hover:bg-white/20' : 'bg-gray-200 hover:bg-gray-300'} text-xs font-bold transition-all`}
+                                                >
+                                                    ✕
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <div className={`font-semibold ${getDueDateColor(design.due_date)}`}>
+                                                {design.due_date
+                                                    ? formatDueDate(design.due_date)
+                                                    : <span className="text-muted-foreground italic text-sm">{currentUser?.role === "admin" ? "Click Set to add a deadline" : "No deadline set"}</span>
+                                                }
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Customer Cancel Design */}
+                                    {currentUser?.role === "customer" && design.status === "pending" && (
+                                        <div>
+                                            {!showCancelConfirm ? (
+                                                <button
+                                                    onClick={() => setShowCancelConfirm(true)}
+                                                    className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-2xl border ${isDark ? 'border-red-500/30 bg-red-500/10 text-red-400 hover:bg-red-500/20' : 'border-red-300 bg-red-50 text-red-500 hover:bg-red-100'} font-semibold text-sm transition-all`}
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                    Cancel Design Request
+                                                </button>
+                                            ) : (
+                                                <div className={`p-4 rounded-2xl border ${isDark ? 'border-red-500/30 bg-red-500/10' : 'border-red-300 bg-red-50'}`}>
+                                                    <div className="flex items-start gap-3 mb-4">
+                                                        <AlertTriangle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
+                                                        <div>
+                                                            <p className={`font-bold text-sm ${isDark ? 'text-red-300' : 'text-red-700'}`}>Cancel this design?</p>
+                                                            <p className={`text-xs mt-1 ${isDark ? 'text-red-400/80' : 'text-red-600'}`}>
+                                                                This action cannot be undone. {design.payment_status === 'paid' ? 'Your payment will be refunded to your balance.' : ''}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex gap-2">
+                                                        <button
+                                                            onClick={handleCancelDesign}
+                                                            disabled={cancelling}
+                                                            className="flex-1 px-4 py-2 rounded-xl bg-red-500 text-white text-sm font-bold hover:bg-red-600 disabled:opacity-50 transition-all"
+                                                        >
+                                                            {cancelling ? "Cancelling..." : "Yes, Cancel"}
+                                                        </button>
+                                                        <button
+                                                            onClick={() => setShowCancelConfirm(false)}
+                                                            className={`flex-1 px-4 py-2 rounded-xl ${isDark ? 'bg-white/10 hover:bg-white/20' : 'bg-gray-200 hover:bg-gray-300'} text-sm font-bold transition-all`}
+                                                        >
+                                                            Keep It
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {/* Needs Revision Banner — Customer sees this when designer requests changes */}
+                                    {currentUser?.role === "customer" && design.status === "needs_revision" && (
+                                        <div className={`p-4 rounded-2xl border ${isDark ? 'border-orange-500/30 bg-orange-500/10' : 'border-orange-300 bg-orange-50'}`}>
+                                            <div className="flex items-start gap-3">
+                                                <AlertTriangle className="w-5 h-5 text-orange-400 shrink-0 mt-0.5" />
+                                                <div>
+                                                    <p className={`font-bold text-sm ${isDark ? 'text-orange-300' : 'text-orange-700'}`}>
+                                                        Revision Requested
+                                                    </p>
+                                                    <p className={`text-xs mt-1 leading-relaxed ${isDark ? 'text-orange-400/90' : 'text-orange-600'}`}>
+                                                        {design.rejection_reason || "The designer has requested changes. Please check the comments below."}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Designer: Request Revision button */}
+                                    {currentUser?.role === "designer" && ['in_progress', 'review', 'assigned'].includes(design.status) && (
+                                        <div>
+                                            {!showRevisionForm ? (
+                                                <button
+                                                    onClick={() => setShowRevisionForm(true)}
+                                                    className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-2xl border ${isDark ? 'border-orange-500/30 bg-orange-500/10 text-orange-400 hover:bg-orange-500/20' : 'border-orange-300 bg-orange-50 text-orange-600 hover:bg-orange-100'} font-semibold text-sm transition-all`}
+                                                >
+                                                    <AlertTriangle className="w-4 h-4" />
+                                                    Request Revision
+                                                </button>
+                                            ) : (
+                                                <div className={`p-4 rounded-2xl border ${isDark ? 'border-orange-500/30 bg-orange-500/10' : 'border-orange-300 bg-orange-50'}`}>
+                                                    <p className={`font-bold text-sm mb-3 ${isDark ? 'text-orange-300' : 'text-orange-700'}`}>
+                                                        Describe what needs to change:
+                                                    </p>
+                                                    <textarea
+                                                        value={revisionNote}
+                                                        onChange={(e) => setRevisionNote(e.target.value)}
+                                                        placeholder="e.g. Please provide a higher resolution image, the colors need to match the brand guide..."
+                                                        rows={3}
+                                                        className={`w-full px-3 py-2.5 rounded-xl ${bgInput} ${borderColor} border text-sm ${textPrimary} focus:outline-none focus:border-orange-400/50 resize-none mb-3`}
+                                                    />
+                                                    <div className="flex gap-2">
+                                                        <button
+                                                            onClick={handleRequestRevision}
+                                                            disabled={submittingRevision || !revisionNote.trim()}
+                                                            className="flex-1 px-4 py-2 rounded-xl bg-orange-500 text-white text-sm font-bold hover:bg-orange-600 disabled:opacity-50 transition-all"
+                                                        >
+                                                            {submittingRevision ? "Sending..." : "Send Request"}
+                                                        </button>
+                                                        <button
+                                                            onClick={() => { setShowRevisionForm(false); setRevisionNote(""); }}
+                                                            className={`flex-1 px-4 py-2 rounded-xl ${isDark ? 'bg-white/10 hover:bg-white/20' : 'bg-gray-200 hover:bg-gray-300'} text-sm font-bold transition-all`}
+                                                        >
+                                                            Cancel
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+
                                     {/* Assignee - Admin Assign Dropdown or Designer View */}
                                     {currentUser?.role === "admin" ? (
                                         <div>
@@ -431,56 +794,288 @@ export default function DesignDetailDrawer({ designId, onClose, currentUser, onU
                                         </div>
                                     ) : null}
 
-                                    {/* Description */}
-                                    <div>
-                                        <h3 className={`text-sm font-bold ${textMuted} uppercase tracking-widest mb-3`}>Description</h3>
-                                        <p className={`${textSecondary} leading-relaxed ${bgCard} p-4 rounded-2xl ${borderColor} border`}>
-                                            {design.description}
-                                        </p>
-                                    </div>
+                                    {/* Rating Section — visible when completed */}
+                                    {design.status === "completed" && (
+                                        <div className={`p-6 rounded-2xl ${isDark ? 'bg-amber-500/10 border-amber-500/20' : 'bg-amber-50 border-amber-200'} border mb-6`}>
+                                            <h3 className={`text-sm font-bold ${textPrimary} uppercase tracking-widest mb-4 flex items-center gap-2`}>
+                                                <Star className="w-4 h-4 text-amber-500" />
+                                                {design.rating ? "Your Feedback" : "Rate this Design"}
+                                            </h3>
 
-                                    {/* Reference Image */}
-                                    {design.image_url && (
-                                        <div>
-                                            <h3 className={`text-sm font-bold ${textMuted} uppercase tracking-widest mb-3`}>Reference Material</h3>
-                                            <div className={`relative group rounded-2xl overflow-hidden ${borderColor} border aspect-video ${isDark ? 'bg-black/40' : 'bg-gray-200'}`}>
-                                                <img
-                                                    src={design.image_url}
-                                                    alt="Reference"
-                                                    className="w-full h-full object-cover transition-transform group-hover:scale-105"
-                                                />
-                                                <a
-                                                    href={design.image_url}
-                                                    target="_blank"
-                                                    className={`absolute inset-0 ${isDark ? 'bg-black/40' : 'bg-white/60'} opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 ${textPrimary} font-medium`}
-                                                >
-                                                    <ExternalLink className="w-5 h-5" /> View Original
-                                                </a>
-                                            </div>
+                                            {design.rating ? (
+                                                <div className="space-y-2">
+                                                    <div className="flex gap-1">
+                                                        {[1, 2, 3, 4, 5].map((star) => (
+                                                            <Star
+                                                                key={star}
+                                                                className={`w-5 h-5 ${star <= (design.rating || 0) ? 'text-amber-500 fill-amber-500' : 'text-amber-500/20'}`}
+                                                            />
+                                                        ))}
+                                                    </div>
+                                                    {design.review && (
+                                                        <p className={`text-sm italic ${textSecondary}`}>"{design.review}"</p>
+                                                    )}
+                                                </div>
+                                            ) : (
+                                                currentUser?.role === "customer" ? (
+                                                    <div className="space-y-4">
+                                                        <div className="flex gap-2">
+                                                            {[1, 2, 3, 4, 5].map((star) => (
+                                                                <button
+                                                                    key={star}
+                                                                    onClick={() => setUserRating(star)}
+                                                                    className="transition-transform hover:scale-110 active:scale-95 px-1 pb-1"
+                                                                >
+                                                                    {star <= userRating ? (
+                                                                        <Star className="w-8 h-8 text-amber-500 fill-amber-500" />
+                                                                    ) : (
+                                                                        <StarOff className="w-8 h-8 text-amber-500/30" />
+                                                                    )}
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                        <textarea
+                                                            value={userReview}
+                                                            onChange={(e) => setUserReview(e.target.value)}
+                                                            placeholder="Share your thoughts about this design (optional)..."
+                                                            rows={3}
+                                                            className={`w-full bg-white/5 border border-amber-500/30 text-sm rounded-xl px-4 py-3 outline-none focus:border-amber-500/50 transition-all resize-none ${textPrimary}`}
+                                                        />
+                                                        <button
+                                                            onClick={handleSaveRating}
+                                                            disabled={userRating === 0 || submittingRating}
+                                                            className="w-full bg-amber-500 text-white font-bold py-3 rounded-xl hover:bg-amber-600 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+                                                        >
+                                                            {submittingRating ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                                                            Submit Feedback
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    <div className="text-sm text-muted-foreground flex items-center gap-2">
+                                                        <AlertTriangle className="w-4 h-4" />
+                                                        No rating provided yet.
+                                                    </div>
+                                                )
+                                            )}
                                         </div>
                                     )}
 
-                                    {/* Result Link */}
-                                    {design.result_link && (
-                                        <div className={`p-4 rounded-2xl ${isDark ? 'bg-primary/10 border-primary/20' : 'bg-primary/5 border-primary/10'} border flex items-center justify-between`}>
-                                            <div className="flex items-center gap-3">
-                                                <div className={`p-2 rounded-xl ${isDark ? 'bg-primary/20' : 'bg-primary/10'}`}>
-                                                    <ImageIcon className="w-5 h-5 text-primary" />
+                                    {/* Description — editable for customers with pending designs */}
+                                    <div>
+                                        <div className="flex items-center justify-between mb-3">
+                                            <h3 className={`text-sm font-bold ${textMuted} uppercase tracking-widest`}>Description</h3>
+                                            {currentUser?.role === "customer" && design.status === "pending" && !editingDesign && (
+                                                <button
+                                                    onClick={() => {
+                                                        setEditingDesign(true);
+                                                        setEditTitle(design.title);
+                                                        setEditDescription(design.description);
+                                                    }}
+                                                    className="text-xs text-primary hover:underline font-medium"
+                                                >
+                                                    ✏️ Edit
+                                                </button>
+                                            )}
+                                        </div>
+                                        {editingDesign ? (
+                                            <div className="space-y-3">
+                                                <div>
+                                                    <label className={`text-xs font-bold ${textMuted} uppercase mb-1 block`}>Title</label>
+                                                    <input
+                                                        type="text"
+                                                        value={editTitle}
+                                                        onChange={(e) => setEditTitle(e.target.value)}
+                                                        className={`w-full px-3 py-2 rounded-xl ${bgInput} ${borderColor} border text-sm ${textPrimary} focus:outline-none focus:border-primary/50`}
+                                                    />
                                                 </div>
                                                 <div>
-                                                    <div className={`text-sm font-bold ${textPrimary}`}>Final Design Ready</div>
-                                                    <div className="text-xs text-muted-foreground">Click to view or download</div>
+                                                    <label className={`text-xs font-bold ${textMuted} uppercase mb-1 block`}>Description</label>
+                                                    <textarea
+                                                        value={editDescription}
+                                                        onChange={(e) => setEditDescription(e.target.value)}
+                                                        rows={4}
+                                                        className={`w-full px-3 py-2 rounded-xl ${bgInput} ${borderColor} border text-sm ${textPrimary} focus:outline-none focus:border-primary/50 resize-none`}
+                                                    />
+                                                </div>
+                                                <div className="flex gap-2">
+                                                    <button
+                                                        onClick={handleSaveDesignEdit}
+                                                        disabled={savingDesignEdit || !editTitle.trim()}
+                                                        className="flex-1 px-4 py-2 rounded-xl bg-primary text-white text-sm font-bold hover:bg-primary/90 disabled:opacity-50 transition-all"
+                                                    >
+                                                        {savingDesignEdit ? "Saving..." : "Save Changes"}
+                                                    </button>
+                                                    <button
+                                                        onClick={() => setEditingDesign(false)}
+                                                        className={`flex-1 px-4 py-2 rounded-xl ${isDark ? 'bg-white/10 hover:bg-white/20' : 'bg-gray-200 hover:bg-gray-300'} text-sm font-bold transition-all`}
+                                                    >
+                                                        Cancel
+                                                    </button>
                                                 </div>
                                             </div>
-                                            <a
-                                                href={design.result_link}
-                                                target="_blank"
-                                                className="p-2 rounded-xl bg-primary text-white hover:bg-primary/80 transition-colors"
-                                            >
-                                                <ExternalLink className="w-4 h-4" />
-                                            </a>
+                                        ) : (
+                                            <p className={`${textSecondary} leading-relaxed ${bgCard} p-4 rounded-2xl ${borderColor} border`}>
+                                                {design.description}
+                                            </p>
+                                        )}
+                                    </div>
+
+                                    {/* Reference Materials */}
+                                    {(design.image_url || (design.image_urls && design.image_urls.length > 0)) && (
+                                        <div>
+                                            <h3 className={`text-sm font-bold ${textMuted} uppercase tracking-widest mb-3`}>Reference Materials</h3>
+                                            <div className="grid grid-cols-2 gap-3">
+                                                {design.image_urls && design.image_urls.map((url: string, i: number) => (
+                                                    <a
+                                                        key={i}
+                                                        href={url}
+                                                        target="_blank"
+                                                        className={`relative group rounded-2xl overflow-hidden ${borderColor} border aspect-video ${isDark ? 'bg-black/40' : 'bg-gray-200'} hover:border-primary/50 transition-colors`}
+                                                    >
+                                                        <img src={url} className="w-full h-full object-cover" alt="" />
+                                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                                            <ExternalLink className="w-5 h-5 text-white" />
+                                                        </div>
+                                                    </a>
+                                                ))}
+                                                {/* Fallback for old designs with only image_url */}
+                                                {!design.image_urls?.length && design.image_url && (
+                                                    <a
+                                                        href={design.image_url}
+                                                        target="_blank"
+                                                        className={`relative group rounded-2xl overflow-hidden ${borderColor} border aspect-video ${isDark ? 'bg-black/40' : 'bg-gray-200'} hover:border-primary/50 transition-colors`}
+                                                    >
+                                                        <img src={design.image_url} className="w-full h-full object-cover" alt="" />
+                                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                                            <ExternalLink className="w-5 h-5 text-white" />
+                                                        </div>
+                                                    </a>
+                                                )}
+                                            </div>
                                         </div>
                                     )}
+                                    {/* Result — File Uploader for designers, link view for others */}
+                                    <div>
+                                        <h3 className={`text-sm font-bold ${textMuted} uppercase tracking-widest mb-3`}>Final Result</h3>
+
+                                        {/* Existing result — visible to all */}
+                                        {design.result_link && (
+                                            <div className={`p-4 rounded-2xl ${isDark ? 'bg-green-500/10 border-green-500/20' : 'bg-green-50 border-green-200'} border flex items-center justify-between mb-3`}>
+                                                <div className="flex items-center gap-3">
+                                                    <div className={`p-2 rounded-xl ${isDark ? 'bg-green-500/20' : 'bg-green-100'}`}>
+                                                        <FileCheck className="w-5 h-5 text-green-400" />
+                                                    </div>
+                                                    <div>
+                                                        <div className={`text-sm font-bold ${textPrimary}`}>Final Design Ready</div>
+                                                        <div className="text-xs text-muted-foreground">Click to view or download</div>
+                                                    </div>
+                                                </div>
+                                                <a
+                                                    href={design.result_link}
+                                                    target="_blank"
+                                                    className="p-2 rounded-xl bg-primary text-white hover:bg-primary/80 transition-colors"
+                                                >
+                                                    <ExternalLink className="w-4 h-4" />
+                                                </a>
+                                            </div>
+                                        )}
+
+                                        {/* File uploader — designer only */}
+                                        {currentUser?.role === "designer" && (
+                                            <div
+                                                onDragOver={(e) => e.preventDefault()}
+                                                onDrop={(e) => {
+                                                    e.preventDefault();
+                                                    const file = e.dataTransfer.files?.[0];
+                                                    if (file) setSelectedFile(file);
+                                                }}
+                                                onClick={() => !uploading && fileInputRef.current?.click()}
+                                                className={`relative rounded-2xl border-2 border-dashed transition-all cursor-pointer ${selectedFile
+                                                    ? isDark ? 'border-primary/50 bg-primary/5' : 'border-primary/40 bg-primary/5'
+                                                    : isDark ? 'border-white/20 hover:border-primary/50 hover:bg-white/5' : 'border-gray-300 hover:border-primary/40 hover:bg-gray-50'
+                                                    } p-5`}
+                                            >
+                                                <input
+                                                    ref={fileInputRef}
+                                                    type="file"
+                                                    className="hidden"
+                                                    onChange={(e) => {
+                                                        const file = e.target.files?.[0];
+                                                        if (file) setSelectedFile(file);
+                                                    }}
+                                                    accept="image/*,.pdf,.zip,.ai,.psd,.png,.jpg"
+                                                />
+
+                                                {selectedFile ? (
+                                                    <div className="flex items-center gap-3">
+                                                        <div className={`p-2.5 rounded-xl ${isDark ? 'bg-primary/20' : 'bg-primary/10'}`}>
+                                                            <UploadCloud className="w-5 h-5 text-primary" />
+                                                        </div>
+                                                        <div className="flex-1 min-w-0">
+                                                            <p className={`text-sm font-bold ${textPrimary} truncate`}>{selectedFile.name}</p>
+                                                            <p className="text-xs text-muted-foreground">{(selectedFile.size / 1024 / 1024).toFixed(2)} MB</p>
+                                                        </div>
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); setSelectedFile(null); setUploadProgress(0); }}
+                                                            className={`p-1.5 rounded-lg ${isDark ? 'hover:bg-white/10' : 'hover:bg-gray-200'} transition-colors`}
+                                                        >
+                                                            <X className="w-4 h-4 text-muted-foreground" />
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    <div className="flex flex-col items-center justify-center gap-2 py-2">
+                                                        <Upload className={`w-7 h-7 ${textMuted}`} />
+                                                        <p className={`text-sm font-semibold ${textSecondary}`}>
+                                                            {design.result_link ? "Replace result file" : "Upload result file"}
+                                                        </p>
+                                                        <p className="text-xs text-muted-foreground">Drag & drop or click to browse</p>
+                                                        <p className="text-[10px] text-muted-foreground/60">PNG, JPG, PDF, ZIP, AI, PSD</p>
+                                                    </div>
+                                                )}
+
+                                                {/* Upload progress bar */}
+                                                {uploading && (
+                                                    <div className="absolute inset-x-4 bottom-3">
+                                                        <div className="flex items-center justify-between mb-1">
+                                                            <span className="text-xs text-primary font-medium">Uploading...</span>
+                                                            <span className="text-xs text-primary font-bold">{uploadProgress}%</span>
+                                                        </div>
+                                                        <div className={`h-1.5 rounded-full ${isDark ? 'bg-white/10' : 'bg-gray-200'} overflow-hidden`}>
+                                                            <motion.div
+                                                                initial={{ width: 0 }}
+                                                                animate={{ width: `${uploadProgress}%` }}
+                                                                className="h-full bg-primary rounded-full"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+
+                                        {/* Upload / Cancel button row */}
+                                        {currentUser?.role === "designer" && selectedFile && (
+                                            <div className="flex gap-2 mt-3">
+                                                <button
+                                                    onClick={handleUploadResult}
+                                                    disabled={uploading}
+                                                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary/90 disabled:opacity-50 transition-all"
+                                                >
+                                                    {uploading ? (
+                                                        <><RefreshCw className="w-4 h-4 animate-spin" /> Uploading {uploadProgress}%</>
+                                                    ) : (
+                                                        <><UploadCloud className="w-4 h-4" /> Upload Result</>
+                                                    )}
+                                                </button>
+                                                <button
+                                                    onClick={() => { setSelectedFile(null); setUploadProgress(0); }}
+                                                    disabled={uploading}
+                                                    className={`px-4 py-2.5 rounded-xl ${isDark ? 'bg-white/10 hover:bg-white/20' : 'bg-gray-200 hover:bg-gray-300'} text-sm font-bold transition-all disabled:opacity-50`}
+                                                >
+                                                    Clear
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
 
                                     {/* Activity Timeline Section */}
                                     <div className="pt-4">
@@ -574,8 +1169,7 @@ export default function DesignDetailDrawer({ designId, onClose, currentUser, onU
                         </div>
                     </motion.div>
                 </>
-            )
-            }
-        </AnimatePresence >
+            )}
+        </AnimatePresence>
     );
 }

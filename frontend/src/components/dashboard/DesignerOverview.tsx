@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
-import { CheckCircle2, Activity, AlertCircle, Eye, Clock, Calendar, ExternalLink, Filter, MessageSquare, ChevronLeft, ChevronRight } from "lucide-react";
+import { CheckCircle2, Activity, AlertCircle, Eye, Clock, Calendar, ExternalLink, Filter, MessageSquare, ChevronLeft, ChevronRight, CalendarClock } from "lucide-react";
 import { motion } from "framer-motion";
 import DesignDetailDrawer from "@/components/dashboard/DesignDetailDrawer";
 import { getTimeAgo, formatVietnamDate } from "@/lib/date-utils";
@@ -10,6 +10,7 @@ import { getTimeAgo, formatVietnamDate } from "@/lib/date-utils";
 export default function DesignerOverview({ user }: { user: any }) {
   const [stats, setStats] = useState<any>(null);
   const [designs, setDesigns] = useState<any[]>([]);
+  const [historyData, setHistoryData] = useState<any[]>([]);
   const [selectedHistoryMonth, setSelectedHistoryMonth] = useState<string>("all");
   const [selectedDesignId, setSelectedDesignId] = useState<string | null>(null);
   const [viewedDesignIds, setViewedDesignIds] = useState<Set<string>>(new Set());
@@ -58,6 +59,13 @@ export default function DesignerOverview({ user }: { user: any }) {
 
     fetchStats();
     fetchDesigns();
+
+    // Fetch monthly history
+    if (user?.id) {
+      api.get(`/analytics/designer/${user.id}/history`)
+        .then(res => setHistoryData(res.data))
+        .catch(() => { });
+    }
 
     // Auto-refresh designs every 10 seconds to update comment counts
     const interval = setInterval(() => {
@@ -137,6 +145,58 @@ export default function DesignerOverview({ user }: { user: any }) {
         ))}
       </div>
 
+      {/* 6-Month Performance Chart */}
+      {historyData.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.1 }}
+          className="rounded-2xl glass-panel p-6"
+        >
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h3 className="text-xl font-semibold">Performance History</h3>
+              <p className="text-sm text-muted-foreground mt-1">Completed designs over the last 6 months</p>
+            </div>
+            <Activity className="w-5 h-5 text-muted-foreground" />
+          </div>
+
+          <div className="flex items-end gap-3 h-36">
+            {historyData.map((m, i) => {
+              const maxCompleted = Math.max(...historyData.map(d => d.completed), 1);
+              const heightPct = (m.completed / maxCompleted) * 100;
+              return (
+                <motion.div
+                  key={m.month}
+                  initial={{ scaleY: 0, opacity: 0 }}
+                  animate={{ scaleY: 1, opacity: 1 }}
+                  transition={{ delay: i * 0.07, duration: 0.4 }}
+                  style={{ transformOrigin: 'bottom' }}
+                  className="flex-1 flex flex-col items-center gap-2 group"
+                >
+                  {/* Bar */}
+                  <div className="w-full relative flex flex-col justify-end" style={{ height: '100px' }}>
+                    <div
+                      className="w-full rounded-t-lg bg-primary/30 hover:bg-primary/60 transition-colors relative group-hover:bg-primary/50"
+                      style={{ height: `${Math.max(heightPct, 4)}%` }}
+                    >
+                      {/* Tooltip */}
+                      <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-foreground text-background text-[10px] font-bold px-2 py-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
+                        {m.completed} done
+                      </div>
+                    </div>
+                  </div>
+                  {/* Count label */}
+                  <span className="text-xs font-bold text-primary">{m.completed}</span>
+                  {/* Month label */}
+                  <span className="text-[10px] text-muted-foreground text-center leading-tight">{m.month.split(' ')[0]}</span>
+                </motion.div>
+              );
+            })}
+          </div>
+        </motion.div>
+      )}
+
       {/* My Active Designs */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -159,6 +219,7 @@ export default function DesignerOverview({ user }: { user: any }) {
               <tr className="border-b border-border text-muted-foreground text-sm">
                 <th className="pb-4 font-semibold px-4">Title</th>
                 <th className="pb-4 font-semibold px-4">Status</th>
+                <th className="pb-4 font-semibold px-4">Due</th>
                 <th className="pb-4 font-semibold px-4">Updated</th>
                 <th className="pb-4 font-semibold px-4 text-right">Action</th>
               </tr>
@@ -201,6 +262,9 @@ export default function DesignerOverview({ user }: { user: any }) {
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
                           <div className="font-semibold text-foreground">{design.title}</div>
+                          {design.status === 'assigned' && !viewedDesignIds.has(design.id) && (
+                            <span className="px-1.5 py-0.5 rounded bg-indigo-500 text-white text-[10px] font-black animate-pulse tracking-tighter shrink-0 ring-1 ring-white/20 shadow-lg shadow-indigo-500/20">NEW</span>
+                          )}
                           {design.comment_count > 0 && !viewedDesignIds.has(design.id) && (
                             <motion.div
                               initial={{ scale: 0 }}
@@ -243,6 +307,23 @@ export default function DesignerOverview({ user }: { user: any }) {
                     >
                       {design.status.replace("_", " ").toUpperCase()}
                     </span>
+                  </td>
+                  <td className="py-4 px-4">
+                    {design.due_date ? (() => {
+                      const due = new Date(design.due_date);
+                      const diffDays = (due.getTime() - Date.now()) / (1000 * 60 * 60 * 24);
+                      const color = diffDays < 0 ? 'text-red-500' : diffDays <= 2 ? 'text-orange-400' : 'text-blue-400';
+                      const label = diffDays < 0 ? 'Overdue' : diffDays <= 2 ? due.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : due.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                      return (
+                        <div className={`flex items-center gap-1.5 text-sm font-medium ${color}`}>
+                          <CalendarClock className="w-4 h-4" />
+                          <span>{label}</span>
+                          {diffDays <= 2 && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-red-500/20 border border-red-500/30 animate-pulse">!</span>}
+                        </div>
+                      );
+                    })() : (
+                      <span className="text-xs text-muted-foreground/50">—</span>
+                    )}
                   </td>
                   <td className="py-4 px-4">
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">

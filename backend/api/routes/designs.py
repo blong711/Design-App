@@ -248,6 +248,7 @@ async def assign_design(
 
 class StatusUpdate(BaseModel):
     status: str
+    rejection_reason: Optional[str] = None
 
 @router.patch("/{id}/status", response_model=DesignResponse)
 async def update_status(
@@ -267,6 +268,8 @@ async def update_status(
     update_fields = {"status": status_update.status, "updated_at": datetime.now(timezone.utc)}
     if status_update.status == "completed":
         update_fields["completed_at"] = datetime.now(timezone.utc)
+    if status_update.status == "needs_revision" and status_update.rejection_reason:
+        update_fields["rejection_reason"] = status_update.rejection_reason
 
     await db["designs"].update_one({"_id": ObjectId(id)}, {"$set": update_fields})
     
@@ -278,6 +281,114 @@ async def update_status(
 
 class ResultUpdate(BaseModel):
     result_link: str
+
+class CustomerEditUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+
+@router.patch("/{id}/edit", response_model=DesignResponse)
+async def customer_edit_design(
+    id: str,
+    data: CustomerEditUpdate,
+    db=Depends(get_db),
+    current_user: UserResponse = Depends(get_current_user)
+):
+    """Allow customer to edit title/description of their own pending design."""
+    d = await db["designs"].find_one({"_id": ObjectId(id), "is_deleted": False})
+    if not d:
+        raise HTTPException(status_code=404, detail="Design not found")
+
+    # Permission check
+    if current_user.role == "customer" and str(d.get("created_by")) != current_user.id:
+        raise HTTPException(status_code=403, detail="Forbidden")
+    if current_user.role not in ["admin", "customer"]:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    if d.get("status") != "pending":
+        raise HTTPException(status_code=400, detail="Only pending designs can be edited")
+
+    update_fields: dict = {"updated_at": datetime.now(timezone.utc)}
+    if data.title is not None:
+        update_fields["title"] = data.title
+    if data.description is not None:
+        update_fields["description"] = data.description
+
+    await db["designs"].update_one({"_id": ObjectId(id)}, {"$set": update_fields})
+    updated = await db["designs"].find_one({"_id": ObjectId(id)})
+    return await get_populated_design_response(db, updated)
+
+@router.patch("/{id}/cancel", response_model=DesignResponse)
+async def cancel_design(
+    id: str,
+    db=Depends(get_db),
+    current_user: UserResponse = Depends(get_current_user)
+):
+    """Allow customer to cancel their own design when status is pending."""
+    d = await db["designs"].find_one({"_id": ObjectId(id), "is_deleted": False})
+    if not d:
+        raise HTTPException(status_code=404, detail="Design not found")
+
+    # Only the customer who created it or an admin can cancel
+    if current_user.role == "customer" and str(d.get("created_by")) != current_user.id:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    # Only allow cancel when pending (not yet assigned/in-progress)
+    if d.get("status") not in ["pending"]:
+        raise HTTPException(status_code=400, detail="Only pending designs can be cancelled")
+
+    old_status = d.get("status")
+    update_fields = {
+        "status": "canceled",
+        "updated_at": datetime.now(timezone.utc)
+    }
+
+    # If customer already paid (balance was deducted), refund it
+    if d.get("payment_status") == "paid" and d.get("price", 0) > 0:
+        customer_id = d.get("created_by")
+        price = d.get("price", 0)
+        await db["users"].update_one(
+            {"_id": ObjectId(customer_id)},
+            {"$inc": {"balance": price}}
+        )
+        # Log refund transaction
+        tx = TransactionInDB(
+            user_id=customer_id,
+            amount=price,
+            type="refund",
+            reference_id=id,
+            description=f"Refund for cancelled design: {d.get('title')}"
+        )
+        await db["transactions"].insert_one(tx.model_dump(by_alias=True))
+        update_fields["payment_status"] = "unpaid"
+
+    await db["designs"].update_one({"_id": ObjectId(id)}, {"$set": update_fields})
+    await log_status_change(db, id, old_status, "canceled", current_user.id, current_user.full_name)
+
+    updated = await db["designs"].find_one({"_id": ObjectId(id)})
+    return await get_populated_design_response(db, updated)
+
+
+class DueDateUpdate(BaseModel):
+    due_date: Optional[datetime] = None
+
+@router.patch("/{id}/due-date", response_model=DesignResponse)
+async def update_due_date(
+    id: str,
+    data: DueDateUpdate,
+    db=Depends(get_db),
+    current_user: UserResponse = Depends(get_current_admin)
+):
+    """Admin sets or clears a due date for a design."""
+    d = await db["designs"].find_one({"_id": ObjectId(id), "is_deleted": False})
+    if not d:
+        raise HTTPException(status_code=404, detail="Design not found")
+
+    update_fields = {"due_date": data.due_date, "updated_at": datetime.now(timezone.utc)}
+    await db["designs"].update_one({"_id": ObjectId(id)}, {"$set": update_fields})
+
+    updated = await db["designs"].find_one({"_id": ObjectId(id)})
+    return await get_populated_design_response(db, updated)
+
 
 @router.patch("/{id}/result", response_model=DesignResponse)
 async def update_result(

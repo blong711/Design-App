@@ -27,18 +27,18 @@ import NewDesignDrawer from "@/components/dashboard/NewDesignDrawer";
 import { getTimeAgo } from "@/lib/date-utils";
 
 function ActivityIcon(props: any) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
-    </svg>
-  );
+    return (
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+            <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+        </svg>
+    );
 }
 
 const COLUMNS = [
-  { id: "assigned", title: "To Do", icon: Clock, color: "text-blue-400" },
-  { id: "in_progress", title: "In Progress", icon: ActivityIcon, color: "text-purple-400" },
-  { id: "review", title: "In Review", icon: Eye, color: "text-amber-400" },
-  { id: "completed", title: "Completed", icon: CheckCircle2, color: "text-green-400" },
+    { id: "assigned", title: "To Do", icon: Clock, color: "text-blue-400" },
+    { id: "in_progress", title: "In Progress", icon: ActivityIcon, color: "text-purple-400" },
+    { id: "review", title: "In Review", icon: Eye, color: "text-amber-400" },
+    { id: "completed", title: "Completed", icon: CheckCircle2, color: "text-green-400" },
 ];
 
 const LIST_PAGE_SIZE = 9; // 3x3 grid
@@ -55,7 +55,23 @@ export default function CustomerView({ user: initialUser }: { user: any }) {
     const [currentView, setCurrentView] = useState<"overview" | "dashboard">("overview");
     const [viewMode, setViewMode] = useState<"kanban" | "cart">("kanban");
     const [density, setDensity] = useState<"comfortable" | "compact">("comfortable");
-    
+    const [viewedDesignIds, setViewedDesignIds] = useState<Set<string>>(new Set());
+
+    // Load viewedDesignIds from localStorage
+    useEffect(() => {
+        if (typeof window !== 'undefined' && initialUser?.id) {
+            const saved = localStorage.getItem(`viewedDesignIds_customer_${initialUser.id}`);
+            if (saved) setViewedDesignIds(new Set(JSON.parse(saved)));
+        }
+    }, [initialUser?.id]);
+
+    // Save viewedDesignIds to localStorage on change
+    useEffect(() => {
+        if (typeof window !== 'undefined' && initialUser?.id) {
+            localStorage.setItem(`viewedDesignIds_customer_${initialUser.id}`, JSON.stringify(Array.from(viewedDesignIds)));
+        }
+    }, [viewedDesignIds, initialUser?.id]);
+
     // Kanban columns
     const [columns, setColumns] = useState<Record<string, any[]>>({
         assigned: [],
@@ -88,7 +104,7 @@ export default function CustomerView({ user: initialUser }: { user: any }) {
             setDeposits(depositsRes.data);
             setTransactions(transactionsRes.data);
             setUser(userRes.data);
-            
+
             // Group designs by status for kanban view
             const grouped: Record<string, any[]> = { assigned: [], in_progress: [], review: [], completed: [] };
             designsData.forEach((t: any) => {
@@ -124,7 +140,7 @@ export default function CustomerView({ user: initialUser }: { user: any }) {
                             <h2 className="text-3xl font-bold tracking-tight">Customer Dashboard</h2>
                             <p className="text-muted-foreground mt-1 text-sm">Welcome! Manage your designs and balance here.</p>
                         </div>
-                        
+
                         <div className="flex items-center gap-3">
                             {/* Balance Card */}
                             <motion.div
@@ -153,22 +169,20 @@ export default function CustomerView({ user: initialUser }: { user: any }) {
                             <div className="flex items-center gap-2 bg-foreground/5 rounded-full p-1 border border-border">
                                 <button
                                     onClick={() => setCurrentView("overview")}
-                                    className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                                        currentView === "overview"
-                                            ? "bg-primary text-primary-foreground shadow-lg"
-                                            : "text-muted-foreground hover:text-foreground"
-                                    }`}
+                                    className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${currentView === "overview"
+                                        ? "bg-primary text-primary-foreground shadow-lg"
+                                        : "text-muted-foreground hover:text-foreground"
+                                        }`}
                                 >
                                     <List className="w-4 h-4" />
                                     Overview
                                 </button>
                                 <button
                                     onClick={() => setCurrentView("dashboard")}
-                                    className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                                        currentView === "dashboard"
-                                            ? "bg-primary text-primary-foreground shadow-lg"
-                                            : "text-muted-foreground hover:text-foreground"
-                                    }`}
+                                    className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${currentView === "dashboard"
+                                        ? "bg-primary text-primary-foreground shadow-lg"
+                                        : "text-muted-foreground hover:text-foreground"
+                                        }`}
                                 >
                                     <LayoutGrid className="w-4 h-4" />
                                     Dashboard
@@ -185,47 +199,43 @@ export default function CustomerView({ user: initialUser }: { user: any }) {
                                 <div className="flex items-center gap-2 bg-foreground/5 rounded-full p-1 border border-border">
                                     <button
                                         onClick={() => setDensity("comfortable")}
-                                        className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
-                                            density === "comfortable"
-                                                ? "bg-primary text-primary-foreground"
-                                                : "text-muted-foreground hover:text-foreground"
-                                        }`}
+                                        className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${density === "comfortable"
+                                            ? "bg-primary text-primary-foreground"
+                                            : "text-muted-foreground hover:text-foreground"
+                                            }`}
                                     >
                                         Comfortable
                                     </button>
                                     <button
                                         onClick={() => setDensity("compact")}
-                                        className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
-                                            density === "compact"
-                                                ? "bg-primary text-primary-foreground"
-                                                : "text-muted-foreground hover:text-foreground"
-                                        }`}
+                                        className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${density === "compact"
+                                            ? "bg-primary text-primary-foreground"
+                                            : "text-muted-foreground hover:text-foreground"
+                                            }`}
                                     >
                                         Compact
                                     </button>
                                 </div>
                             )}
-                            
+
                             {/* View Mode Toggle */}
                             <div className="flex items-center gap-2 bg-foreground/5 rounded-full p-1 border border-border">
                                 <button
                                     onClick={() => setViewMode("kanban")}
-                                    className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                                        viewMode === "kanban"
-                                            ? "bg-primary text-primary-foreground shadow-lg"
-                                            : "text-muted-foreground hover:text-foreground"
-                                    }`}
+                                    className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${viewMode === "kanban"
+                                        ? "bg-primary text-primary-foreground shadow-lg"
+                                        : "text-muted-foreground hover:text-foreground"
+                                        }`}
                                 >
                                     <LayoutGrid className="w-4 h-4" />
                                     Kanban
                                 </button>
                                 <button
                                     onClick={() => setViewMode("cart")}
-                                    className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                                        viewMode === "cart"
-                                            ? "bg-primary text-primary-foreground shadow-lg"
-                                            : "text-muted-foreground hover:text-foreground"
-                                    }`}
+                                    className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${viewMode === "cart"
+                                        ? "bg-primary text-primary-foreground shadow-lg"
+                                        : "text-muted-foreground hover:text-foreground"
+                                        }`}
                                 >
                                     <List className="w-4 h-4" />
                                     List
@@ -238,13 +248,17 @@ export default function CustomerView({ user: initialUser }: { user: any }) {
                 {/* Content Area */}
                 {currentView === "overview" ? (
                     <div className="flex-1 overflow-y-auto custom-scrollbar">
-                        <OverviewContent 
+                        <OverviewContent
                             user={user}
                             designs={designs}
                             deposits={deposits}
                             transactions={transactions}
                             onNewDesign={() => setIsNewDesignOpen(true)}
-                            onViewDesign={(id) => setDetailDesignId(id)}
+                            onViewDesign={(id) => {
+                                setViewedDesignIds(prev => new Set(prev).add(id));
+                                setDetailDesignId(id);
+                            }}
+                            viewedDesignIds={viewedDesignIds}
                         />
                     </div>
                 ) : (
@@ -255,7 +269,11 @@ export default function CustomerView({ user: initialUser }: { user: any }) {
                             density={density}
                             columnPages={columnPages}
                             setColumnPages={setColumnPages}
-                            onViewDesign={(id) => setDetailDesignId(id)}
+                            onViewDesign={(id) => {
+                                setViewedDesignIds(prev => new Set(prev).add(id));
+                                setDetailDesignId(id);
+                            }}
+                            viewedDesignIds={viewedDesignIds}
                         />
                     </div>
                 )}
@@ -287,13 +305,14 @@ export default function CustomerView({ user: initialUser }: { user: any }) {
 }
 
 // Overview Content Component
-function OverviewContent({ 
-    user, 
-    designs, 
-    deposits, 
-    transactions, 
-    onNewDesign, 
-    onViewDesign 
+function OverviewContent({
+    user,
+    designs,
+    deposits,
+    transactions,
+    onNewDesign,
+    onViewDesign,
+    viewedDesignIds
 }: {
     user: any;
     designs: any[];
@@ -301,6 +320,7 @@ function OverviewContent({
     transactions: any[];
     onNewDesign: () => void;
     onViewDesign: (id: string) => void;
+    viewedDesignIds: Set<string>;
 }) {
     return (
         <div className="space-y-8 px-6 py-4 animate-in fade-in duration-500">
@@ -379,7 +399,19 @@ function OverviewContent({
                                         )}
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                        <h4 className="font-bold text-foreground truncate">{design.title}</h4>
+                                        <div className="flex items-center gap-2">
+                                            <h4 className="font-bold text-foreground truncate">{design.title}</h4>
+                                            {design.comment_count > 0 && !viewedDesignIds.has(design.id) && (
+                                                <motion.div
+                                                    initial={{ scale: 0 }}
+                                                    animate={{ scale: 1 }}
+                                                    className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-pink-500/20 border border-pink-500/30 shrink-0"
+                                                >
+                                                    <MessageSquare className="w-3 h-3 text-pink-400" />
+                                                    <span className="text-xs font-bold text-pink-400">{design.comment_count}</span>
+                                                </motion.div>
+                                            )}
+                                        </div>
                                         <div className="flex items-center gap-3 mt-1">
                                             <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-tighter ${design.status === 'completed' ? 'bg-green-500/20 text-green-400' :
                                                 design.status === 'pending' ? 'bg-amber-500/20 text-amber-500' :
@@ -482,7 +514,7 @@ function OverviewContent({
                     </div>
                 </div>
             </div>
-        </div>
+        </div >
     );
 }
 
@@ -493,7 +525,8 @@ function DashboardContent({
     density,
     columnPages,
     setColumnPages,
-    onViewDesign
+    onViewDesign,
+    viewedDesignIds
 }: {
     columns: Record<string, any[]>;
     viewMode: "kanban" | "cart";
@@ -501,6 +534,7 @@ function DashboardContent({
     columnPages: Record<string, number>;
     setColumnPages: (pages: Record<string, number>) => void;
     onViewDesign: (id: string) => void;
+    viewedDesignIds: Set<string>;
 }) {
     if (viewMode === "kanban") {
         return (
@@ -542,7 +576,7 @@ function DashboardContent({
                                     const titleSize = isCompact ? "text-xs" : "text-sm";
                                     const badgeSize = isCompact ? "text-[10px]" : "text-xs";
                                     const imageHeight = isCompact ? "h-24" : "h-32";
-                                    
+
                                     return (
                                         <div
                                             key={design.id}
@@ -552,8 +586,8 @@ function DashboardContent({
                                             {/* Image */}
                                             {design.image_url && (
                                                 <div className={`relative w-full ${imageHeight} overflow-hidden bg-background/50`}>
-                                                    <img 
-                                                        src={design.image_url} 
+                                                    <img
+                                                        src={design.image_url}
                                                         alt={design.title}
                                                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                                                     />
@@ -562,10 +596,22 @@ function DashboardContent({
 
                                             {/* Content */}
                                             <div className={isCompact ? "p-2.5" : "p-3"}>
-                                                {/* Title - Single Line */}
-                                                <h4 className={`font-semibold text-foreground leading-tight line-clamp-1 mb-2 ${titleSize}`} title={design.title}>
-                                                    {design.title}
-                                                </h4>
+                                                <div className="flex items-center justify-between gap-2 mb-2">
+                                                    <h4 className={`font-semibold text-foreground leading-tight line-clamp-1 flex-1 ${titleSize}`} title={design.title}>
+                                                        {design.title}
+                                                    </h4>
+                                                    <div className="flex gap-1 shrink-0">
+                                                        {design.status !== 'pending' && !viewedDesignIds.has(design.id) && (
+                                                            <span className="px-1 py-0.5 rounded bg-blue-500 text-white text-[9px] font-black uppercase tracking-tighter animate-pulse">Updated</span>
+                                                        )}
+                                                        {design.comment_count > 0 && !viewedDesignIds.has(design.id) && (
+                                                            <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-pink-500/20 border border-pink-500/30">
+                                                                <MessageSquare className="w-2.5 h-2.5 text-pink-400 fill-pink-400/20" />
+                                                                <span className="text-[9px] font-bold text-pink-400">{design.comment_count}</span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
 
                                                 {/* Metadata Row */}
                                                 <div className="flex items-center justify-between gap-2">
@@ -576,7 +622,7 @@ function DashboardContent({
                                                             <span className="line-clamp-1">{getTimeAgo(design.updated_at || design.created_at)}</span>
                                                         </div>
                                                     </div>
-                                                    
+
                                                     {/* Result Link Icon */}
                                                     {design.result_link && (
                                                         <a
@@ -590,7 +636,7 @@ function DashboardContent({
                                                             <Eye className="w-3.5 h-3.5" />
                                                         </a>
                                                     )}
-                                                    
+
                                                     {/* Comment Count */}
                                                     {design.comment_count > 0 && (
                                                         <div className="flex items-center gap-1 text-muted-foreground">
@@ -617,13 +663,13 @@ function DashboardContent({
             {COLUMNS.map(col => {
                 const designs = columns[col.id] || [];
                 if (designs.length === 0) return null;
-                
+
                 const currentPage = columnPages[col.id] || 1;
                 const totalPages = Math.max(1, Math.ceil(designs.length / LIST_PAGE_SIZE));
                 const startIndex = (currentPage - 1) * LIST_PAGE_SIZE;
                 const endIndex = startIndex + LIST_PAGE_SIZE;
                 const paginatedDesigns = designs.slice(startIndex, endIndex);
-                
+
                 return (
                     <div key={col.id} className="glass-panel rounded-2xl overflow-hidden">
                         {/* Section Header */}
@@ -650,19 +696,18 @@ function DashboardContent({
                                     {/* Reference Image */}
                                     {design.image_url && (
                                         <div className="relative w-full h-48 overflow-hidden bg-background/50">
-                                            <img 
-                                                src={design.image_url} 
+                                            <img
+                                                src={design.image_url}
                                                 alt={design.title}
                                                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                                             />
                                             {/* Status Badge Overlay */}
                                             <div className="absolute top-3 right-3">
-                                                <span className={`px-2.5 py-1 rounded-full text-xs font-bold backdrop-blur-sm ${
-                                                    col.id === 'completed' ? 'bg-green-500/90 text-white' :
+                                                <span className={`px-2.5 py-1 rounded-full text-xs font-bold backdrop-blur-sm ${col.id === 'completed' ? 'bg-green-500/90 text-white' :
                                                     col.id === 'review' ? 'bg-amber-500/90 text-white' :
-                                                    col.id === 'in_progress' ? 'bg-purple-500/90 text-white' :
-                                                    'bg-blue-500/90 text-white'
-                                                }`}>
+                                                        col.id === 'in_progress' ? 'bg-purple-500/90 text-white' :
+                                                            'bg-blue-500/90 text-white'
+                                                    }`}>
                                                     {col.title}
                                                 </span>
                                             </div>
@@ -734,11 +779,10 @@ function DashboardContent({
                                             <button
                                                 key={p}
                                                 onClick={() => setColumnPages({ ...columnPages, [col.id]: p })}
-                                                className={`w-9 h-9 flex items-center justify-center rounded-lg border text-sm font-semibold transition-all ${
-                                                    currentPage === p
-                                                        ? "bg-primary border-primary text-primary-foreground shadow-md shadow-primary/30"
-                                                        : "border-border bg-foreground/5 hover:bg-foreground/10 text-foreground"
-                                                }`}
+                                                className={`w-9 h-9 flex items-center justify-center rounded-lg border text-sm font-semibold transition-all ${currentPage === p
+                                                    ? "bg-primary border-primary text-primary-foreground shadow-md shadow-primary/30"
+                                                    : "border-border bg-foreground/5 hover:bg-foreground/10 text-foreground"
+                                                    }`}
                                             >
                                                 {p}
                                             </button>
@@ -757,7 +801,7 @@ function DashboardContent({
                     </div>
                 );
             })}
-            
+
             {Object.values(columns).every(col => col.length === 0) && (
                 <div className="glass-panel rounded-2xl p-12 text-center">
                     <LayoutGrid className="w-16 h-16 text-muted-foreground/20 mx-auto mb-4" />

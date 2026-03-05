@@ -20,6 +20,8 @@ export default function DashboardLayout({
   const [customerBalance, setCustomerBalance] = useState<number | null>(null);
   const { layoutMode } = useSettings();
 
+  const [pendingDepositCount, setPendingDepositCount] = useState(0);
+
   useEffect(() => {
     const token = localStorage.getItem("access_token");
     const storedUser = localStorage.getItem("user");
@@ -36,6 +38,23 @@ export default function DashboardLayout({
       }).catch(() => { });
     }
   }, [router]);
+
+  // Poll pending deposit count for admin
+  useEffect(() => {
+    const storedUser = localStorage.getItem("user");
+    if (!storedUser) return;
+    const parsedUser = JSON.parse(storedUser);
+    if (parsedUser?.role !== "admin") return;
+
+    const fetchPendingDeposits = () => {
+      api.get("/deposits?status=pending").then((res) => {
+        setPendingDepositCount(Array.isArray(res.data) ? res.data.length : 0);
+      }).catch(() => { });
+    };
+    fetchPendingDeposits();
+    const interval = setInterval(fetchPendingDeposits, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Sync user info when account page updates localStorage
   useEffect(() => {
@@ -64,7 +83,7 @@ export default function DashboardLayout({
     { name: "Overview", href: "/dashboard", icon: LayoutDashboard },
     { name: "All Designs", href: "/dashboard/designs", icon: Briefcase },
     { name: "Users", href: "/dashboard/users", icon: UserCircle2 },
-    { name: "Transactions", href: "/dashboard/transactions", icon: Wallet },
+    { name: "Transactions", href: "/dashboard/transactions", icon: Wallet, badge: pendingDepositCount },
     { name: "API Keys", href: "/dashboard/api-keys", icon: Settings },
   ];
 
@@ -118,6 +137,9 @@ export default function DashboardLayout({
                     )}
                     <link.icon className="w-4 h-4 relative z-10" />
                     <span className="relative z-10 hidden sm:inline">{link.name}</span>
+                    {(link as any).badge > 0 && (
+                      <span className="relative z-10 ml-1 px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-red-500 text-white">{(link as any).badge}</span>
+                    )}
                   </div>
                 </Link>
               );
@@ -183,7 +205,10 @@ export default function DashboardLayout({
                     />
                   )}
                   <link.icon className="w-5 h-5 relative z-10" />
-                  <span className="font-medium relative z-10">{link.name}</span>
+                  <span className="font-medium relative z-10 flex-1">{link.name}</span>
+                  {(link as any).badge > 0 && (
+                    <span className="relative z-10 px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-red-500 text-white">{(link as any).badge}</span>
+                  )}
                 </div>
               </Link>
             );

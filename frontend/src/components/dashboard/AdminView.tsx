@@ -238,6 +238,19 @@ function NewDesignDrawer({ open, onClose, onCreated, designers }: { open: boolea
               {/* Price */}
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Price (USD)</label>
+                <div className="flex gap-2 mb-3 overflow-x-auto pb-1 scrollbar-hide">
+                  {[10, 25, 50, 100].map(p => (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => setPrice(p.toString())}
+                      className={`px-4 py-2 rounded-xl border text-xs font-bold transition-all shrink-0 ${price === p.toString() ? 'bg-primary border-primary text-primary-foreground shadow-lg shadow-primary/20' : 'bg-foreground/5 border-border text-muted-foreground hover:border-foreground/20'
+                        }`}
+                    >
+                      ${p}
+                    </button>
+                  ))}
+                </div>
                 <div className="relative">
                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground font-medium">$</span>
                   <input
@@ -460,6 +473,7 @@ export default function AdminView() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [assigningDesign, setAssigningDesign] = useState<any | null>(null);
   const [user, setUser] = useState<any>(null);
+  const [revenueHistory, setRevenueHistory] = useState<any[]>([]);
 
   // Filter & UI state
   const [timeFilter, setTimeFilter] = useState("all");
@@ -484,7 +498,17 @@ export default function AdminView() {
     fetchDesigns();
     fetchDesigners();
     fetchDeposits();
+    fetchRevenueHistory();
   }, []);
+
+  const fetchRevenueHistory = async () => {
+    try {
+      const res = await api.get("/analytics/revenue-history");
+      setRevenueHistory(res.data);
+    } catch (e) {
+      console.error("Failed to load revenue history", e);
+    }
+  };
 
   const fetchStats = async () => {
     try {
@@ -925,6 +949,66 @@ export default function AdminView() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Revenue History Chart */}
+        {revenueHistory.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4, duration: 0.5 }}
+            className="rounded-[2rem] glass-panel p-8 relative z-10 shadow-2xl overflow-hidden"
+          >
+            <div className="absolute top-0 right-0 p-8 opacity-5">
+              <Activity className="w-32 h-32" />
+            </div>
+
+            <div className="flex items-center justify-between mb-8">
+              <div>
+                <h3 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70">Revenue History</h3>
+                <p className="text-sm text-muted-foreground mt-1 font-medium">Monthly revenue from completed designs (Past 6 months)</p>
+              </div>
+              <div className="flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-xl border border-primary/20">
+                <DollarSign className="w-4 h-4 text-primary" />
+                <span className="text-sm font-bold text-primary">All-time High: ${Math.max(...revenueHistory.map(h => h.revenue)).toFixed(0)}</span>
+              </div>
+            </div>
+
+            <div className="flex items-end gap-4 h-48 mt-4">
+              {revenueHistory.map((h, i) => {
+                const maxRevenue = Math.max(...revenueHistory.map(d => d.revenue), 1);
+                const heightPct = (h.revenue / maxRevenue) * 100;
+                return (
+                  <motion.div
+                    key={h.month}
+                    initial={{ scaleY: 0, opacity: 0 }}
+                    animate={{ scaleY: 1, opacity: 1 }}
+                    transition={{ delay: 0.5 + i * 0.1, duration: 0.5 }}
+                    style={{ transformOrigin: 'bottom' }}
+                    className="flex-1 flex flex-col items-center gap-3 group"
+                  >
+                    {/* Bar container */}
+                    <div className="w-full relative flex flex-col justify-end" style={{ height: '140px' }}>
+                      <div
+                        className="w-full rounded-t-2xl bg-gradient-to-t from-primary/20 to-primary/60 hover:to-primary transition-all relative group-hover:shadow-[0_-8px_20px_-5px_rgba(var(--primary),0.5)]"
+                        style={{ height: `${Math.max(heightPct, 5)}%` }}
+                      >
+                        {/* Tooltip */}
+                        <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-foreground text-background text-xs font-black px-3 py-1.5 rounded-xl opacity-0 group-hover:opacity-100 transition-all scale-75 group-hover:scale-100 whitespace-nowrap pointer-events-none z-20 shadow-xl">
+                          ${h.revenue.toLocaleString()} ({h.count} jobs)
+                        </div>
+                      </div>
+                    </div>
+                    {/* Labels */}
+                    <div className="text-center">
+                      <div className="text-[10px] font-black text-primary tracking-tighter mb-0.5">${(h.revenue / 1000).toFixed(1)}k</div>
+                      <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest leading-none">{h.month.split(' ')[0]}</div>
+                    </div>
+                  </motion.div>
+                );
+              })}
             </div>
           </motion.div>
         )}

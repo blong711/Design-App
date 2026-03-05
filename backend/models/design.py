@@ -10,18 +10,22 @@ class DesignBase(BaseModel):
     status: str = Field(default="pending", description="pending, assigned, in_progress, review, needs_revision, completed, canceled")
     price: Optional[float] = 0.0
     image_url: Optional[str] = None
+    image_urls: Optional[list[str]] = Field(default_factory=list)
     result_link: Optional[str] = None
     external_source: Optional[str] = None
     external_ref_id: Optional[str] = None
     payment_status: str = Field(default="unpaid", description="unpaid, paid")
     rejection_reason: Optional[str] = None
     due_date: Optional[datetime] = None
+    rating: Optional[int] = Field(default=None, ge=1, le=5)
+    review: Optional[str] = None
 
 class DesignCreate(BaseModel):
     title: str
     description: str
     price: Optional[float] = 0.0
     image_url: Optional[str] = None
+    image_urls: Optional[list[str]] = Field(default_factory=list)
     assigned_to: Optional[str] = None
 
 class DesignUpdate(BaseModel):
@@ -34,6 +38,10 @@ class DesignUpdate(BaseModel):
     payment_status: Optional[str] = None
     rejection_reason: Optional[str] = None
     due_date: Optional[datetime] = None
+    image_url: Optional[str] = None
+    image_urls: Optional[list[str]] = None
+    rating: Optional[int] = None
+    review: Optional[str] = None
 
 class DesignInDB(DesignBase):
     id: PyObjectId = Field(default_factory=lambda: ObjectId(), alias="_id")

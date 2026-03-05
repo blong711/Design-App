@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from core.config import settings
 from core.database import connect_to_mongo, close_mongo_connection
-from api.routes import auth, users, api_keys, designs, s3, analytics, external, webhooks, deposits, transactions
+from api.routes import auth, users, api_keys, designs, s3, analytics, external, webhooks, deposits, transactions, notifications
 import os
 
 app = FastAPI(title=settings.PROJECT_NAME)
@@ -30,6 +30,7 @@ app.include_router(api_keys.router, prefix=f"{settings.API_V1_STR}/api-keys", ta
 app.include_router(designs.router, prefix=f"{settings.API_V1_STR}/designs", tags=["designs"])
 app.include_router(deposits.router, prefix=f"{settings.API_V1_STR}/deposits", tags=["deposits"])
 app.include_router(transactions.router, prefix=f"{settings.API_V1_STR}/transactions", tags=["transactions"])
+app.include_router(notifications.router, prefix=f"{settings.API_V1_STR}/notifications", tags=["notifications"])
 app.include_router(s3.router, prefix=f"{settings.API_V1_STR}/s3", tags=["s3"])
 app.include_router(analytics.router, prefix=f"{settings.API_V1_STR}/analytics", tags=["analytics"])
 app.include_router(external.router, prefix=f"{settings.API_V1_STR}/external", tags=["external"])
