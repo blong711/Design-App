@@ -147,7 +147,7 @@ export default function RegisterPage() {
           </div>
 
           <p className={`text-xs text-gray-600 transition-all duration-700 delay-500 ${mounted ? "opacity-100" : "opacity-0"}`}>
-            © 2026 Manager Design. All rights reserved.&nbsp;&nbsp;•&nbsp;&nbsp;Premium Edition
+            © 2026 Design Manager. All rights reserved.&nbsp;&nbsp;•&nbsp;&nbsp;Premium Edition
           </p>
         </div>
       )}
@@ -163,6 +163,19 @@ export default function RegisterPage() {
         <div
           className={`w-full max-w-sm transition-all duration-700 delay-200 ${mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"}`}
         >
+
+          {/* Logo card */}
+          <div className="flex justify-center mb-8">
+            <div className={`rounded-2xl shadow-lg px-8 py-6 flex items-center justify-center ${
+              authLayout === "centered" ? "bg-white/10 border border-white/10" : "bg-white"
+            }`}>
+              <img 
+                src="/logo.png" 
+                alt="Design Manager" 
+                className="h-16 w-auto object-contain"
+              />
+            </div>
+          </div>
 
           <h2 className={`text-2xl font-bold text-center mb-1 ${authLayout === "centered" ? "text-white" : "text-gray-900"}`}>Create account</h2>
           <p className={`text-sm text-center mb-6 ${authLayout === "centered" ? "text-gray-400" : "text-gray-500"}`}>

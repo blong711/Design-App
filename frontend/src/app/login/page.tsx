@@ -192,7 +192,7 @@ export default function LoginPage() {
         <p
           className={`text-xs text-gray-600 transition-all duration-700 delay-500 ${mounted ? "opacity-100" : "opacity-0"}`}
         >
-          © 2026 Design Manager Print On Demand Design. All rights reserved.&nbsp;&nbsp;•&nbsp;&nbsp;Premium Edition
+          © 2026 Design Manager. All rights reserved.&nbsp;&nbsp;•&nbsp;&nbsp;Premium Edition
         </p>
       </div>
       )}
@@ -211,23 +211,14 @@ export default function LoginPage() {
         >
           {/* Logo card */}
           <div className="flex justify-center mb-8">
-            <div className={`rounded-2xl shadow-lg px-8 py-5 flex items-center gap-1 ${
+            <div className={`rounded-2xl shadow-lg px-8 py-6 flex items-center justify-center ${
               authLayout === "centered" ? "bg-white/10 border border-white/10" : "bg-white"
             }`}>
-              <span className={`text-3xl font-black tracking-tight ${authLayout === "centered" ? "text-white" : "text-gray-900"}`} style={{ fontFamily: "Georgia, serif" }}>
-                Design
-              </span>
-              <span
-                className="text-3xl font-light italic ml-1"
-                style={{
-                  fontFamily: "Georgia, serif",
-                  background: "linear-gradient(90deg, #ec4899, #a855f7)",
-                  WebkitBackgroundClip: "text",
-                  WebkitTextFillColor: "transparent",
-                }}
-              >
-                Manager
-              </span>
+              <img 
+                src="/logo.png" 
+                alt="Design Manager" 
+                className="h-16 w-auto object-contain"
+              />
             </div>
           </div>
 
