@@ -16,10 +16,6 @@ services:
     environment:
       - MONGODB_URL=mongodb://database:27017
       - MONGODB_DB=design_manager
-    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
-    volumes:
-      - ./backend:/app
-      - /app/node_modules
     depends_on:
       - database
     restart: always
@@ -27,7 +23,7 @@ services:
   frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile
       args:
         NEXT_PUBLIC_API_URL: http://194.233.81.106:8001/api/v1
     container_name: design_app_frontend
@@ -35,11 +31,6 @@ services:
       - "4000:3000"
     environment:
       - NEXT_PUBLIC_API_URL=http://194.233.81.106:8001/api/v1
-      - WATCHPACK_POLLING=true
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
-      - /app/.next
     depends_on:
       - backend
     restart: always
