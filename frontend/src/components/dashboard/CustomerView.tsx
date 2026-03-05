@@ -19,7 +19,8 @@ import {
     List,
     ChevronLeft,
     ChevronRight,
-    MessageSquare
+    MessageSquare,
+    DollarSign
 } from "lucide-react";
 import { useToast } from "@/lib/toast";
 import DesignDetailDrawer from "@/components/dashboard/DesignDetailDrawer";
@@ -132,7 +133,7 @@ export default function CustomerView({ user: initialUser, initialView = "overvie
 
     return (
         <>
-            <div className="flex flex-col h-screen">
+            <div className="flex flex-col w-full">
                 {/* Fixed Header */}
                 <div className="flex-shrink-0 px-6 py-4 border-b border-border bg-background">
                     <div className="flex items-center justify-between">
@@ -141,7 +142,7 @@ export default function CustomerView({ user: initialUser, initialView = "overvie
                                 {currentView === "overview" ? "Customer Dashboard" : "My Designs"}
                             </h2>
                             <p className="text-muted-foreground mt-1 text-sm">
-                                {currentView === "overview" 
+                                {currentView === "overview"
                                     ? "Welcome! Manage your designs and balance here."
                                     : "Track and manage all your design projects"}
                             </p>
@@ -188,8 +189,8 @@ export default function CustomerView({ user: initialUser, initialView = "overvie
                 </div>
 
                 {/* Content Area */}
-                {currentView === "overview" ? (
-                    <div className="flex-1 overflow-y-auto custom-scrollbar">
+                <div className="flex-1">
+                    {currentView === "overview" ? (
                         <OverviewContent
                             user={user}
                             designs={designs}
@@ -202,9 +203,7 @@ export default function CustomerView({ user: initialUser, initialView = "overvie
                             }}
                             viewedDesignIds={viewedDesignIds}
                         />
-                    </div>
-                ) : (
-                    <div className="flex-1 overflow-hidden">
+                    ) : (
                         <DashboardContent
                             columns={columns}
                             viewMode={viewMode}
@@ -217,8 +216,8 @@ export default function CustomerView({ user: initialUser, initialView = "overvie
                             }}
                             viewedDesignIds={viewedDesignIds}
                         />
-                    </div>
-                )}
+                    )}
+                </div>
             </div>
 
             {/* New Design Drawer */}
@@ -267,24 +266,31 @@ function OverviewContent({
     return (
         <div className="space-y-8 px-6 py-4 animate-in fade-in duration-500">
             {/* Stats Summary */}
-            <div className="grid gap-6 md:grid-cols-3">
+            <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
                 {[
                     { title: "Total Designs", value: designs.length, icon: ImageIcon, color: "text-blue-400" },
-                    { title: "Active Projects", value: designs.filter(d => !['completed', 'canceled'].includes(d.status)).length, icon: Clock, color: "text-amber-400" },
+                    { title: "Pending", value: designs.filter(d => d.status === 'pending').length, icon: Clock, color: "text-amber-400" },
+                    { title: "Active", value: designs.filter(d => ['assigned', 'in_progress', 'review', 'needs_revision'].includes(d.status)).length, icon: ActivityIcon, color: "text-purple-400" },
                     { title: "Completed", value: designs.filter(d => d.status === 'completed').length, icon: CheckCircle2, color: "text-green-400" },
+                    {
+                        title: "Total Paid",
+                        value: `$${Math.abs(transactions.filter(tx => tx.type === 'design_payment').reduce((acc, tx) => acc + tx.amount, 0)).toFixed(2)}`,
+                        icon: DollarSign,
+                        color: "text-emerald-400"
+                    },
                 ].map((stat, i) => (
                     <motion.div
                         key={stat.title}
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: i * 0.1 }}
-                        className="p-6 rounded-2xl glass-panel relative overflow-hidden group"
+                        className="p-4 rounded-2xl glass-panel relative overflow-hidden group border border-white/5"
                     >
-                        <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
-                            <stat.icon className="w-16 h-16" />
+                        <div className="absolute top-0 right-0 p-3 opacity-5 group-hover:opacity-10 transition-opacity">
+                            <stat.icon className="w-12 h-12" />
                         </div>
-                        <h3 className="text-sm font-medium text-muted-foreground">{stat.title}</h3>
-                        <div className={`text-3xl font-bold mt-2 ${stat.color}`}>{stat.value}</div>
+                        <h3 className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground">{stat.title}</h3>
+                        <div className={`text-xl font-bold mt-1 ${stat.color}`}>{stat.value}</div>
                     </motion.div>
                 ))}
             </div>
@@ -394,7 +400,7 @@ function OverviewContent({
                             <div className="p-4 border-b border-white/5 bg-white/5">
                                 <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Recent Activity</p>
                             </div>
-                            <div className="divide-y divide-white/5 max-h-[300px] overflow-y-auto">
+                            <div className="divide-y divide-white/5">
                                 {transactions.length === 0 ? (
                                     <div className="p-8 text-center text-muted-foreground text-sm">No transactions yet.</div>
                                 ) : (
@@ -430,7 +436,7 @@ function OverviewContent({
                             <div className="p-4 border-b border-white/5 bg-white/5">
                                 <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Recent Requests</p>
                             </div>
-                            <div className="divide-y divide-white/5 max-h-[300px] overflow-y-auto">
+                            <div className="divide-y divide-white/5">
                                 {deposits.length === 0 ? (
                                     <div className="p-8 text-center text-muted-foreground text-sm">No deposit requests yet.</div>
                                 ) : (
@@ -515,141 +521,141 @@ function DashboardContent({
                             </div>
                         </div>
                     ) : (
-                    <div key={col.id} className="flex flex-col rounded-xl glass-panel border border-border flex-1 min-w-[260px]" style={{ order: colIdx }}>
-                        {/* Sticky Column Header */}
-                        <div className="sticky top-0 z-10 px-4 py-3 bg-background/95 backdrop-blur-sm border-b border-border flex items-center justify-between">
-                            <div className="flex items-center gap-2 font-semibold">
-                                <col.icon className={`w-4 h-4 ${col.color}`} />
-                                <span className="text-xs uppercase tracking-wider text-foreground/80">{col.title}</span>
-                            </div>
-                            <div className="flex items-center gap-1.5">
-                                <span className="text-xs font-bold text-muted-foreground bg-foreground/10 px-2 py-0.5 rounded-full">
-                                    {columns[col.id]?.length || 0}
-                                </span>
-                                <button
-                                    onClick={() => toggleCol(col.id)}
-                                    title="Collapse column"
-                                    className="w-5 h-5 flex items-center justify-center rounded hover:bg-foreground/10 text-muted-foreground hover:text-foreground transition-colors"
-                                >
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* Scrollable Cards Area */}
-                        <div
-                            className="overflow-y-auto custom-scrollbar p-2 flex flex-col gap-2"
-                            style={{ height: 'calc(100vh - 220px)' }}
-                        >
-                            {columns[col.id]?.length === 0 ? (
-                                <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
-                                    <col.icon className={`w-12 h-12 ${col.color} opacity-20 mb-3`} />
-                                    <p className="text-muted-foreground text-xs font-medium mb-1">
-                                        No tasks
-                                    </p>
-                                    <p className="text-xs text-muted-foreground/60">
-                                        {col.id === 'assigned' && 'Waiting to start'}
-                                        {col.id === 'in_progress' && 'In progress'}
-                                        {col.id === 'review' && 'Under review'}
-                                        {col.id === 'completed' && 'Completed'}
-                                    </p>
+                        <div key={col.id} className="flex flex-col rounded-xl glass-panel border border-border flex-1 min-w-[260px]" style={{ order: colIdx }}>
+                            {/* Sticky Column Header */}
+                            <div className="sticky top-0 z-10 px-4 py-3 bg-background/95 backdrop-blur-sm border-b border-border flex items-center justify-between">
+                                <div className="flex items-center gap-2 font-semibold">
+                                    <col.icon className={`w-4 h-4 ${col.color}`} />
+                                    <span className="text-xs uppercase tracking-wider text-foreground/80">{col.title}</span>
                                 </div>
-                            ) : (
-                                columns[col.id]?.map((design) => {
-                                    const isCompact = density === "compact";
-                                    const titleSize = isCompact ? "text-xs" : "text-sm";
-                                    const badgeSize = isCompact ? "text-[10px]" : "text-xs";
-                                    const imageHeight = isCompact ? "h-24" : "h-32";
+                                <div className="flex items-center gap-1.5">
+                                    <span className="text-xs font-bold text-muted-foreground bg-foreground/10 px-2 py-0.5 rounded-full">
+                                        {columns[col.id]?.length || 0}
+                                    </span>
+                                    <button
+                                        onClick={() => toggleCol(col.id)}
+                                        title="Collapse column"
+                                        className="w-5 h-5 flex items-center justify-center rounded hover:bg-foreground/10 text-muted-foreground hover:text-foreground transition-colors"
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
+                                    </button>
+                                </div>
+                            </div>
 
-                                    return (
-                                        <div
-                                            key={design.id}
-                                            className="shrink-0 rounded-xl border border-border select-none transition-all cursor-pointer group overflow-hidden bg-card hover:border-primary/40 hover:shadow-md"
-                                            onClick={() => onViewDesign(design.id)}
-                                        >
-                                            {/* Image - always render */}
-                                            <div className={`relative w-full ${imageHeight} overflow-hidden bg-muted`}>
-                                                {design.image_url ? (
-                                                    <img
-                                                        src={design.image_url}
-                                                        alt={design.title}
-                                                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                                                    />
-                                                ) : (
-                                                    <div className="w-full h-full flex items-center justify-center">
-                                                        <LayoutGrid className="w-8 h-8 text-muted-foreground/20" />
-                                                    </div>
-                                                )}
-                                                {/* Notification badges overlay */}
-                                                <div className="absolute top-2 right-2 flex gap-1">
-                                                    {design.comment_count > 0 && !viewedDesignIds.has(design.id) && (
-                                                        <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-pink-500/90 backdrop-blur-sm">
-                                                            <MessageSquare className="w-2.5 h-2.5 text-white" />
-                                                            <span className="text-[9px] font-bold text-white">{design.comment_count}</span>
+                            {/* Scrollable Cards Area */}
+                            <div
+                                className="overflow-y-auto custom-scrollbar p-2 flex flex-col gap-2"
+                                style={{ height: 'calc(100vh - 220px)' }}
+                            >
+                                {columns[col.id]?.length === 0 ? (
+                                    <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
+                                        <col.icon className={`w-12 h-12 ${col.color} opacity-20 mb-3`} />
+                                        <p className="text-muted-foreground text-xs font-medium mb-1">
+                                            No tasks
+                                        </p>
+                                        <p className="text-xs text-muted-foreground/60">
+                                            {col.id === 'assigned' && 'Waiting to start'}
+                                            {col.id === 'in_progress' && 'In progress'}
+                                            {col.id === 'review' && 'Under review'}
+                                            {col.id === 'completed' && 'Completed'}
+                                        </p>
+                                    </div>
+                                ) : (
+                                    columns[col.id]?.map((design) => {
+                                        const isCompact = density === "compact";
+                                        const titleSize = isCompact ? "text-xs" : "text-sm";
+                                        const badgeSize = isCompact ? "text-[10px]" : "text-xs";
+                                        const imageHeight = isCompact ? "h-24" : "h-32";
+
+                                        return (
+                                            <div
+                                                key={design.id}
+                                                className="shrink-0 rounded-xl border border-border select-none transition-all cursor-pointer group overflow-hidden bg-card hover:border-primary/40 hover:shadow-md"
+                                                onClick={() => onViewDesign(design.id)}
+                                            >
+                                                {/* Image - always render */}
+                                                <div className={`relative w-full ${imageHeight} overflow-hidden bg-muted`}>
+                                                    {design.image_url ? (
+                                                        <img
+                                                            src={design.image_url}
+                                                            alt={design.title}
+                                                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                                        />
+                                                    ) : (
+                                                        <div className="w-full h-full flex items-center justify-center">
+                                                            <LayoutGrid className="w-8 h-8 text-muted-foreground/20" />
                                                         </div>
                                                     )}
-                                                    {design.status !== 'assigned' && !viewedDesignIds.has(design.id) && (
-                                                        <span className="px-1.5 py-0.5 rounded-full bg-blue-500/90 backdrop-blur-sm text-white text-[9px] font-black uppercase tracking-tighter animate-pulse">New</span>
-                                                    )}
+                                                    {/* Notification badges overlay */}
+                                                    <div className="absolute top-2 right-2 flex gap-1">
+                                                        {design.comment_count > 0 && !viewedDesignIds.has(design.id) && (
+                                                            <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-pink-500/90 backdrop-blur-sm">
+                                                                <MessageSquare className="w-2.5 h-2.5 text-white" />
+                                                                <span className="text-[9px] font-bold text-white">{design.comment_count}</span>
+                                                            </div>
+                                                        )}
+                                                        {design.status !== 'assigned' && !viewedDesignIds.has(design.id) && (
+                                                            <span className="px-1.5 py-0.5 rounded-full bg-blue-500/90 backdrop-blur-sm text-white text-[9px] font-black uppercase tracking-tighter animate-pulse">New</span>
+                                                        )}
+                                                    </div>
                                                 </div>
-                                            </div>
 
-                                            {/* Content */}
-                                            <div className={isCompact ? "p-2.5" : "p-3"}>
-                                                {/* Title */}
-                                                <h4 className={`font-semibold text-foreground leading-snug line-clamp-2 mb-2 ${titleSize}`} title={design.title}>
-                                                    {design.title}
-                                                </h4>
+                                                {/* Content */}
+                                                <div className={isCompact ? "p-2.5" : "p-3"}>
+                                                    {/* Title */}
+                                                    <h4 className={`font-semibold text-foreground leading-snug line-clamp-2 mb-2 ${titleSize}`} title={design.title}>
+                                                        {design.title}
+                                                    </h4>
 
-                                                {/* Price */}
-                                                {design.price > 0 && (
-                                                    <p className={`text-primary font-bold mb-1 ${badgeSize}`}>
-                                                        Price: {design.price.toFixed(2)}
+                                                    {/* Price */}
+                                                    {design.price > 0 && (
+                                                        <p className={`text-primary font-bold mb-1 ${badgeSize}`}>
+                                                            Price: {design.price.toFixed(2)}
+                                                        </p>
+                                                    )}
+
+                                                    {/* Date */}
+                                                    <p className={`text-muted-foreground mb-3 ${badgeSize}`}>
+                                                        {new Date(design.updated_at || design.created_at).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                                                     </p>
-                                                )}
 
-                                                {/* Date */}
-                                                <p className={`text-muted-foreground mb-3 ${badgeSize}`}>
-                                                    {new Date(design.updated_at || design.created_at).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                                                </p>
-
-                                                {/* Bottom Row: Customer avatar left, Designer avatar right */}
-                                                <div className="flex items-center justify-between pt-2 border-t border-border/50">
-                                                    {/* Customer */}
-                                                    <div className="flex items-center gap-1.5">
-                                                        <div className="w-7 h-7 rounded-full bg-primary/20 border-2 border-primary/30 flex items-center justify-center font-bold text-primary text-[10px] overflow-hidden">
-                                                            {design.customer_avatar ? (
-                                                                <img src={design.customer_avatar} className="w-full h-full object-cover" />
-                                                            ) : (
-                                                                (design.customer_name || design.created_by_name || 'C')?.charAt(0).toUpperCase()
-                                                            )}
+                                                    {/* Bottom Row: Customer avatar left, Designer avatar right */}
+                                                    <div className="flex items-center justify-between pt-2 border-t border-border/50">
+                                                        {/* Customer */}
+                                                        <div className="flex items-center gap-1.5">
+                                                            <div className="w-7 h-7 rounded-full bg-primary/20 border-2 border-primary/30 flex items-center justify-center font-bold text-primary text-[10px] overflow-hidden">
+                                                                {design.customer_avatar ? (
+                                                                    <img src={design.customer_avatar} className="w-full h-full object-cover" />
+                                                                ) : (
+                                                                    (design.customer_name || design.created_by_name || 'C')?.charAt(0).toUpperCase()
+                                                                )}
+                                                            </div>
+                                                            <span className={`text-muted-foreground truncate max-w-[60px] ${badgeSize}`}>
+                                                                {design.customer_name || design.created_by_name || 'Customer'}
+                                                            </span>
                                                         </div>
-                                                        <span className={`text-muted-foreground truncate max-w-[60px] ${badgeSize}`}>
-                                                            {design.customer_name || design.created_by_name || 'Customer'}
-                                                        </span>
-                                                    </div>
 
-                                                    {/* Designer */}
-                                                    <div className="flex items-center gap-1.5">
-                                                        <span className={`text-muted-foreground truncate max-w-[60px] text-right ${badgeSize}`}>
-                                                            {design.designer_name || design.assigned_to_name || 'Unassigned'}
-                                                        </span>
-                                                        <div className="w-7 h-7 rounded-full bg-purple-500/20 border-2 border-purple-500/30 flex items-center justify-center font-bold text-purple-400 text-[10px] overflow-hidden">
-                                                            {design.designer_avatar ? (
-                                                                <img src={design.designer_avatar} className="w-full h-full object-cover" />
-                                                            ) : (
-                                                                (design.designer_name || design.assigned_to_name || 'D')?.charAt(0).toUpperCase()
-                                                            )}
+                                                        {/* Designer */}
+                                                        <div className="flex items-center gap-1.5">
+                                                            <span className={`text-muted-foreground truncate max-w-[60px] text-right ${badgeSize}`}>
+                                                                {design.designer_name || design.assigned_to_name || 'Unassigned'}
+                                                            </span>
+                                                            <div className="w-7 h-7 rounded-full bg-purple-500/20 border-2 border-purple-500/30 flex items-center justify-center font-bold text-purple-400 text-[10px] overflow-hidden">
+                                                                {design.designer_avatar ? (
+                                                                    <img src={design.designer_avatar} className="w-full h-full object-cover" />
+                                                                ) : (
+                                                                    (design.designer_name || design.assigned_to_name || 'D')?.charAt(0).toUpperCase()
+                                                                )}
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                    );
-                                })
-                            )}
+                                        );
+                                    })
+                                )}
+                            </div>
                         </div>
-                    </div>
                     ); // end isCollapsed ternary
                 })}
             </div>

@@ -17,9 +17,6 @@ async def get_brand_kit(
     """Get a brand kit by user_id (if admin/designer) or own brand kit."""
     target_id = user_id or str(current_user.id)
     
-    # Designers can only see their own (empty) or specifically someone else's kit? 
-    # Usually, a designer needs to see the customer's kit.
-    # For now, let's allow seeing if they have a target_id (and they are admin/designer).
     if user_id and current_user.role not in ["admin", "designer"]:
         raise HTTPException(status_code=403, detail="Not authorized")
         
@@ -37,7 +34,6 @@ async def update_brand_kit(
     current_user: UserResponse = Depends(get_current_user)
 ):
     """Upsert the brand kit for the current user."""
-    # Only customers and admins can manage their brand kits.
     if current_user.role not in ["customer", "admin"]:
         raise HTTPException(status_code=403, detail="Only customers or admins can have a brand kit")
 
@@ -45,12 +41,15 @@ async def update_brand_kit(
     data["user_id"] = ObjectId(current_user.id)
     data["updated_at"] = datetime.now(timezone.utc)
     
-    res = await db["brand_kits"].find_one_and_update(
+    # Use replace_one with upsert=True to handle deletions of items within lists
+    await db["brand_kits"].replace_one(
         {"user_id": ObjectId(current_user.id)},
-        {"$set": data},
-        upsert=True,
-        return_document=True
+        data,
+        upsert=True
     )
+    
+    # Fetch it back to return the complete object
+    res = await db["brand_kits"].find_one({"user_id": ObjectId(current_user.id)})
     
     res["id"] = str(res.pop("_id"))
     res["user_id"] = str(res["user_id"])

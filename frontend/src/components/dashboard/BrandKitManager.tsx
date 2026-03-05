@@ -188,8 +188,15 @@ export default function BrandKitManager() {
                                 key={idx}
                                 initial={{ opacity: 0, scale: 0.9 }}
                                 animate={{ opacity: 1, scale: 1 }}
-                                className="p-4 rounded-3xl bg-foreground/5 border border-border space-y-4 group"
+                                className="relative p-4 rounded-3xl bg-foreground/5 border border-border space-y-4 group"
                             >
+                                <button
+                                    onClick={() => removeColor(idx)}
+                                    className="absolute top-3 right-3 p-2 text-red-400 hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-all z-10"
+                                    title="Remove Color"
+                                >
+                                    <Trash2 className="w-4 h-4" />
+                                </button>
                                 <div
                                     className="w-full h-24 rounded-2xl shadow-inner border border-black/5"
                                     style={{ backgroundColor: color.hex }}
@@ -214,12 +221,6 @@ export default function BrandKitManager() {
                                             onChange={(e) => updateColor(idx, 'hex', e.target.value)}
                                             className="flex-1 bg-transparent border-none text-xs font-mono font-bold focus:ring-0 p-0 opacity-60"
                                         />
-                                        <button
-                                            onClick={() => removeColor(idx)}
-                                            className="p-1.5 text-muted-foreground hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
-                                        >
-                                            <Trash2 className="w-4 h-4" />
-                                        </button>
                                     </div>
                                 </div>
                             </motion.div>
