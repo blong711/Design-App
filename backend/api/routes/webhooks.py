@@ -11,7 +11,7 @@ router = APIRouter()
 class WebhookCreate(BaseModel):
     url: str
     description: Optional[str] = ""
-    events: Optional[List[str]] = ["ticket.created", "ticket.updated", "ticket.completed"]
+    events: Optional[List[str]] = ["design.created", "design.updated", "design.completed"]
 
 class WebhookResponse(BaseModel):
     id: str

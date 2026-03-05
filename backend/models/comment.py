@@ -12,7 +12,7 @@ class CommentCreate(CommentBase):
 
 class CommentInDB(CommentBase):
     id: PyObjectId = Field(default_factory=lambda: ObjectId(), alias="_id")
-    ticket_id: PyObjectId
+    design_id: PyObjectId
     user_id: str
     user_name: str
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
@@ -23,7 +23,7 @@ class CommentInDB(CommentBase):
 
 class CommentResponse(CommentBase):
     id: str
-    ticket_id: str
+    design_id: str
     user_id: str
     user_name: str
     created_at: datetime
@@ -33,11 +33,11 @@ class CommentResponse(CommentBase):
         if not data:
             return data
         id = data.get("_id")
-        ticket_id = data.get("ticket_id")
+        design_id = data.get("design_id")
         return cls(
             content=data.get("content"),
             id=str(id) if id else "",
-            ticket_id=str(ticket_id) if ticket_id else "",
+            design_id=str(design_id) if design_id else "",
             user_id=data.get("user_id"),
             user_name=data.get("user_name"),
             created_at=data.get("created_at")

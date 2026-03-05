@@ -1,0 +1,45 @@
+services:
+  database:
+    image: mongo:6.0
+    container_name: design_app_db_dev
+    volumes:
+      - db_data_dev:/data/db
+    restart: always
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: design_app_backend_dev
+    ports:
+      - "8000:8000"
+    environment:
+      - MONGODB_URL=mongodb://database:27017
+      - MONGODB_DB=design_manager_dev
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    depends_on:
+      - database
+    restart: always
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    container_name: design_app_frontend_dev
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
+      - WATCHPACK_POLLING=true
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    depends_on:
+      - backend
+    restart: always
+
+volumes:
+  db_data_dev:

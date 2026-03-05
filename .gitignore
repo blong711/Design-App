@@ -14,3 +14,6 @@ build/
 # Editor
 .vscode/
 .idea/
+
+# Uploads (local files, không push lên git)
+backend/uploads/

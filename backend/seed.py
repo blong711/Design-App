@@ -24,6 +24,7 @@ async def seed():
             "full_name": "System Administrator",
             "role": "admin",
             "is_active": True,
+            "email_verified": True,
             "hashed_password": get_password_hash("password123"),
             "created_at": datetime.now(timezone.utc)
         }
@@ -42,6 +43,7 @@ async def seed():
             "full_name": "Pro Designer",
             "role": "designer",
             "is_active": True,
+            "email_verified": True,
             "hashed_password": get_password_hash("designer123"),
             "created_at": datetime.now(timezone.utc)
         }
@@ -51,17 +53,35 @@ async def seed():
     else:
         designer_id = designer_exists["_id"]
         print("Designer user already exists")
+    
+    # Insert Customer
+    customer_exists = await db.users.find_one({"username": "customer"})
+    if not customer_exists:
+        customer_data = {
+            "username": "customer",
+            "email": "customer@example.com",
+            "full_name": "Test Customer",
+            "role": "customer",
+            "is_active": True,
+            "email_verified": True,
+            "hashed_password": get_password_hash("customer123"),
+            "created_at": datetime.now(timezone.utc)
+        }
+        await db.users.insert_one(customer_data)
+        print("Created customer user (customer / customer123)")
+    else:
+        print("Customer user already exists")
         
-    # Seed 1 dummy ticket
-    ticket_exists = await db.design_tickets.find_one({"title": "Design new Logo"})
-    if not ticket_exists and designer_id:
+    # Seed 1 dummy design
+    design_exists = await db.designs.find_one({"title": "Design new Logo"})
+    if not design_exists and designer_id:
         ti = {
             "title": "Design new Logo",
             "description": "Create a new cyber logo for the frontpage.",
             "status": "in_progress",
             "price": 150.0,
             "result_link": None,
-            "assigned_to": str(designer_id),
+            "assigned_to": designer_id,
             "external_source": None,
             "external_ref_id": None,
             "payment_status": "unpaid",
@@ -72,8 +92,8 @@ async def seed():
             "completed_at": None,
             "is_deleted": False
         }
-        await db.design_tickets.insert_one(ti)
-        print("Created dummy ticket")
+        await db.designs.insert_one(ti)
+        print("Created dummy design")
 
     client.close()
 

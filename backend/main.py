@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from core.config import settings
 from core.database import connect_to_mongo, close_mongo_connection
-from api.routes import auth, users, api_keys, tickets, s3, analytics, external, webhooks, teams
+from api.routes import auth, users, api_keys, designs, s3, analytics, external, webhooks, deposits, transactions, notifications, pricing, brand
 import os
 
 app = FastAPI(title=settings.PROJECT_NAME)
@@ -27,12 +27,16 @@ async def shutdown_db_client():
 app.include_router(auth.router, prefix=f"{settings.API_V1_STR}/auth", tags=["auth"])
 app.include_router(users.router, prefix=f"{settings.API_V1_STR}/users", tags=["users"])
 app.include_router(api_keys.router, prefix=f"{settings.API_V1_STR}/api-keys", tags=["api_keys"])
-app.include_router(tickets.router, prefix=f"{settings.API_V1_STR}/tickets", tags=["tickets"])
+app.include_router(designs.router, prefix=f"{settings.API_V1_STR}/designs", tags=["designs"])
+app.include_router(deposits.router, prefix=f"{settings.API_V1_STR}/deposits", tags=["deposits"])
+app.include_router(transactions.router, prefix=f"{settings.API_V1_STR}/transactions", tags=["transactions"])
+app.include_router(notifications.router, prefix=f"{settings.API_V1_STR}/notifications", tags=["notifications"])
+app.include_router(pricing.router, prefix=f"{settings.API_V1_STR}/pricing", tags=["pricing"])
+app.include_router(brand.router, prefix=f"{settings.API_V1_STR}/brand", tags=["brand"])
 app.include_router(s3.router, prefix=f"{settings.API_V1_STR}/s3", tags=["s3"])
 app.include_router(analytics.router, prefix=f"{settings.API_V1_STR}/analytics", tags=["analytics"])
 app.include_router(external.router, prefix=f"{settings.API_V1_STR}/external", tags=["external"])
 app.include_router(webhooks.router, prefix=f"{settings.API_V1_STR}/webhooks", tags=["webhooks"])
-app.include_router(teams.router, prefix=f"{settings.API_V1_STR}/teams", tags=["teams"])
 
 # Serve uploaded files statically
 uploads_dir = os.path.join(os.path.dirname(__file__), "uploads")

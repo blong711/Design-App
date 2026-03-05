@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { useToast } from "@/lib/toast";
+import { formatVietnamDate } from "@/lib/date-utils";
 import { Key, Plus, Copy, Check, Trash2, X, Loader2, AlertCircle, ShieldCheck } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -118,7 +119,7 @@ export default function ApiKeysPage() {
                 <div className="flex items-center gap-2 mt-4 bg-black/40 px-4 py-3 rounded-xl border border-white/5 shadow-inner max-w-md">
                   <code className="text-xs font-mono text-primary/70 tracking-[0.2em]">••••••••••••••••••••</code>
                   <div className="ml-auto flex items-center gap-1 border-l border-white/10 pl-2">
-                    <span className="text-[10px] text-muted-foreground font-mono mr-2">Created {new Date(k.created_at).toLocaleDateString()}</span>
+                    <span className="text-[10px] text-muted-foreground font-mono mr-2">Created {formatVietnamDate(k.created_at)}</span>
                   </div>
                 </div>
               </div>

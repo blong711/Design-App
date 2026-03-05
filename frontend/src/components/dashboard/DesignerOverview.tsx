@@ -2,11 +2,48 @@
 
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
-import { CheckCircle2, DollarSign, Activity, AlertCircle } from "lucide-react";
+import { CheckCircle2, Activity, AlertCircle, Eye, Clock, Calendar, ExternalLink, Filter, MessageSquare, ChevronLeft, ChevronRight, CalendarClock } from "lucide-react";
 import { motion } from "framer-motion";
+import DesignDetailDrawer from "@/components/dashboard/DesignDetailDrawer";
+import { getTimeAgo, formatVietnamDate } from "@/lib/date-utils";
 
 export default function DesignerOverview({ user }: { user: any }) {
   const [stats, setStats] = useState<any>(null);
+  const [designs, setDesigns] = useState<any[]>([]);
+  const [historyData, setHistoryData] = useState<any[]>([]);
+  const [selectedHistoryMonth, setSelectedHistoryMonth] = useState<string>("all");
+  const [selectedDesignId, setSelectedDesignId] = useState<string | null>(null);
+  const [viewedDesignIds, setViewedDesignIds] = useState<Set<string>>(new Set());
+  const [activePage, setActivePage] = useState(1);
+  const [completedPage, setCompletedPage] = useState(1);
+  const ACTIVE_PAGE_SIZE = 20;
+  const COMPLETED_PAGE_SIZE = 20;
+
+  // Load viewedDesignIds from localStorage when user is available
+  useEffect(() => {
+    if (typeof window !== 'undefined' && user?.id) {
+      const saved = localStorage.getItem(`viewedDesignIds_${user.id}`);
+      if (saved) {
+        setViewedDesignIds(new Set(JSON.parse(saved)));
+      }
+    }
+  }, [user?.id]);
+
+  // Save viewedDesignIds to localStorage whenever it changes
+  useEffect(() => {
+    if (typeof window !== 'undefined' && user?.id) {
+      localStorage.setItem(`viewedDesignIds_${user.id}`, JSON.stringify(Array.from(viewedDesignIds)));
+    }
+  }, [viewedDesignIds, user?.id]);
+
+  const fetchDesigns = async () => {
+    try {
+      const res = await api.get("/designs");
+      setDesigns(res.data);
+    } catch (e) {
+      console.error("Failed to load designs", e);
+    }
+  };
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -15,14 +52,66 @@ export default function DesignerOverview({ user }: { user: any }) {
           const res = await api.get(`/analytics/designer/${user.id}`);
           setStats(res.data);
         }
-      } catch(e) {
+      } catch (e) {
         console.error("Failed to load designer stats", e);
       }
     };
+
     fetchStats();
+    fetchDesigns();
+
+    // Fetch monthly history
+    if (user?.id) {
+      api.get(`/analytics/designer/${user.id}/history`)
+        .then(res => setHistoryData(res.data))
+        .catch(() => { });
+    }
+
+    // Auto-refresh designs every 10 seconds to update comment counts
+    const interval = setInterval(() => {
+      fetchDesigns();
+    }, 10000);
+
+    return () => clearInterval(interval);
   }, [user]);
 
+  // Get active designs (not completed)
+  const activeDesigns = designs.filter(t => t.status !== 'completed');
+  const totalActivePages = Math.max(1, Math.ceil(activeDesigns.length / ACTIVE_PAGE_SIZE));
+  const paginatedActiveDesigns = activeDesigns.slice((activePage - 1) * ACTIVE_PAGE_SIZE, activePage * ACTIVE_PAGE_SIZE);
+
+  // Get completed designs
+  const completedDesigns = designs.filter(t => t.status === 'completed');
+
+  // Filter completed designs by month
+  const getFilteredCompletedDesigns = () => {
+    if (selectedHistoryMonth === "all") return completedDesigns;
+
+    const now = new Date();
+    const monthsAgo = parseInt(selectedHistoryMonth);
+    const filterDate = new Date(now.getFullYear(), now.getMonth() - monthsAgo, 1);
+
+    return completedDesigns.filter(design => {
+      const completedDate = new Date(design.updated_at || design.created_at);
+      return completedDate >= filterDate;
+    });
+  };
+
+  // Reset completed page when filter changes
+  useEffect(() => {
+    setCompletedPage(1);
+  }, [selectedHistoryMonth]);
+
+  // Format time ago
+  const formatDate = (dateString: string) => {
+    return formatVietnamDate(dateString);
+  };
+
   if (!stats) return <div className="animate-pulse">Loading overview...</div>;
+
+  const filteredCompletedDesigns = getFilteredCompletedDesigns();
+  const totalCompletedPages = Math.max(1, Math.ceil(filteredCompletedDesigns.length / COMPLETED_PAGE_SIZE));
+  const paginatedCompletedDesigns = filteredCompletedDesigns.slice((completedPage - 1) * COMPLETED_PAGE_SIZE, completedPage * COMPLETED_PAGE_SIZE);
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
@@ -31,32 +120,454 @@ export default function DesignerOverview({ user }: { user: any }) {
         <p className="text-muted-foreground mt-1 text-sm">Welcome back! Here are your performance stats for this month.</p>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-6 md:grid-cols-2">
         {[
-          { title: "Tickets This Month", value: stats.total_tickets_this_month || 0, icon: Activity, color: "text-blue-400" },
+          { title: "Designs This Month", value: stats.total_designs_this_month || 0, icon: Activity, color: "text-blue-400" },
           { title: "Completed This Month", value: stats.completed_this_month || 0, icon: CheckCircle2, color: "text-green-400" },
-          { title: "Total Unpaid (Debt)", value: `$${stats.total_unpaid || 0}`, icon: AlertCircle, color: "text-red-400" },
-          { title: "Earnings This Month", value: `$${stats.earnings_this_month || 0}`, icon: DollarSign, color: "text-primary" },
         ].map((card, i) => (
           <motion.div
             key={card.title}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.1, duration: 0.5 }}
+            transition={{ duration: 0.3 }}
             className="p-6 rounded-2xl glass-panel relative overflow-hidden group shadow-xl shadow-black/20"
           >
-           <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
               <card.icon className="w-24 h-24" />
-           </div>
-           <div className="relative z-10 flex flex-col justify-between h-full">
-            <h3 className="text-sm font-medium text-muted-foreground">{card.title}</h3>
-            <div className={`text-4xl font-bold mt-4 tracking-tighter ${card.color}`}>
-              {card.value}
             </div>
-           </div>
+            <div className="relative z-10 flex flex-col justify-between h-full">
+              <h3 className="text-sm font-medium text-muted-foreground">{card.title}</h3>
+              <div className={`text-4xl font-bold mt-4 tracking-tighter ${card.color}`}>
+                {card.value}
+              </div>
+            </div>
           </motion.div>
         ))}
       </div>
+
+      {/* 6-Month Performance Chart */}
+      {historyData.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.1 }}
+          className="rounded-2xl glass-panel p-6"
+        >
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h3 className="text-xl font-semibold">Performance History</h3>
+              <p className="text-sm text-muted-foreground mt-1">Completed designs over the last 6 months</p>
+            </div>
+            <Activity className="w-5 h-5 text-muted-foreground" />
+          </div>
+
+          <div className="flex items-end gap-3 h-36">
+            {historyData.map((m, i) => {
+              const maxCompleted = Math.max(...historyData.map(d => d.completed), 1);
+              const heightPct = (m.completed / maxCompleted) * 100;
+              return (
+                <motion.div
+                  key={m.month}
+                  initial={{ scaleY: 0, opacity: 0 }}
+                  animate={{ scaleY: 1, opacity: 1 }}
+                  transition={{ delay: i * 0.07, duration: 0.4 }}
+                  style={{ transformOrigin: 'bottom' }}
+                  className="flex-1 flex flex-col items-center gap-2 group"
+                >
+                  {/* Bar */}
+                  <div className="w-full relative flex flex-col justify-end" style={{ height: '100px' }}>
+                    <div
+                      className="w-full rounded-t-lg bg-primary/30 hover:bg-primary/60 transition-colors relative group-hover:bg-primary/50"
+                      style={{ height: `${Math.max(heightPct, 4)}%` }}
+                    >
+                      {/* Tooltip */}
+                      <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-foreground text-background text-[10px] font-bold px-2 py-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
+                        {m.completed} done
+                      </div>
+                    </div>
+                  </div>
+                  {/* Count label */}
+                  <span className="text-xs font-bold text-primary">{m.completed}</span>
+                  {/* Month label */}
+                  <span className="text-[10px] text-muted-foreground text-center leading-tight">{m.month.split(' ')[0]}</span>
+                </motion.div>
+              );
+            })}
+          </div>
+        </motion.div>
+      )}
+
+      {/* My Active Designs */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+        className="rounded-2xl glass-panel p-6"
+      >
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h3 className="text-xl font-semibold">My Active Designs</h3>
+            <p className="text-sm text-muted-foreground mt-1">
+              {activeDesigns.length} {activeDesigns.length === 1 ? 'design' : 'designs'} in progress
+            </p>
+          </div>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="border-b border-border text-muted-foreground text-sm">
+                <th className="pb-4 font-semibold px-4">Title</th>
+                <th className="pb-4 font-semibold px-4">Status</th>
+                <th className="pb-4 font-semibold px-4">Due</th>
+                <th className="pb-4 font-semibold px-4">Updated</th>
+                <th className="pb-4 font-semibold px-4 text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {activeDesigns.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="py-12 text-center text-muted-foreground">
+                    <div className="flex flex-col items-center gap-2">
+                      <CheckCircle2 className="w-12 h-12 text-muted-foreground/50" />
+                      <p>No active designs</p>
+                      <p className="text-xs">All caught up! Great work! 🎉</p>
+                    </div>
+                  </td>
+                </tr>
+              )}
+              {paginatedActiveDesigns.map((design, index) => (
+                <motion.tr
+                  key={design.id}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.3 }}
+                  onClick={() => {
+                    setSelectedDesignId(design.id);
+                    setViewedDesignIds(prev => new Set(prev).add(design.id));
+                  }}
+                  className="border-b border-border hover:bg-foreground/5 transition-colors group cursor-pointer"
+                >
+                  <td className="py-4 px-4">
+                    <div className="flex items-center gap-3">
+                      {design.image_url && (
+                        <img
+                          src={design.image_url}
+                          alt=""
+                          loading="lazy"
+                          decoding="async"
+                          className="w-12 h-12 rounded-lg object-cover border border-border shrink-0 bg-foreground/5"
+                        />
+                      )}
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <div className="font-semibold text-foreground">{design.title}</div>
+                          {design.status === 'assigned' && !viewedDesignIds.has(design.id) && (
+                            <span className="px-1.5 py-0.5 rounded bg-indigo-500 text-white text-[10px] font-black animate-pulse tracking-tighter shrink-0 ring-1 ring-white/20 shadow-lg shadow-indigo-500/20">NEW</span>
+                          )}
+                          {design.comment_count > 0 && !viewedDesignIds.has(design.id) && (
+                            <motion.div
+                              initial={{ scale: 0 }}
+                              animate={{ scale: 1 }}
+                              className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-pink-500/20 border border-pink-500/30"
+                            >
+                              <MessageSquare className="w-3 h-3 text-pink-400" />
+                              <span className="text-xs font-bold text-pink-400">{design.comment_count}</span>
+                            </motion.div>
+                          )}
+                        </div>
+                        {design.description && (
+                          <div className="text-xs text-muted-foreground mt-1 truncate max-w-[300px]">
+                            {design.description}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </td>
+                  <td className="py-4 px-4">
+                    <span
+                      className="px-3 py-1.5 rounded-full text-xs font-medium border"
+                      style={{
+                        backgroundColor:
+                          design.status === 'review' ? 'rgba(250, 204, 21, 0.1)' :
+                            design.status === 'in_progress' ? 'rgba(96, 165, 250, 0.1)' :
+                              design.status === 'assigned' ? 'rgba(147, 51, 234, 0.1)' :
+                                'rgba(128,128,128,0.1)',
+                        color:
+                          design.status === 'review' ? '#facc15' :
+                            design.status === 'in_progress' ? '#60a5fa' :
+                              design.status === 'assigned' ? '#9333ea' :
+                                '#a1a1aa',
+                        borderColor:
+                          design.status === 'review' ? 'rgba(250, 204, 21, 0.3)' :
+                            design.status === 'in_progress' ? 'rgba(96, 165, 250, 0.3)' :
+                              design.status === 'assigned' ? 'rgba(147, 51, 234, 0.3)' :
+                                'rgba(128,128,128,0.3)'
+                      }}
+                    >
+                      {design.status.replace("_", " ").toUpperCase()}
+                    </span>
+                  </td>
+                  <td className="py-4 px-4">
+                    {design.due_date ? (() => {
+                      const due = new Date(design.due_date);
+                      const diffDays = (due.getTime() - Date.now()) / (1000 * 60 * 60 * 24);
+                      const color = diffDays < 0 ? 'text-red-500' : diffDays <= 2 ? 'text-orange-400' : 'text-blue-400';
+                      const label = diffDays < 0 ? 'Overdue' : diffDays <= 2 ? due.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : due.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                      return (
+                        <div className={`flex items-center gap-1.5 text-sm font-medium ${color}`}>
+                          <CalendarClock className="w-4 h-4" />
+                          <span>{label}</span>
+                          {diffDays <= 2 && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-red-500/20 border border-red-500/30 animate-pulse">!</span>}
+                        </div>
+                      );
+                    })() : (
+                      <span className="text-xs text-muted-foreground/50">—</span>
+                    )}
+                  </td>
+                  <td className="py-4 px-4">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Clock className="w-4 h-4" />
+                      <span>{getTimeAgo(design.updated_at || design.created_at)}</span>
+                    </div>
+                  </td>
+                  <td className="py-4 px-4 text-right">
+                    <button
+                      className="px-4 py-2 rounded-lg bg-primary/10 text-primary text-sm font-semibold hover:bg-primary/20 transition-all flex items-center gap-2 ml-auto opacity-0 group-hover:opacity-100"
+                    >
+                      <Eye className="w-4 h-4" />
+                      View
+                    </button>
+                  </td>
+                </motion.tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Pagination Controls */}
+        {totalActivePages > 1 && (
+          <div className="flex items-center justify-between mt-6 pt-4 border-t border-border">
+            <p className="text-sm text-muted-foreground">
+              Showing <span className="font-semibold text-foreground">{(activePage - 1) * ACTIVE_PAGE_SIZE + 1}</span>–<span className="font-semibold text-foreground">{Math.min(activePage * ACTIVE_PAGE_SIZE, activeDesigns.length)}</span> of <span className="font-semibold text-foreground">{activeDesigns.length}</span> designs
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setActivePage(p => Math.max(1, p - 1))}
+                disabled={activePage === 1}
+                className="w-9 h-9 flex items-center justify-center rounded-lg border border-border bg-foreground/5 hover:bg-foreground/10 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+
+              {Array.from({ length: Math.min(5, totalActivePages) }, (_, i) => {
+                const startPage = Math.max(1, Math.min(activePage - 2, totalActivePages - 4));
+                const page = startPage + i;
+                if (page > totalActivePages) return null;
+                return (
+                  <button
+                    key={page}
+                    onClick={() => setActivePage(page)}
+                    className={`w-9 h-9 flex items-center justify-center rounded-lg border text-sm font-semibold transition-all ${activePage === page
+                      ? 'bg-primary border-primary text-white shadow-md shadow-primary/30'
+                      : 'border-border bg-foreground/5 hover:bg-foreground/10 text-foreground'
+                      }`}
+                  >
+                    {page}
+                  </button>
+                );
+              })}
+
+              <button
+                onClick={() => setActivePage(p => Math.min(totalActivePages, p + 1))}
+                disabled={activePage === totalActivePages}
+                className="w-9 h-9 flex items-center justify-center rounded-lg border border-border bg-foreground/5 hover:bg-foreground/10 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
+      </motion.div>
+
+      {/* Completed Designs History */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+        className="rounded-2xl glass-panel p-6"
+      >
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-2">
+            <Calendar className="w-6 h-6 text-primary" />
+            <h3 className="text-xl font-semibold">My Completed Designs</h3>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Filter className="w-4 h-4 text-muted-foreground" />
+            <select
+              value={selectedHistoryMonth}
+              onChange={(e) => setSelectedHistoryMonth(e.target.value)}
+              className="px-3 py-2 rounded-lg bg-foreground/5 border border-border text-sm text-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-all"
+            >
+              <option value="all">All Time</option>
+              <option value="0">This Month</option>
+              <option value="1">Last Month</option>
+              <option value="2">Last 2 Months</option>
+              <option value="3">Last 3 Months</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="border-b border-border text-muted-foreground text-sm">
+                <th className="pb-4 font-semibold px-4">Title</th>
+                <th className="pb-4 font-semibold px-4">Completed</th>
+                <th className="pb-4 font-semibold px-4 text-right">Result</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredCompletedDesigns.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="py-12 text-center text-muted-foreground">
+                    <div className="flex flex-col items-center gap-2">
+                      <Activity className="w-12 h-12 text-muted-foreground/50" />
+                      <p>No completed designs in this period</p>
+                    </div>
+                  </td>
+                </tr>
+              )}
+              {paginatedCompletedDesigns.map((design, index) => (
+                <motion.tr
+                  key={design.id}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.3 }}
+                  onClick={() => {
+                    setSelectedDesignId(design.id);
+                    setViewedDesignIds(prev => new Set(prev).add(design.id));
+                  }}
+                  className="border-b border-border hover:bg-foreground/5 transition-colors group cursor-pointer"
+                >
+                  <td className="py-4 px-4">
+                    <div className="flex items-center gap-3">
+                      {design.image_url && (
+                        <img
+                          src={design.image_url}
+                          alt=""
+                          loading="lazy"
+                          decoding="async"
+                          className="w-10 h-10 rounded-lg object-cover border border-border shrink-0 bg-foreground/5"
+                        />
+                      )}
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <div className="font-semibold text-foreground">{design.title}</div>
+                          {design.comment_count > 0 && !viewedDesignIds.has(design.id) && (
+                            <motion.div
+                              initial={{ scale: 0 }}
+                              animate={{ scale: 1 }}
+                              className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-pink-500/20 border border-pink-500/30"
+                            >
+                              <MessageSquare className="w-3 h-3 text-pink-400" />
+                              <span className="text-xs font-bold text-pink-400">{design.comment_count}</span>
+                            </motion.div>
+                          )}
+                        </div>
+                        {design.description && (
+                          <div className="text-xs text-muted-foreground mt-1 truncate max-w-[200px]">
+                            {design.description}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </td>
+
+                  <td className="py-4 px-4">
+                    <div className="text-sm text-muted-foreground">
+                      {getTimeAgo(design.updated_at || design.created_at)}
+                    </div>
+                  </td>
+                  <td className="py-4 px-4 text-right">
+                    {design.result_link ? (
+                      <a
+                        href={design.result_link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="px-4 py-2 rounded-lg bg-primary/10 text-primary text-sm font-semibold hover:bg-primary/20 transition-all flex items-center gap-2 ml-auto opacity-0 group-hover:opacity-100"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                        View Result
+                      </a>
+                    ) : (
+                      <span className="text-xs text-muted-foreground italic">No result link</span>
+                    )}
+                  </td>
+                </motion.tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Pagination Controls */}
+        {totalCompletedPages > 1 && (
+          <div className="flex items-center justify-between mt-6 pt-4 border-t border-border">
+            <p className="text-sm text-muted-foreground">
+              Showing <span className="font-semibold text-foreground">{(completedPage - 1) * COMPLETED_PAGE_SIZE + 1}</span>–<span className="font-semibold text-foreground">{Math.min(completedPage * COMPLETED_PAGE_SIZE, filteredCompletedDesigns.length)}</span> of <span className="font-semibold text-foreground">{filteredCompletedDesigns.length}</span> completed designs
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCompletedPage(p => Math.max(1, p - 1))}
+                disabled={completedPage === 1}
+                className="w-9 h-9 flex items-center justify-center rounded-lg border border-border bg-foreground/5 hover:bg-foreground/10 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+
+              {Array.from({ length: Math.min(5, totalCompletedPages) }, (_, i) => {
+                const startPage = Math.max(1, Math.min(completedPage - 2, totalCompletedPages - 4));
+                const page = startPage + i;
+                if (page > totalCompletedPages) return null;
+                return (
+                  <button
+                    key={page}
+                    onClick={() => setCompletedPage(page)}
+                    className={`w-9 h-9 flex items-center justify-center rounded-lg border text-sm font-semibold transition-all ${completedPage === page
+                      ? 'bg-primary border-primary text-white shadow-md shadow-primary/30'
+                      : 'border-border bg-foreground/5 hover:bg-foreground/10 text-foreground'
+                      }`}
+                  >
+                    {page}
+                  </button>
+                );
+              })}
+
+              <button
+                onClick={() => setCompletedPage(p => Math.min(totalCompletedPages, p + 1))}
+                disabled={completedPage === totalCompletedPages}
+                className="w-9 h-9 flex items-center justify-center rounded-lg border border-border bg-foreground/5 hover:bg-foreground/10 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
+      </motion.div>
+
+      {/* Design Detail Drawer */}
+      <DesignDetailDrawer
+        designId={selectedDesignId}
+        onClose={() => {
+          setSelectedDesignId(null);
+          // Refresh designs to update comment counts
+          fetchDesigns();
+        }}
+        currentUser={user}
+        onUpdate={fetchDesigns}
+      />
     </div>
   );
 }

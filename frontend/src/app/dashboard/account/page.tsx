@@ -10,7 +10,7 @@ import { api } from "@/lib/api";
 
 type Tab = "general" | "security" | "webhook";
 
-const EVENTS = ["ticket.created", "ticket.updated", "ticket.completed", "ticket.assigned"];
+const EVENTS = ["design.created", "design.updated", "design.completed", "design.assigned"];
 
 export default function AccountPage() {
   const router = useRouter();
@@ -41,7 +41,7 @@ export default function AccountPage() {
   const [webhooks, setWebhooks] = useState<any[]>([]);
   const [webhookUrl, setWebhookUrl] = useState("");
   const [webhookDesc, setWebhookDesc] = useState("");
-  const [webhookEvents, setWebhookEvents] = useState<string[]>(["ticket.created", "ticket.updated", "ticket.completed"]);
+  const [webhookEvents, setWebhookEvents] = useState<string[]>(["design.created", "design.updated", "design.completed"]);
   const [webhookLoading, setWebhookLoading] = useState(false);
   const [webhookMsg, setWebhookMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -61,7 +61,7 @@ export default function AccountPage() {
     try {
       const res = await api.get("/webhooks/");
       setWebhooks(res.data);
-    } catch (_) {}
+    } catch (_) { }
   };
 
   // ── Avatar ──
@@ -188,11 +188,10 @@ export default function AccountPage() {
           <button
             key={t.id}
             onClick={() => setActiveTab(t.id)}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-all ${
-              activeTab === t.id
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-all ${activeTab === t.id
                 ? "bg-primary text-primary-foreground shadow-lg shadow-primary/30"
                 : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
-            }`}
+              }`}
           >
             <t.icon className="w-4 h-4" />
             {t.label}
@@ -290,11 +289,10 @@ export default function AccountPage() {
           </div>
 
           {generalMsg && (
-            <div className={`text-sm rounded-lg px-4 py-3 ${
-              generalMsg.type === "ok"
+            <div className={`text-sm rounded-lg px-4 py-3 ${generalMsg.type === "ok"
                 ? "bg-green-500/10 text-green-500 border border-green-500/20"
                 : "bg-red-500/10 text-red-500 border border-red-500/20"
-            }`}>
+              }`}>
               {generalMsg.text}
             </div>
           )}
@@ -362,12 +360,11 @@ export default function AccountPage() {
               {/* Strength bar */}
               {newPwd.length > 0 && (
                 <div className="mt-2 flex gap-1">
-                  {[1,2,3,4].map(i => (
-                    <div key={i} className={`h-1 flex-1 rounded-full transition-colors ${
-                      newPwd.length >= i * 3
+                  {[1, 2, 3, 4].map(i => (
+                    <div key={i} className={`h-1 flex-1 rounded-full transition-colors ${newPwd.length >= i * 3
                         ? i <= 1 ? "bg-red-400" : i <= 2 ? "bg-yellow-400" : i <= 3 ? "bg-blue-400" : "bg-green-400"
                         : "bg-border"
-                    }`} />
+                      }`} />
                   ))}
                 </div>
               )}
@@ -383,9 +380,8 @@ export default function AccountPage() {
                   type={showConfirm ? "text" : "password"}
                   value={confirmPwd}
                   onChange={(e) => setConfirmPwd(e.target.value)}
-                  className={`w-full bg-background border rounded-lg px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary transition-colors pr-10 ${
-                    confirmPwd && confirmPwd !== newPwd ? "border-red-500" : "border-border"
-                  }`}
+                  className={`w-full bg-background border rounded-lg px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary transition-colors pr-10 ${confirmPwd && confirmPwd !== newPwd ? "border-red-500" : "border-border"
+                    }`}
                   placeholder="••••••••"
                 />
                 <button type="button" onClick={() => setShowConfirm(!showConfirm)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
@@ -402,11 +398,10 @@ export default function AccountPage() {
           </div>
 
           {pwdMsg && (
-            <div className={`text-sm rounded-lg px-4 py-3 max-w-sm ${
-              pwdMsg.type === "ok"
+            <div className={`text-sm rounded-lg px-4 py-3 max-w-sm ${pwdMsg.type === "ok"
                 ? "bg-green-500/10 text-green-500 border border-green-500/20"
                 : "bg-red-500/10 text-red-500 border border-red-500/20"
-            }`}>
+              }`}>
               {pwdMsg.text}
             </div>
           )}
@@ -460,7 +455,7 @@ export default function AccountPage() {
                   type="text"
                   value={webhookDesc}
                   onChange={(e) => setWebhookDesc(e.target.value)}
-                  placeholder="e.g. Notify Slack on ticket updates"
+                  placeholder="e.g. Notify Slack on design updates"
                   className="w-full bg-background border border-border rounded-lg px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary transition-colors"
                 />
               </div>
@@ -475,11 +470,10 @@ export default function AccountPage() {
                       key={ev}
                       type="button"
                       onClick={() => toggleEvent(ev)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
-                        webhookEvents.includes(ev)
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${webhookEvents.includes(ev)
                           ? "bg-primary/20 border-primary/50 text-primary"
                           : "bg-foreground/5 border-border text-muted-foreground hover:border-foreground/20"
-                      }`}
+                        }`}
                     >
                       {ev}
                     </button>
@@ -489,11 +483,10 @@ export default function AccountPage() {
             </div>
 
             {webhookMsg && (
-              <div className={`text-sm rounded-lg px-4 py-3 ${
-                webhookMsg.type === "ok"
+              <div className={`text-sm rounded-lg px-4 py-3 ${webhookMsg.type === "ok"
                   ? "bg-green-500/10 text-green-500 border border-green-500/20"
                   : "bg-red-500/10 text-red-500 border border-red-500/20"
-              }`}>
+                }`}>
                 {webhookMsg.text}
               </div>
             )}
@@ -520,9 +513,8 @@ export default function AccountPage() {
                 {webhooks.map((wh) => (
                   <div
                     key={wh.id}
-                    className={`flex flex-col sm:flex-row sm:items-center gap-3 p-4 rounded-xl border transition-all ${
-                      wh.is_active ? "border-border bg-foreground/5" : "border-border bg-foreground/[0.02] opacity-60"
-                    }`}
+                    className={`flex flex-col sm:flex-row sm:items-center gap-3 p-4 rounded-xl border transition-all ${wh.is_active ? "border-border bg-foreground/5" : "border-border bg-foreground/[0.02] opacity-60"
+                      }`}
                   >
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">

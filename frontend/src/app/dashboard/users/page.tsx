@@ -6,7 +6,7 @@ import { useToast } from "@/lib/toast";
 import {
   Users, UserPlus, Edit2, Trash2, X, Loader2,
   CheckCircle2, AlertCircle, ShieldCheck, Paintbrush,
-  Lock,
+  Lock, ShoppingCart,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -17,21 +17,15 @@ interface User {
   username: string;
   email: string;
   full_name: string;
-  role: "admin" | "manager" | "designer";
+  role: "admin" | "customer" | "designer";
   is_active: boolean;
-  team_id?: string;
-}
-
-interface Team {
-  id: string;
-  name: string;
 }
 
 // ─── Add User Modal ───────────────────────────────────────────────────────────
 
-function AddUserModal({ onClose, onCreated, teams }: { onClose: () => void; onCreated: () => void; teams: Team[] }) {
+function AddUserModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
   const toast = useToast();
-  const [form, setForm] = useState({ username: "", email: "", full_name: "", password: "", role: "designer", team_id: "" });
+  const [form, setForm] = useState({ username: "", email: "", full_name: "", password: "", role: "designer" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -77,7 +71,7 @@ function AddUserModal({ onClose, onCreated, teams }: { onClose: () => void; onCr
               <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
                 <UserPlus className="w-5 h-5 text-primary" /> Add Member
               </h2>
-              <p className="text-sm text-muted-foreground mt-0.5">Create a new team account.</p>
+              <p className="text-sm text-muted-foreground mt-0.5">Create a new member account.</p>
             </div>
             <button onClick={onClose} className="p-2 rounded-lg hover:bg-foreground/5 transition-colors">
               <X className="w-4 h-4 text-muted-foreground" />
@@ -108,11 +102,11 @@ function AddUserModal({ onClose, onCreated, teams }: { onClose: () => void; onCr
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">Role</label>
               <div className="grid grid-cols-3 gap-2">
-                {(["designer", "manager", "admin"] as const).map((r) => {
+                {(["designer", "customer", "admin"] as const).map((r) => {
                   const isActive = form.role === r;
                   let colorClass = "border-accent bg-accent/15 text-accent";
                   if (r === "admin") colorClass = "border-primary bg-primary/15 text-primary";
-                  if (r === "manager") colorClass = "border-purple-500 bg-purple-500/15 text-purple-400";
+                  if (r === "customer") colorClass = "border-purple-500 bg-purple-500/15 text-purple-400";
 
                   return (
                     <button
@@ -120,31 +114,16 @@ function AddUserModal({ onClose, onCreated, teams }: { onClose: () => void; onCr
                       type="button"
                       onClick={() => set("role", r)}
                       className={`flex flex-col items-center gap-2 px-3 py-3 rounded-xl border-2 transition-all cursor-pointer ${isActive
-                          ? colorClass
-                          : "border-border bg-foreground/5 text-muted-foreground hover:opacity-80"
+                        ? colorClass
+                        : "border-border bg-foreground/5 text-muted-foreground hover:opacity-80"
                         }`}
                     >
-                      {r === "designer" ? <Paintbrush className="w-5 h-5" /> : r === "manager" ? <Users className="w-5 h-5" /> : <ShieldCheck className="w-5 h-5" />}
+                      {r === "designer" ? <Paintbrush className="w-5 h-5" /> : r === "customer" ? <ShoppingCart className="w-5 h-5" /> : <ShieldCheck className="w-5 h-5" />}
                       <span className="text-[10px] font-bold uppercase">{r}</span>
                     </button>
                   );
                 })}
               </div>
-            </div>
-
-            {/* Team Selection */}
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">Assign Team</label>
-              <select
-                value={form.team_id}
-                onChange={(e) => set("team_id", e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl bg-foreground/5 border border-border text-foreground focus:outline-none focus:border-primary transition-all text-sm appearance-none"
-              >
-                <option value="" className="bg-background">No Team</option>
-                {teams.map(t => (
-                  <option key={t.id} value={t.id} className="bg-background">{t.name}</option>
-                ))}
-              </select>
             </div>
 
             {error && (
@@ -175,9 +154,9 @@ function AddUserModal({ onClose, onCreated, teams }: { onClose: () => void; onCr
 
 // ─── Edit User Modal ──────────────────────────────────────────────────────────
 
-function EditUserModal({ user, onClose, onUpdated, teams }: { user: User; onClose: () => void; onUpdated: () => void; teams: Team[] }) {
+function EditUserModal({ user, onClose, onUpdated }: { user: User; onClose: () => void; onUpdated: () => void }) {
   const toast = useToast();
-  const [form, setForm] = useState({ full_name: user.full_name, role: user.role, is_active: user.is_active, team_id: user.team_id || "" });
+  const [form, setForm] = useState({ full_name: user.full_name, role: user.role, is_active: user.is_active });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -238,11 +217,11 @@ function EditUserModal({ user, onClose, onUpdated, teams }: { user: User; onClos
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">Role</label>
               <div className="grid grid-cols-3 gap-2">
-                {(["designer", "manager", "admin"] as const).map((r) => {
+                {(["designer", "customer", "admin"] as const).map((r) => {
                   const isActive = form.role === r;
                   let colorClass = "border-accent bg-accent/15 text-accent";
                   if (r === "admin") colorClass = "border-primary bg-primary/15 text-primary";
-                  if (r === "manager") colorClass = "border-purple-500 bg-purple-500/15 text-purple-400";
+                  if (r === "customer") colorClass = "border-purple-500 bg-purple-500/15 text-purple-400";
 
                   return (
                     <button
@@ -250,31 +229,16 @@ function EditUserModal({ user, onClose, onUpdated, teams }: { user: User; onClos
                       type="button"
                       onClick={() => setForm((f) => ({ ...f, role: r }))}
                       className={`flex flex-col items-center gap-2 px-3 py-3 rounded-xl border-2 transition-all cursor-pointer ${isActive
-                          ? colorClass
-                          : "border-border bg-foreground/5 text-muted-foreground hover:opacity-80"
+                        ? colorClass
+                        : "border-border bg-foreground/5 text-muted-foreground hover:opacity-80"
                         }`}
                     >
-                      {r === "designer" ? <Paintbrush className="w-5 h-5" /> : r === "manager" ? <Users className="w-5 h-5" /> : <ShieldCheck className="w-5 h-5" />}
+                      {r === "designer" ? <Paintbrush className="w-5 h-5" /> : r === "customer" ? <ShoppingCart className="w-5 h-5" /> : <ShieldCheck className="w-5 h-5" />}
                       <span className="text-[10px] font-bold uppercase">{r}</span>
                     </button>
                   );
                 })}
               </div>
-            </div>
-
-            {/* Team Selection */}
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">Assign Team</label>
-              <select
-                value={form.team_id}
-                onChange={(e) => setForm((f) => ({ ...f, team_id: e.target.value }))}
-                className="w-full px-4 py-2.5 rounded-xl bg-foreground/5 border border-border text-foreground focus:outline-none focus:border-primary transition-all text-sm appearance-none"
-              >
-                <option value="" className="bg-background">No Team</option>
-                {teams.map(t => (
-                  <option key={t.id} value={t.id} className="bg-background">{t.name}</option>
-                ))}
-              </select>
             </div>
 
             {/* Active Toggle */}
@@ -305,6 +269,60 @@ function EditUserModal({ user, onClose, onUpdated, teams }: { user: User; onClos
               className="px-6 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 disabled:opacity-60 transition-all flex items-center gap-2 shadow-lg shadow-primary/30"
             >
               {loading ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</> : <><CheckCircle2 className="w-4 h-4" /> Save Changes</>}
+            </button>
+          </div>
+        </div>
+      </motion.div>
+    </AnimatePresence>
+  );
+}
+
+// ─── Impersonate Confirm Modal ────────────────────────────────────────────────
+
+function ImpersonateConfirmModal({ user, onClose, onConfirm }: { user: User; onClose: () => void; onConfirm: () => void }) {
+  const [loading, setLoading] = useState(false);
+
+  const handleSwitch = async () => {
+    setLoading(true);
+    await onConfirm();
+    setLoading(false);
+  };
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
+        onClick={onClose}
+      />
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 10 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        transition={{ type: "spring", stiffness: 400, damping: 30 }}
+        className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none"
+      >
+        <div className="w-full max-w-sm bg-background border border-border rounded-2xl shadow-2xl pointer-events-auto p-6 text-center">
+          <div className="w-14 h-14 rounded-full bg-primary/10 border border-primary/30 flex items-center justify-center mx-auto mb-4">
+            <Lock className="w-6 h-6 text-primary" />
+          </div>
+          <h2 className="text-xl font-bold text-foreground mb-1">Switch Account?</h2>
+          <p className="text-sm text-muted-foreground mb-6">
+            You are about to switch to <span className="font-semibold text-foreground">{user.full_name}</span>'s account.
+            <br />
+            <span className="text-xs">(@{user.username})</span>
+          </p>
+          <div className="flex gap-3 justify-center">
+            <button onClick={onClose} className="px-5 py-2.5 rounded-xl border border-border text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-all">
+              Cancel
+            </button>
+            <button
+              onClick={handleSwitch}
+              disabled={loading}
+              className="px-6 py-2.5 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-semibold disabled:opacity-60 transition-all flex items-center gap-2 shadow-lg shadow-primary/30"
+            >
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Lock className="w-4 h-4" />}
+              Switch
             </button>
           </div>
         </div>
@@ -384,21 +402,11 @@ export default function UsersPage() {
   const [addOpen, setAddOpen] = useState(false);
   const [editUser, setEditUser] = useState<User | null>(null);
   const [deleteUser, setDeleteUser] = useState<User | null>(null);
-  const [teams, setTeams] = useState<Team[]>([]);
+  const [impersonateUser, setImpersonateUser] = useState<User | null>(null);
 
   useEffect(() => {
     fetchUsers();
-    fetchTeams();
   }, []);
-
-  const fetchTeams = async () => {
-    try {
-      const res = await api.get("/teams");
-      setTeams(res.data);
-    } catch (err) {
-      console.error("Failed to load teams");
-    }
-  };
 
   const fetchUsers = async () => {
     try {
@@ -412,8 +420,6 @@ export default function UsersPage() {
   };
 
   const handleImpersonate = async (user: User) => {
-    if (!confirm(`Switch to ${user.full_name}'s account?`)) return;
-
     try {
       const res = await api.post(`/auth/impersonate/${user.id}`);
       const { access_token, user: userData } = res.data;
@@ -432,23 +438,24 @@ export default function UsersPage() {
   if (loading)
     return (
       <div className="flex items-center gap-3 text-muted-foreground animate-pulse py-10">
-        <Loader2 className="w-5 h-5 animate-spin" /> Loading team members...
+        <Loader2 className="w-5 h-5 animate-spin" /> Loading members...
       </div>
     );
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       {/* Modals */}
-      {addOpen && <AddUserModal onClose={() => setAddOpen(false)} onCreated={fetchUsers} teams={teams} />}
-      {editUser && <EditUserModal user={editUser} onClose={() => setEditUser(null)} onUpdated={fetchUsers} teams={teams} />}
+      {addOpen && <AddUserModal onClose={() => setAddOpen(false)} onCreated={fetchUsers} />}
+      {editUser && <EditUserModal user={editUser} onClose={() => setEditUser(null)} onUpdated={fetchUsers} />}
       {deleteUser && <DeleteConfirmModal user={deleteUser} onClose={() => setDeleteUser(null)} onDeleted={fetchUsers} />}
+      {impersonateUser && <ImpersonateConfirmModal user={impersonateUser} onClose={() => setImpersonateUser(null)} onConfirm={() => handleImpersonate(impersonateUser)} />}
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <div className="flex items-center gap-3 mb-1">
             <div className="bg-primary/20 p-2 rounded-xl text-primary"><Users className="w-6 h-6" /></div>
-            <h2 className="text-3xl font-bold tracking-tight">Team Members</h2>
+            <h2 className="text-3xl font-bold tracking-tight">Members</h2>
           </div>
           <p className="text-muted-foreground mt-1 text-sm">
             {users.length} member{users.length !== 1 ? "s" : ""} · Manage Admin and Designer accounts.
@@ -490,10 +497,12 @@ export default function UsersPage() {
                 <div
                   className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-lg shadow-inner shrink-0 border ${u.role === "admin"
                     ? "bg-primary/20 border-primary/30 text-primary"
-                    : "bg-accent/20 border-accent/30 text-accent"
+                    : u.role === "customer"
+                      ? "bg-purple-500/20 border-purple-500/30 text-purple-400"
+                      : "bg-accent/20 border-accent/30 text-accent"
                     }`}
                 >
-                  {u.role === "admin" ? <ShieldCheck className="w-5 h-5" /> : <Paintbrush className="w-5 h-5" />}
+                  {u.role === "admin" ? <ShieldCheck className="w-5 h-5" /> : u.role === "customer" ? <ShoppingCart className="w-5 h-5" /> : <Paintbrush className="w-5 h-5" />}
                 </div>
 
                 {/* Name + username + status */}
@@ -513,23 +522,18 @@ export default function UsersPage() {
                 <div className="flex flex-col items-center gap-1">
                   <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold tracking-wider uppercase border text-center min-w-[80px] ${u.role === "admin"
                     ? "bg-primary/20 text-primary border-primary/30"
-                    : u.role === "manager"
+                    : u.role === "customer"
                       ? "bg-purple-500/20 text-purple-400 border-purple-500/30"
                       : "bg-accent/20 text-accent border-accent/30"
                     }`}>
                     {u.role}
                   </span>
-                  {u.team_id && (
-                    <span className="text-[9px] text-muted-foreground font-bold uppercase">
-                      {teams.find(t => t.id === u.team_id)?.name || "Unknown Team"}
-                    </span>
-                  )}
                 </div>
 
                 {/* Actions */}
                 <div className="flex items-center gap-1">
                   <button
-                    onClick={() => handleImpersonate(u)}
+                    onClick={() => setImpersonateUser(u)}
                     title="Switch to this account"
                     className="p-2 bg-muted hover:bg-primary/10 text-muted-foreground hover:text-primary rounded-lg transition-colors"
                   >

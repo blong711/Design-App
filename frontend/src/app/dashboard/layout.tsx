@@ -3,9 +3,10 @@
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
-import { LogOut, Palette, LayoutDashboard, Ticket, Settings, Activity, Users, UserCircle2 } from "lucide-react";
+import { LogOut, Palette, LayoutDashboard, Briefcase, Settings, Activity, Users, UserCircle2, ShoppingCart, Wallet, MessageSquare, Trophy } from "lucide-react";
 import { motion } from "framer-motion";
 import { useSettings } from "@/lib/settings-context";
+import { api } from "@/lib/api";
 
 export default function DashboardLayout({
   children,
@@ -16,7 +17,10 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [customerBalance, setCustomerBalance] = useState<number | null>(null);
   const { layoutMode } = useSettings();
+
+  const [pendingDepositCount, setPendingDepositCount] = useState(0);
 
   useEffect(() => {
     const token = localStorage.getItem("access_token");
@@ -25,9 +29,32 @@ export default function DashboardLayout({
       router.push("/login");
       return;
     }
-    setUser(JSON.parse(storedUser));
+    const parsedUser = JSON.parse(storedUser);
+    setUser(parsedUser);
     setLoading(false);
+    if (parsedUser?.role === "customer") {
+      api.get("/auth/me").then((res) => {
+        if (res.data?.balance !== undefined) setCustomerBalance(res.data.balance);
+      }).catch(() => { });
+    }
   }, [router]);
+
+  // Poll pending deposit count for admin
+  useEffect(() => {
+    const storedUser = localStorage.getItem("user");
+    if (!storedUser) return;
+    const parsedUser = JSON.parse(storedUser);
+    if (parsedUser?.role !== "admin") return;
+
+    const fetchPendingDeposits = () => {
+      api.get("/deposits?status=pending").then((res) => {
+        setPendingDepositCount(Array.isArray(res.data) ? res.data.length : 0);
+      }).catch(() => { });
+    };
+    fetchPendingDeposits();
+    const interval = setInterval(fetchPendingDeposits, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Sync user info when account page updates localStorage
   useEffect(() => {
@@ -54,27 +81,31 @@ export default function DashboardLayout({
 
   const adminLinks = [
     { name: "Overview", href: "/dashboard", icon: LayoutDashboard },
-    { name: "All Tickets", href: "/dashboard/tickets", icon: Ticket },
-    { name: "Teams", href: "/dashboard/teams", icon: Users },
+    { name: "All Designs", href: "/dashboard/designs", icon: Briefcase },
     { name: "Users", href: "/dashboard/users", icon: UserCircle2 },
+    { name: "Transactions", href: "/dashboard/transactions", icon: Wallet, badge: pendingDepositCount },
     { name: "API Keys", href: "/dashboard/api-keys", icon: Settings },
   ];
 
-  const managerLinks = [
+  const customerLinks = [
     { name: "Overview", href: "/dashboard", icon: LayoutDashboard },
-    { name: "All Tickets", href: "/dashboard/tickets", icon: Ticket },
-    { name: "Teams", href: "/dashboard/teams", icon: Users },
+    { name: "My Designs", href: "/dashboard/designs", icon: Briefcase },
+    { name: "Brand Kit", href: "/dashboard/brand", icon: Palette },
+    { name: "Project Pricing", href: "/dashboard/pricing", icon: ShoppingCart },
+    { name: "Transactions", href: "/dashboard/transactions", icon: Wallet },
+    { name: "Support Hub", href: "/dashboard/support", icon: MessageSquare },
   ];
 
   const designerLinks = [
     { name: "Overview", href: "/dashboard", icon: LayoutDashboard },
-    { name: "Kanban Board", href: "/dashboard/board", icon: Activity },
+    { name: "Design Board", href: "/dashboard/board", icon: Activity },
+    { name: "Rankings", href: "/dashboard/rankings", icon: Trophy },
   ];
 
   const links = user?.role === "admin"
     ? adminLinks
-    : user?.role === "manager"
-      ? managerLinks
+    : user?.role === "customer"
+      ? customerLinks
       : designerLinks;
 
   /* ── HORIZONTAL LAYOUT ── */
@@ -110,6 +141,9 @@ export default function DashboardLayout({
                     )}
                     <link.icon className="w-4 h-4 relative z-10" />
                     <span className="relative z-10 hidden sm:inline">{link.name}</span>
+                    {(link as any).badge > 0 && (
+                      <span className="relative z-10 ml-1 px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-red-500 text-white">{(link as any).badge}</span>
+                    )}
                   </div>
                 </Link>
               );
@@ -175,12 +209,16 @@ export default function DashboardLayout({
                     />
                   )}
                   <link.icon className="w-5 h-5 relative z-10" />
-                  <span className="font-medium relative z-10">{link.name}</span>
+                  <span className="font-medium relative z-10 flex-1">{link.name}</span>
+                  {(link as any).badge > 0 && (
+                    <span className="relative z-10 px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-red-500 text-white">{(link as any).badge}</span>
+                  )}
                 </div>
               </Link>
             );
           })}
         </nav>
+
 
         <div className="p-4 border-t border-border/50 bg-background/20 backdrop-blur-md flex flex-col gap-2">
           <Link href="/dashboard/account">
@@ -194,6 +232,11 @@ export default function DashboardLayout({
               <div className="flex-1 min-w-0">
                 <p className="font-medium text-sm text-foreground/90 truncate">{user.full_name}</p>
                 <p className="text-xs text-muted-foreground capitalize">{user.role}</p>
+                {user?.role === "customer" && customerBalance !== null && (
+                  <p className="text-[11px] text-primary font-semibold mt-0.5">
+                    ${customerBalance.toFixed(2)}
+                  </p>
+                )}
               </div>
               <UserCircle2 className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
             </div>

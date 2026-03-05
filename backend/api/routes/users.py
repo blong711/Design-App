@@ -1,15 +1,18 @@
 from fastapi import APIRouter, Depends, HTTPException
-from typing import List
+from typing import List, Optional
 from models.user import UserCreate, UserResponse, UserInDB, UserUpdate
-from api.deps import get_db, get_current_admin
+from api.deps import get_db, get_current_user, get_current_admin
 from core.security import get_password_hash
 from bson import ObjectId
 
 router = APIRouter()
 
 @router.get("/", response_model=List[UserResponse])
-async def read_users(db=Depends(get_db), current_user=Depends(get_current_admin)):
-    users = await db["users"].find().to_list(length=100)
+async def read_users(role: Optional[str] = None, db=Depends(get_db), current_user=Depends(get_current_admin)):
+    query = {}
+    if role:
+        query["role"] = role
+    users = await db["users"].find(query).to_list(length=100)
     return [UserResponse.from_mongo(user) for user in users]
 
 @router.post("/", response_model=UserResponse)
@@ -28,6 +31,16 @@ async def create_user(user_in: UserCreate, db=Depends(get_db), current_user=Depe
     result = await db["users"].insert_one(user_db.dict(by_alias=True))
     created_user = await db["users"].find_one({"_id": result.inserted_id})
     return UserResponse.from_mongo(created_user)
+
+@router.get("/{user_id}", response_model=UserResponse)
+async def read_user(user_id: str, db=Depends(get_db), current_user: UserResponse = Depends(get_current_user)):
+    if current_user.role != "admin" and current_user.id != user_id:
+        raise HTTPException(status_code=403, detail="Not enough permissions")
+    
+    user = await db["users"].find_one({"_id": ObjectId(user_id)})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return UserResponse.from_mongo(user)
 
 @router.patch("/{user_id}", response_model=UserResponse)
 async def update_user(

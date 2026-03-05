@@ -36,7 +36,3 @@ async def get_current_admin(current_user: UserResponse = Depends(get_current_use
         raise HTTPException(status_code=403, detail="The user does not have enough privileges")
     return current_user
 
-async def get_current_manager(current_user: UserResponse = Depends(get_current_user)) -> UserResponse:
-    if current_user.role not in ["admin", "manager"]:
-        raise HTTPException(status_code=403, detail="The user does not have enough privileges")
-    return current_user
