@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
-import { LogOut, Palette, LayoutDashboard, Briefcase, Settings, Activity, Users, UserCircle2, ShoppingCart, Wallet } from "lucide-react";
+import { LogOut, Palette, LayoutDashboard, Briefcase, Settings, Activity, Users, UserCircle2, ShoppingCart, Wallet, MessageSquare, Trophy } from "lucide-react";
 import { motion } from "framer-motion";
 import { useSettings } from "@/lib/settings-context";
 import { api } from "@/lib/api";
@@ -90,12 +90,16 @@ export default function DashboardLayout({
   const customerLinks = [
     { name: "Overview", href: "/dashboard", icon: LayoutDashboard },
     { name: "My Designs", href: "/dashboard/designs", icon: Briefcase },
+    { name: "Brand Kit", href: "/dashboard/brand", icon: Palette },
+    { name: "Project Pricing", href: "/dashboard/pricing", icon: ShoppingCart },
     { name: "Transactions", href: "/dashboard/transactions", icon: Wallet },
+    { name: "Support Hub", href: "/dashboard/support", icon: MessageSquare },
   ];
 
   const designerLinks = [
     { name: "Overview", href: "/dashboard", icon: LayoutDashboard },
-    { name: "Design", href: "/dashboard/board", icon: Activity },
+    { name: "Design Board", href: "/dashboard/board", icon: Activity },
+    { name: "Rankings", href: "/dashboard/rankings", icon: Trophy },
   ];
 
   const links = user?.role === "admin"

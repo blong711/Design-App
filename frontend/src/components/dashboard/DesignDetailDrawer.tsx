@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { api } from "@/lib/api";
 import { useToast } from "@/lib/toast";
 import { useSettings } from "@/lib/settings-context";
-import { X, MessageSquare, Send, Clock, User, ExternalLink, Image as ImageIcon, ArrowRight, RefreshCw, ChevronDown, Check, DollarSign, Calendar, AlertTriangle, Trash2, Upload, UploadCloud, FileCheck, Star, StarOff } from "lucide-react";
+import { X, MessageSquare, Send, Clock, User, ExternalLink, Image as ImageIcon, ArrowRight, RefreshCw, ChevronDown, Check, DollarSign, Calendar, AlertTriangle, Trash2, Upload, UploadCloud, FileCheck, Star, StarOff, Palette, ShieldCheck } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface Comment {
@@ -47,6 +47,9 @@ export default function DesignDetailDrawer({ designId, onClose, currentUser, onU
     const [showDesignerSelect, setShowDesignerSelect] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
     const [showStatusDropdown, setShowStatusDropdown] = useState(false);
+    const [brandKit, setBrandKit] = useState<any>(null);
+    const [loadingBrandKit, setLoadingBrandKit] = useState(false);
+    const [showBrandKit, setShowBrandKit] = useState(false);
     const [editingPrice, setEditingPrice] = useState(false);
     const [priceInput, setPriceInput] = useState("");
     const [savingPrice, setSavingPrice] = useState(false);
@@ -108,11 +111,31 @@ export default function DesignDetailDrawer({ designId, onClose, currentUser, onU
             // Auto-refresh activity every 3 seconds
             const interval = setInterval(() => {
                 fetchActivity();
+                if (currentUser.role !== 'customer') {
+                    fetchBrandKit(designId);
+                }
             }, 3000);
 
             return () => clearInterval(interval);
         }
     }, [designId]);
+
+    const fetchBrandKit = async (id: string) => {
+        try {
+            setLoadingBrandKit(true);
+            // First get design to get customer_id
+            const resD = await api.get(`/designs/${id}`);
+            const customerId = resD.data.created_by;
+            if (customerId) {
+                const resB = await api.get(`/brand?user_id=${customerId}`);
+                setBrandKit(resB.data);
+            }
+        } catch (err) {
+            console.error("Failed to load brand kit", err);
+        } finally {
+            setLoadingBrandKit(false);
+        }
+    };
 
     useEffect(() => {
         if (scrollRef.current) {
@@ -857,6 +880,66 @@ export default function DesignDetailDrawer({ designId, onClose, currentUser, onU
                                                     </div>
                                                 )
                                             )}
+                                        </div>
+                                    )}
+
+                                    {/* Brand Kit (Customer Identity) — visible to designers/admins */}
+                                    {currentUser?.role !== "customer" && brandKit && (
+                                        <div className={`p-6 rounded-[2rem] ${isDark ? 'bg-primary/5 border-primary/20' : 'bg-primary/5 border-primary/10'} border mb-6 relative overflow-hidden group`}>
+                                            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                                                <Palette className="w-12 h-12" />
+                                            </div>
+
+                                            <div className="relative z-10">
+                                                <div className="flex items-center justify-between mb-4">
+                                                    <h3 className={`text-sm font-black ${isDark ? 'text-primary' : 'text-primary/70'} uppercase tracking-widest flex items-center gap-2`}>
+                                                        <ShieldCheck className="w-4 h-4" />
+                                                        Brand Guidelines
+                                                    </h3>
+                                                    <button
+                                                        onClick={() => setShowBrandKit(!showBrandKit)}
+                                                        className="text-[10px] font-black uppercase text-muted-foreground hover:text-primary transition-colors"
+                                                    >
+                                                        {showBrandKit ? "Hide Details" : "View Kit"}
+                                                    </button>
+                                                </div>
+
+                                                <div className="flex items-center gap-4 mb-4">
+                                                    <div className="w-12 h-12 rounded-2xl bg-foreground/5 border border-border flex items-center justify-center font-black text-xl text-primary shrink-0 shadow-inner">
+                                                        {brandKit.brand_name?.charAt(0) || "B"}
+                                                    </div>
+                                                    <div>
+                                                        <p className={`text-base font-black ${textPrimary}`}>{brandKit.brand_name || "Official Brand"}</p>
+                                                        <p className="text-[10px] font-bold text-muted-foreground uppercase">{brandKit.primary_font} & {brandKit.secondary_font}</p>
+                                                    </div>
+                                                </div>
+
+                                                {showBrandKit && (
+                                                    <motion.div
+                                                        initial={{ height: 0, opacity: 0 }}
+                                                        animate={{ height: "auto", opacity: 1 }}
+                                                        className="space-y-4 pt-4 border-t border-border/50"
+                                                    >
+                                                        <div className="grid grid-cols-4 gap-2">
+                                                            {brandKit.colors?.map((c: any, i: number) => (
+                                                                <div key={i} className="space-y-1">
+                                                                    <div
+                                                                        className="w-full h-8 rounded-lg border border-white/10 shadow-sm"
+                                                                        style={{ backgroundColor: c.hex }}
+                                                                        title={c.name}
+                                                                    />
+                                                                    <div className="text-[8px] font-mono font-bold text-center opacity-50">{c.hex}</div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                        {brandKit.description && (
+                                                            <p className="text-xs italic text-muted-foreground leading-relaxed line-clamp-3">
+                                                                "{brandKit.description}"
+                                                            </p>
+                                                        )}
+                                                    </motion.div>
+                                                )}
+                                            </div>
                                         </div>
                                     )}
 

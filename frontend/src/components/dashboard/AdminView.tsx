@@ -3,9 +3,11 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
 import { useToast } from "@/lib/toast";
-import { Plus, DollarSign, Activity, FileCheck, AlertCircle, X, Upload, ImageIcon, Loader2, CheckCircle2, UserPlus, ChevronDown, ChevronLeft, ChevronRight, Paintbrush, Calendar, Filter, Check, Clock, AlertTriangle, ArrowUpRight, History } from "lucide-react";
+import { Plus, DollarSign, Activity, FileCheck, AlertCircle, X, Upload, ImageIcon, Loader2, CheckCircle2, UserPlus, ChevronDown, ChevronLeft, ChevronRight, Paintbrush, Calendar, Filter, Check, Clock, AlertTriangle, ArrowUpRight, History, MessageSquare, RefreshCw, Send } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { formatVietnamDate, formatVietnamDateTime } from "@/lib/date-utils";
+import AdminSettingsManager from "./AdminSettingsManager";
+import DesignerPortfolioModal from "./DesignerPortfolioModal";
 
 // ─── Designer Picker ─────────────────────────────────────────────────────────
 
@@ -106,7 +108,7 @@ function DesignerPicker({
   );
 }
 
-function NewDesignDrawer({ open, onClose, onCreated, designers }: { open: boolean; onClose: () => void; onCreated: () => void; designers: any[] }) {
+function NewDesignDrawer({ open, onClose, onCreated, designers, pricingTemplates = [] }: { open: boolean; onClose: () => void; onCreated: () => void; designers: any[]; pricingTemplates?: any[] }) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
@@ -239,17 +241,32 @@ function NewDesignDrawer({ open, onClose, onCreated, designers }: { open: boolea
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Price (USD)</label>
                 <div className="flex gap-2 mb-3 overflow-x-auto pb-1 scrollbar-hide">
-                  {[10, 25, 50, 100].map(p => (
-                    <button
-                      key={p}
-                      type="button"
-                      onClick={() => setPrice(p.toString())}
-                      className={`px-4 py-2 rounded-xl border text-xs font-bold transition-all shrink-0 ${price === p.toString() ? 'bg-primary border-primary text-primary-foreground shadow-lg shadow-primary/20' : 'bg-foreground/5 border-border text-muted-foreground hover:border-foreground/20'
-                        }`}
-                    >
-                      ${p}
-                    </button>
-                  ))}
+                  {pricingTemplates.length > 0 ? (
+                    pricingTemplates.map((t: any) => (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => setPrice(t.price.toString())}
+                        title={t.description}
+                        className={`px-3 py-2 rounded-xl border text-[10px] font-black transition-all shrink-0 ${price === t.price.toString() ? 'bg-primary border-primary text-primary-foreground shadow-lg shadow-primary/20' : 'bg-foreground/5 border-border text-muted-foreground hover:border-foreground/20'
+                          }`}
+                      >
+                        {t.name} (${t.price})
+                      </button>
+                    ))
+                  ) : (
+                    [10, 25, 50, 100].map(p => (
+                      <button
+                        key={p}
+                        type="button"
+                        onClick={() => setPrice(p.toString())}
+                        className={`px-4 py-2 rounded-xl border text-xs font-bold transition-all shrink-0 ${price === p.toString() ? 'bg-primary border-primary text-primary-foreground shadow-lg shadow-primary/20' : 'bg-foreground/5 border-border text-muted-foreground hover:border-foreground/20'
+                          }`}
+                      >
+                        ${p}
+                      </button>
+                    ))
+                  )}
                 </div>
                 <div className="relative">
                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground font-medium">$</span>
@@ -474,6 +491,11 @@ export default function AdminView() {
   const [assigningDesign, setAssigningDesign] = useState<any | null>(null);
   const [user, setUser] = useState<any>(null);
   const [revenueHistory, setRevenueHistory] = useState<any[]>([]);
+  const [pricingTemplates, setPricingTemplates] = useState<any[]>([]);
+  const [portfolioDesigner, setPortfolioDesigner] = useState<any | null>(null);
+  const [broadcastMsg, setBroadcastMsg] = useState("");
+  const [broadcastType, setBroadcastType] = useState("info");
+  const [sendingBroadcast, setSendingBroadcast] = useState(false);
 
   // Filter & UI state
   const [timeFilter, setTimeFilter] = useState("all");
@@ -499,7 +521,17 @@ export default function AdminView() {
     fetchDesigners();
     fetchDeposits();
     fetchRevenueHistory();
+    fetchPricingTemplates();
   }, []);
+
+  const fetchPricingTemplates = async () => {
+    try {
+      const res = await api.get("/pricing");
+      setPricingTemplates(res.data);
+    } catch (e) {
+      console.error("Failed to load pricing templates", e);
+    }
+  };
 
   const fetchRevenueHistory = async () => {
     try {
@@ -507,6 +539,33 @@ export default function AdminView() {
       setRevenueHistory(res.data);
     } catch (e) {
       console.error("Failed to load revenue history", e);
+    }
+  };
+
+  const handleSendBroadcast = async () => {
+    if (!broadcastMsg.trim()) return;
+    setSendingBroadcast(true);
+    try {
+      await api.post("/notifications", {
+        message: broadcastMsg,
+        type: broadcastType,
+        is_active: true
+      });
+      toast("Broadcast message sent to all users!", "success");
+      setBroadcastMsg("");
+    } catch (e: any) {
+      toast(e.response?.data?.detail || "Failed to send broadcast", "error");
+    } finally {
+      setSendingBroadcast(false);
+    }
+  };
+
+  const handleClearBroadcast = async () => {
+    try {
+      await api.delete("/notifications");
+      toast("Broadcast cleared", "info");
+    } catch (e) {
+      toast("Failed to clear broadcast", "error");
     }
   };
 
@@ -727,6 +786,8 @@ export default function AdminView() {
       name: string;
       completed: number;
       thisMonth: number;
+      totalStars: number;
+      ratingCount: number;
     }> = {};
 
     const now = new Date();
@@ -739,6 +800,8 @@ export default function AdminView() {
         name: designer.full_name,
         completed: 0,
         thisMonth: 0,
+        totalStars: 0,
+        ratingCount: 0,
       };
     });
 
@@ -749,6 +812,11 @@ export default function AdminView() {
 
       if (ticket.status === 'completed') {
         stats.completed++;
+
+        if (ticket.rating) {
+          stats.totalStars += ticket.rating;
+          stats.ratingCount++;
+        }
 
         // Check if completed this month
         const completionDate = ticket.completed_at || ticket.updated_at;
@@ -761,7 +829,10 @@ export default function AdminView() {
       }
     });
 
-    return Object.values(designerStats);
+    return Object.values(designerStats).map((s: any) => ({
+      ...s,
+      avgRating: s.ratingCount > 0 ? (s.totalStars / s.ratingCount).toFixed(1) : "N/A"
+    }));
   };
 
   const designerPerformance = getDesignerPerformance();
@@ -1012,6 +1083,78 @@ export default function AdminView() {
             </div>
           </motion.div>
         )}
+
+        {/* Broadcast Management */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.45 }}
+          className={`p-8 rounded-[2rem] glass-panel border border-border relative overflow-hidden`}
+        >
+          <div className="absolute top-0 right-0 p-8 opacity-5">
+            <MessageSquare className="w-32 h-32" />
+          </div>
+
+          <div className="relative z-10">
+            <h3 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70 mb-2">System Broadcast</h3>
+            <p className="text-sm text-muted-foreground mb-6 font-medium">Send a global announcement banner to all users (Customer & Designer).</p>
+
+            <div className="max-w-3xl space-y-4">
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="E.g. Maintenance scheduled for 10 PM tonight..."
+                  value={broadcastMsg}
+                  onChange={(e) => setBroadcastMsg(e.target.value)}
+                  className="w-full bg-foreground/5 border border-border rounded-2xl py-4 pl-6 pr-4 focus:outline-none focus:border-primary/50 transition-all font-medium"
+                />
+              </div>
+
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div className="flex gap-2">
+                  {[
+                    { id: 'info', label: 'Info', color: 'bg-primary' },
+                    { id: 'warning', label: 'Warning', color: 'bg-amber-500' },
+                    { id: 'danger', label: 'Danger', color: 'bg-red-500' }
+                  ].map(t => (
+                    <button
+                      key={t.id}
+                      onClick={() => setBroadcastType(t.id)}
+                      className={`px-4 py-2 rounded-xl text-xs font-bold transition-all border ${broadcastType === t.id
+                        ? `${t.color} text-white border-transparent shadow-lg shadow-${t.id}/20`
+                        : 'bg-foreground/5 border-border text-muted-foreground hover:border-foreground/20'
+                        }`}
+                    >
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={handleClearBroadcast}
+                    className="px-6 py-3 rounded-xl border border-border text-sm font-bold text-muted-foreground hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/20 transition-all"
+                  >
+                    Clear Banner
+                  </button>
+                  <button
+                    disabled={!broadcastMsg.trim() || sendingBroadcast}
+                    onClick={handleSendBroadcast}
+                    className="px-8 py-3 rounded-xl bg-foreground text-background font-bold text-sm hover:opacity-90 disabled:opacity-50 transition-all flex items-center gap-2 shadow-xl"
+                  >
+                    {sendingBroadcast ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                    Broadcast Live
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* System Management: Pricing & Export */}
+        <div className="mt-12">
+          <AdminSettingsManager />
+        </div>
 
         {/* Recent Designs Table */}
         <motion.div
@@ -1484,24 +1627,34 @@ export default function AdminView() {
               <thead>
                 <tr className="border-b border-border text-muted-foreground text-sm">
                   <th className="pb-4 font-medium px-4">Designer</th>
+                  <th className="pb-4 font-medium px-4 text-center">Avg. Rating</th>
                   <th className="pb-4 font-medium px-4 text-center">Completed</th>
-                  <th className="pb-4 font-medium px-4 text-right">This Month</th>
+                  <th className="pb-4 font-medium px-4 text-center">This Month</th>
+                  <th className="pb-4 font-bold px-4 text-right">Portfolio</th>
                 </tr>
               </thead>
               <tbody>
                 {designerPerformance.length === 0 && (
                   <tr>
-                    <td colSpan={3} className="py-8 text-center text-muted-foreground">No designers found.</td>
+                    <td colSpan={5} className="py-8 text-center text-muted-foreground">No designers found.</td>
                   </tr>
                 )}
                 {designerPerformance.map((designer) => (
-                  <tr key={designer.id} className="border-b border-border hover:bg-foreground/5 transition-colors">
+                  <tr key={designer.id} className="border-b border-border hover:bg-foreground/5 transition-colors group">
                     <td className="py-4 px-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center text-primary text-xs font-bold">
+                        <div className="w-8 h-8 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center text-primary text-xs font-bold shadow-inner">
                           {designer.name.charAt(0).toUpperCase()}
                         </div>
                         <span className="font-medium text-foreground">{designer.name}</span>
+                      </div>
+                    </td>
+                    <td className="py-4 px-4 text-center">
+                      <div className="flex items-center justify-center gap-1.5 font-bold">
+                        <Activity className="w-3.5 h-3.5 text-amber-500" />
+                        <span className={designer.avgRating !== 'N/A' ? 'text-amber-500' : 'text-muted-foreground'}>
+                          {designer.avgRating}
+                        </span>
                       </div>
                     </td>
                     <td className="py-4 px-4 text-center">
@@ -1509,10 +1662,18 @@ export default function AdminView() {
                         {designer.completed}
                       </span>
                     </td>
-                    <td className="py-4 px-4 text-right">
+                    <td className="py-4 px-4 text-center">
                       <span className="font-medium text-blue-400">
                         {designer.thisMonth}
                       </span>
+                    </td>
+                    <td className="py-4 px-4 text-right">
+                      <button
+                        onClick={() => setPortfolioDesigner(designer)}
+                        className="px-4 py-2 rounded-xl bg-foreground/5 text-foreground hover:bg-foreground hover:text-background text-xs font-bold transition-all shadow-xl opacity-0 group-hover:opacity-100"
+                      >
+                        Showcase
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -1529,6 +1690,7 @@ export default function AdminView() {
         onClose={() => setDrawerOpen(false)}
         onCreated={() => { fetchStats(); fetchDesigns(); }}
         designers={designers}
+        pricingTemplates={pricingTemplates}
       />
 
       {assigningDesign && (
@@ -1537,6 +1699,12 @@ export default function AdminView() {
           designers={designers}
           onClose={() => setAssigningDesign(null)}
           onAssigned={() => { fetchDesigns(); fetchStats(); setAssigningDesign(null); }}
+        />
+      )}
+      {portfolioDesigner && (
+        <DesignerPortfolioModal
+          designer={portfolioDesigner}
+          onClose={() => setPortfolioDesigner(null)}
         />
       )}
     </>

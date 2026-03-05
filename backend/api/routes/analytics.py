@@ -208,3 +208,104 @@ async def get_revenue_history(
         })
         
     return history
+from fastapi.responses import StreamingResponse
+import io
+import csv
+
+@router.get("/export-designs")
+async def export_designs(
+    db=Depends(get_db),
+    current_user: UserResponse = Depends(get_current_admin)
+):
+    """Export all designs as CSV."""
+    cursor = db["designs"].find({"is_deleted": False}).sort("created_at", -1)
+    designs = await cursor.to_list(length=2000)
+    
+    # Create CSV in memory
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["Title", "Description", "Price", "Status", "Payment Status", "Created At", "Completed At"])
+    
+    for d in designs:
+        writer.writerow([
+            d.get("title", ""),
+            d.get("description", ""),
+            d.get("price", 0),
+            d.get("status", ""),
+            d.get("payment_status", ""),
+            d.get("created_at", "").isoformat() if d.get("created_at") else "",
+            d.get("completed_at", "").isoformat() if d.get("completed_at") else ""
+        ])
+        
+    output.seek(0)
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename=designs_export_{datetime.now().strftime('%Y%m%d')}.csv"}
+    )
+@router.get("/rankings")
+async def get_rankings(
+    db=Depends(get_db),
+    current_user: UserResponse = Depends(get_current_user)
+):
+    """Get designer leaderboard stats."""
+    # Only Admin and Designer can see rankings
+    if current_user.role not in ["admin", "designer"]:
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    # Get all designers
+    designers_cursor = db["users"].find({"role": "designer", "is_active": True})
+    designers = await designers_cursor.to_list(length=100)
+    
+    now = datetime.now(timezone.utc)
+    start_of_month = datetime(now.year, now.month, 1, tzinfo=timezone.utc)
+    
+    rankings = []
+    
+    for d in designers:
+        user_id = d["_id"]
+        
+        # Aggregate stats
+        pipeline = [
+            {"$match": {
+                "assigned_to": user_id,
+                "is_deleted": False,
+                "status": "completed"
+            }},
+            {"$group": {
+                "_id": None,
+                "total_completed": {"$sum": 1},
+                "total_rating": {"$sum": "$rating"},
+                "rating_count": {"$sum": {"$cond": [{"$gt": ["$rating", 0]}, 1, 0]}},
+                "completed_this_month": {
+                    "$sum": {"$cond": [{"$gte": ["$completed_at", start_of_month]}, 1, 0]}
+                }
+            }}
+        ]
+        
+        result = await db["designs"].aggregate(pipeline).to_list(1)
+        stats = result[0] if result else {
+            "total_completed": 0, 
+            "total_rating": 0, 
+            "rating_count": 0, 
+            "completed_this_month": 0
+        }
+        
+        avg_rating = 0
+        if stats.get("rating_count", 0) > 0:
+            avg_rating = round(stats["total_rating"] / stats["rating_count"], 1)
+            
+        rankings.append({
+            "id": str(user_id),
+            "name": d.get("full_name", "Unknown"),
+            "username": d.get("username", ""),
+            "avatar_url": d.get("avatar_url"),
+            "completed": stats.get("total_completed", 0),
+            "thisMonth": stats.get("completed_this_month", 0),
+            "avgRating": avg_rating if stats.get("rating_count", 0) > 0 else "N/A"
+        })
+        
+    # Sort by completed desc, then rating desc
+    rankings.sort(key=lambda x: (x["completed"], 0 if x["avgRating"] == "N/A" else x["avgRating"]), reverse=True)
+    
+    return rankings
