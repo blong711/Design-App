@@ -48,6 +48,13 @@ export default function DesignerView({ user }: { user: any }) {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [detailDesignId, setDetailDesignId] = useState<string | null>(null);
+  const [collapsedCols, setCollapsedCols] = useState<Set<string>>(new Set());
+
+  const toggleCol = (id: string) => setCollapsedCols(prev => {
+    const next = new Set(prev);
+    next.has(id) ? next.delete(id) : next.add(id);
+    return next;
+  });
 
   useEffect(() => {
     fetchDesigns();
@@ -196,18 +203,53 @@ export default function DesignerView({ user }: { user: any }) {
         // Kanban Board View - Scrollable Columns
         <div className="flex-1 overflow-hidden">
           <DragDropContext onDragEnd={onDragEnd}>
-            <div className="flex gap-4 px-6 py-4 overflow-x-auto h-full">
-              {COLUMNS.map(col => (
-                <div key={col.id} className="flex flex-col rounded-xl glass-panel border border-border flex-1 min-w-[260px]">
+            <div className="flex gap-2 px-6 py-4 overflow-x-auto h-full">
+              {COLUMNS.map((col, colIdx) => {
+                const isCollapsed = collapsedCols.has(col.id);
+                return isCollapsed ? (
+                  // Collapsed column — narrow vertical strip, pushed to right
+                  <div
+                    key={col.id}
+                    onClick={() => toggleCol(col.id)}
+                    title={`Expand ${col.title}`}
+                    className="shrink-0 flex flex-col items-center rounded-xl glass-panel border border-border cursor-pointer hover:border-primary/40 transition-all"
+                    style={{ width: 44, order: 100 + colIdx }}
+                  >
+                    <div className="flex flex-col items-center gap-3 py-4 flex-1">
+                      <col.icon className={`w-4 h-4 ${col.color}`} />
+                      <span className="text-[10px] font-bold text-muted-foreground bg-foreground/10 w-6 h-6 rounded-full flex items-center justify-center shrink-0">
+                        {columns[col.id]?.length || 0}
+                      </span>
+                      <div className="flex-1 flex items-center justify-center mt-2">
+                        <span
+                          className="text-[10px] uppercase tracking-widest font-semibold text-foreground/50 whitespace-nowrap"
+                          style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
+                        >
+                          {col.title}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                <div key={col.id} className="flex flex-col rounded-xl glass-panel border border-border flex-1 min-w-[260px]" style={{ order: colIdx }}>
                   {/* Sticky Column Header */}
                   <div className="sticky top-0 z-10 px-4 py-3 bg-background/95 backdrop-blur-sm border-b border-border flex items-center justify-between">
                     <div className="flex items-center gap-2 font-semibold">
                       <col.icon className={`w-4 h-4 ${col.color}`} />
                       <span className="text-xs uppercase tracking-wider text-foreground/80">{col.title}</span>
                     </div>
-                    <span className="text-xs font-bold text-muted-foreground bg-foreground/10 px-2 py-0.5 rounded-full">
-                      {columns[col.id]?.length || 0}
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-bold text-muted-foreground bg-foreground/10 px-2 py-0.5 rounded-full">
+                        {columns[col.id]?.length || 0}
+                      </span>
+                      <button
+                        onClick={() => toggleCol(col.id)}
+                        title="Collapse column"
+                        className="w-5 h-5 flex items-center justify-center rounded hover:bg-foreground/10 text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                      </button>
+                    </div>
                   </div>
 
                   {/* Scrollable Droppable Area */}
@@ -324,7 +366,8 @@ export default function DesignerView({ user }: { user: any }) {
                     )}
                   </Droppable>
                 </div>
-              ))}
+                ); // end isCollapsed ternary
+              })}
             </div>
           </DragDropContext>
         </div>
