@@ -6,6 +6,8 @@ import { Filter, Search, X, ChevronDown, ChevronLeft, ChevronRight, Plus } from 
 import { formatVietnamDate } from "@/lib/date-utils";
 import DesignDetailDrawer from "@/components/dashboard/DesignDetailDrawer";
 import NewDesignDrawer from "@/components/dashboard/NewDesignDrawer";
+import DesignerView from "@/components/dashboard/DesignerView";
+import CustomerView from "@/components/dashboard/CustomerView";
 
 interface User {
   id: string;
@@ -125,6 +127,14 @@ export default function DesignsPage() {
   useEffect(() => { setPage(1); }, [search, statusFilter, paymentFilter]);
 
   if (loading) return <div className="animate-pulse text-muted-foreground py-10">Loading designs...</div>;
+
+  if (currentUser?.role === "designer") {
+    return <DesignerView user={currentUser} />;
+  }
+
+  if (currentUser?.role === "customer") {
+    return <CustomerView user={currentUser} initialView="dashboard" />;
+  }
 
   return (
     <>

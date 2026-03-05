@@ -451,43 +451,49 @@ export default function DesignDetailDrawer({ designId, onClose, currentUser, onU
                         <div className={`p-6 ${borderColor} border-b ${isDark ? 'bg-gradient-to-r from-primary/20 to-accent/20' : 'bg-gradient-to-r from-primary/10 to-accent/10'}`}>
                             {/* Top Row: Status Dropdown & Close Button */}
                             <div className="flex items-center justify-between gap-3 mb-3">
-                                {/* Status Dropdown */}
+                                {/* Status — read-only for customer, dropdown for others */}
                                 {design && (
-                                    <div className="relative status-dropdown-container">
-                                        <button
-                                            onClick={() => setShowStatusDropdown(!showStatusDropdown)}
-                                            className={`flex items-center gap-2 px-4 py-2 rounded-xl ${isDark ? 'bg-white/10 hover:bg-white/20 border-white/20' : 'bg-gray-200 hover:bg-gray-300 border-gray-300'} border transition-all font-semibold text-sm ${textPrimary} whitespace-nowrap`}
-                                        >
+                                    currentUser?.role === "customer" ? (
+                                        <span className={`flex items-center gap-2 px-4 py-2 rounded-xl ${isDark ? 'bg-white/10 border-white/20' : 'bg-gray-200 border-gray-300'} border font-semibold text-sm ${textPrimary} whitespace-nowrap select-none`}>
                                             <span className="capitalize">{design.status.replace("_", " ")}</span>
-                                            <ChevronDown className={`w-4 h-4 transition-transform ${showStatusDropdown ? 'rotate-180' : ''}`} />
-                                        </button>
+                                        </span>
+                                    ) : (
+                                        <div className="relative status-dropdown-container">
+                                            <button
+                                                onClick={() => setShowStatusDropdown(!showStatusDropdown)}
+                                                className={`flex items-center gap-2 px-4 py-2 rounded-xl ${isDark ? 'bg-white/10 hover:bg-white/20 border-white/20' : 'bg-gray-200 hover:bg-gray-300 border-gray-300'} border transition-all font-semibold text-sm ${textPrimary} whitespace-nowrap`}
+                                            >
+                                                <span className="capitalize">{design.status.replace("_", " ")}</span>
+                                                <ChevronDown className={`w-4 h-4 transition-transform ${showStatusDropdown ? 'rotate-180' : ''}`} />
+                                            </button>
 
-                                        {/* Dropdown Menu */}
-                                        <AnimatePresence>
-                                            {showStatusDropdown && (
-                                                <motion.div
-                                                    initial={{ opacity: 0, y: -10 }}
-                                                    animate={{ opacity: 1, y: 0 }}
-                                                    exit={{ opacity: 0, y: -10 }}
-                                                    className={`absolute top-full left-0 mt-2 w-48 ${bgMain} ${borderColor} border rounded-xl shadow-2xl overflow-hidden z-10`}
-                                                >
-                                                    {STATUS_OPTIONS.map((option) => (
-                                                        <button
-                                                            key={option.value}
-                                                            onClick={() => handleStatusChange(option.value)}
-                                                            className={`w-full px-4 py-3 text-left ${isDark ? 'hover:bg-white/10' : 'hover:bg-gray-100'} transition-colors flex items-center justify-between ${design.status === option.value ? (isDark ? 'bg-white/5' : 'bg-gray-50') : ''
-                                                                }`}
-                                                        >
-                                                            <span className={`font-medium ${option.color}`}>{option.label}</span>
-                                                            {design.status === option.value && (
-                                                                <div className="w-2 h-2 rounded-full bg-primary" />
-                                                            )}
-                                                        </button>
-                                                    ))}
-                                                </motion.div>
-                                            )}
-                                        </AnimatePresence>
-                                    </div>
+                                            {/* Dropdown Menu */}
+                                            <AnimatePresence>
+                                                {showStatusDropdown && (
+                                                    <motion.div
+                                                        initial={{ opacity: 0, y: -10 }}
+                                                        animate={{ opacity: 1, y: 0 }}
+                                                        exit={{ opacity: 0, y: -10 }}
+                                                        className={`absolute top-full left-0 mt-2 w-48 ${bgMain} ${borderColor} border rounded-xl shadow-2xl overflow-hidden z-10`}
+                                                    >
+                                                        {STATUS_OPTIONS.map((option) => (
+                                                            <button
+                                                                key={option.value}
+                                                                onClick={() => handleStatusChange(option.value)}
+                                                                className={`w-full px-4 py-3 text-left ${isDark ? 'hover:bg-white/10' : 'hover:bg-gray-100'} transition-colors flex items-center justify-between ${design.status === option.value ? (isDark ? 'bg-white/5' : 'bg-gray-50') : ''
+                                                                    }`}
+                                                            >
+                                                                <span className={`font-medium ${option.color}`}>{option.label}</span>
+                                                                {design.status === option.value && (
+                                                                    <div className="w-2 h-2 rounded-full bg-primary" />
+                                                                )}
+                                                            </button>
+                                                        ))}
+                                                    </motion.div>
+                                                )}
+                                            </AnimatePresence>
+                                        </div>
+                                    )
                                 )}
 
                                 <button
