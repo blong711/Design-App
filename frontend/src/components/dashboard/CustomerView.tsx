@@ -43,7 +43,7 @@ const COLUMNS = [
 
 const LIST_PAGE_SIZE = 9; // 3x3 grid
 
-export default function CustomerView({ user: initialUser }: { user: any }) {
+export default function CustomerView({ user: initialUser, initialView = "overview" }: { user: any; initialView?: "overview" | "dashboard" }) {
     const toast = useToast();
     const [user, setUser] = useState(initialUser);
     const [designs, setDesigns] = useState<any[]>([]);
@@ -52,7 +52,7 @@ export default function CustomerView({ user: initialUser }: { user: any }) {
     const [loading, setLoading] = useState(true);
 
     // View modes
-    const [currentView, setCurrentView] = useState<"overview" | "dashboard">("overview");
+    const [currentView, setCurrentView] = useState<"overview" | "dashboard">(initialView);
     const [viewMode, setViewMode] = useState<"kanban" | "cart">("kanban");
     const [density, setDensity] = useState<"comfortable" | "compact">("comfortable");
     const [viewedDesignIds, setViewedDesignIds] = useState<Set<string>>(new Set());
@@ -137,87 +137,29 @@ export default function CustomerView({ user: initialUser }: { user: any }) {
                 <div className="flex-shrink-0 px-6 py-4 border-b border-border bg-background">
                     <div className="flex items-center justify-between">
                         <div>
-                            <h2 className="text-3xl font-bold tracking-tight">Customer Dashboard</h2>
-                            <p className="text-muted-foreground mt-1 text-sm">Welcome! Manage your designs and balance here.</p>
+                            <h2 className="text-3xl font-bold tracking-tight">
+                                {currentView === "overview" ? "Customer Dashboard" : "My Designs"}
+                            </h2>
+                            <p className="text-muted-foreground mt-1 text-sm">
+                                {currentView === "overview" 
+                                    ? "Welcome! Manage your designs and balance here."
+                                    : "Track and manage all your design projects"}
+                            </p>
                         </div>
 
-                        <div className="flex items-center gap-3">
-                            {/* Balance Card */}
-                            <motion.div
-                                initial={{ opacity: 0, scale: 0.9 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                className="glass-panel p-1 rounded-2xl flex items-center gap-1"
-                            >
-                                <div className="px-4 py-2 rounded-xl bg-primary/10 border border-primary/20 flex items-center gap-2">
-                                    <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
-                                        <Wallet className="w-4 h-4 text-primary" />
-                                    </div>
-                                    <div>
-                                        <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Balance</p>
-                                        <p className="text-lg font-bold text-primary">${user.balance?.toFixed(2) || "0.00"}</p>
-                                    </div>
-                                </div>
-                                <button
-                                    onClick={() => setIsDepositOpen(true)}
-                                    className="h-full px-3 py-2 rounded-xl bg-primary hover:bg-primary/80 text-primary-foreground font-bold transition-all shadow-lg shadow-primary/20 text-sm"
-                                >
-                                    Deposit
-                                </button>
-                            </motion.div>
-
-                            {/* View Toggle */}
-                            <div className="flex items-center gap-2 bg-foreground/5 rounded-full p-1 border border-border">
-                                <button
-                                    onClick={() => setCurrentView("overview")}
-                                    className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${currentView === "overview"
-                                        ? "bg-primary text-primary-foreground shadow-lg"
-                                        : "text-muted-foreground hover:text-foreground"
-                                        }`}
-                                >
-                                    <List className="w-4 h-4" />
-                                    Overview
-                                </button>
-                                <button
-                                    onClick={() => setCurrentView("dashboard")}
-                                    className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${currentView === "dashboard"
-                                        ? "bg-primary text-primary-foreground shadow-lg"
-                                        : "text-muted-foreground hover:text-foreground"
-                                        }`}
-                                >
-                                    <LayoutGrid className="w-4 h-4" />
-                                    Dashboard
-                                </button>
-                            </div>
-                        </div>
+                        {/* New Design Button */}
+                        <button
+                            onClick={() => setIsNewDesignOpen(true)}
+                            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary hover:bg-primary/80 text-primary-foreground font-bold transition-all shadow-lg shadow-primary/20"
+                        >
+                            <Plus className="w-5 h-5" />
+                            New Design
+                        </button>
                     </div>
 
                     {/* Dashboard View Controls */}
                     {currentView === "dashboard" && (
                         <div className="flex items-center justify-end gap-3 mt-4">
-                            {/* Density Toggle */}
-                            {viewMode === "kanban" && (
-                                <div className="flex items-center gap-2 bg-foreground/5 rounded-full p-1 border border-border">
-                                    <button
-                                        onClick={() => setDensity("comfortable")}
-                                        className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${density === "comfortable"
-                                            ? "bg-primary text-primary-foreground"
-                                            : "text-muted-foreground hover:text-foreground"
-                                            }`}
-                                    >
-                                        Comfortable
-                                    </button>
-                                    <button
-                                        onClick={() => setDensity("compact")}
-                                        className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${density === "compact"
-                                            ? "bg-primary text-primary-foreground"
-                                            : "text-muted-foreground hover:text-foreground"
-                                            }`}
-                                    >
-                                        Compact
-                                    </button>
-                                </div>
-                            )}
-
                             {/* View Mode Toggle */}
                             <div className="flex items-center gap-2 bg-foreground/5 rounded-full p-1 border border-border">
                                 <button
@@ -536,26 +478,68 @@ function DashboardContent({
     onViewDesign: (id: string) => void;
     viewedDesignIds: Set<string>;
 }) {
+    const [collapsedCols, setCollapsedCols] = useState<Set<string>>(new Set());
+    const toggleCol = (id: string) => setCollapsedCols(prev => {
+        const next = new Set(prev);
+        next.has(id) ? next.delete(id) : next.add(id);
+        return next;
+    });
+
     if (viewMode === "kanban") {
         return (
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 h-full px-6 py-4">
-                {COLUMNS.map(col => (
-                    <div key={col.id} className="flex flex-col rounded-xl glass-panel border border-border overflow-hidden">
+            <div className="flex gap-2 px-6 py-4 overflow-x-auto h-full">
+                {COLUMNS.map((col, colIdx) => {
+                    const isCollapsed = collapsedCols.has(col.id);
+                    return isCollapsed ? (
+                        // Collapsed column — narrow vertical strip
+                        <div
+                            key={col.id}
+                            onClick={() => toggleCol(col.id)}
+                            title={`Expand ${col.title}`}
+                            className="shrink-0 flex flex-col items-center rounded-xl glass-panel border border-border cursor-pointer hover:border-primary/40 transition-all"
+                            style={{ width: 44, order: 100 + colIdx }}
+                        >
+                            <div className="flex flex-col items-center gap-3 py-4 flex-1">
+                                <col.icon className={`w-4 h-4 ${col.color}`} />
+                                <span className="text-[10px] font-bold text-muted-foreground bg-foreground/10 w-6 h-6 rounded-full flex items-center justify-center shrink-0">
+                                    {columns[col.id]?.length || 0}
+                                </span>
+                                <div className="flex-1 flex items-center justify-center mt-2">
+                                    <span
+                                        className="text-[10px] uppercase tracking-widest font-semibold text-foreground/50 whitespace-nowrap"
+                                        style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
+                                    >
+                                        {col.title}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    ) : (
+                    <div key={col.id} className="flex flex-col rounded-xl glass-panel border border-border flex-1 min-w-[260px]" style={{ order: colIdx }}>
                         {/* Sticky Column Header */}
                         <div className="sticky top-0 z-10 px-4 py-3 bg-background/95 backdrop-blur-sm border-b border-border flex items-center justify-between">
                             <div className="flex items-center gap-2 font-semibold">
                                 <col.icon className={`w-4 h-4 ${col.color}`} />
                                 <span className="text-xs uppercase tracking-wider text-foreground/80">{col.title}</span>
                             </div>
-                            <span className="text-xs font-bold text-muted-foreground bg-foreground/10 px-2 py-0.5 rounded-full">
-                                {columns[col.id]?.length || 0}
-                            </span>
+                            <div className="flex items-center gap-1.5">
+                                <span className="text-xs font-bold text-muted-foreground bg-foreground/10 px-2 py-0.5 rounded-full">
+                                    {columns[col.id]?.length || 0}
+                                </span>
+                                <button
+                                    onClick={() => toggleCol(col.id)}
+                                    title="Collapse column"
+                                    className="w-5 h-5 flex items-center justify-center rounded hover:bg-foreground/10 text-muted-foreground hover:text-foreground transition-colors"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                                </button>
+                            </div>
                         </div>
 
                         {/* Scrollable Cards Area */}
                         <div
-                            className="flex-1 overflow-y-auto custom-scrollbar p-2 flex flex-col gap-2"
-                            style={{ maxHeight: 'calc(100vh - 180px)' }}
+                            className="overflow-y-auto custom-scrollbar p-2 flex flex-col gap-2"
+                            style={{ height: 'calc(100vh - 220px)' }}
                         >
                             {columns[col.id]?.length === 0 ? (
                                 <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
@@ -580,70 +564,84 @@ function DashboardContent({
                                     return (
                                         <div
                                             key={design.id}
-                                            className="rounded-lg border border-border select-none transition-all cursor-pointer group overflow-hidden bg-foreground/5 hover:bg-foreground/10 hover:border-primary/30"
+                                            className="shrink-0 rounded-xl border border-border select-none transition-all cursor-pointer group overflow-hidden bg-card hover:border-primary/40 hover:shadow-md"
                                             onClick={() => onViewDesign(design.id)}
                                         >
-                                            {/* Image */}
-                                            {design.image_url && (
-                                                <div className={`relative w-full ${imageHeight} overflow-hidden bg-background/50`}>
+                                            {/* Image - always render */}
+                                            <div className={`relative w-full ${imageHeight} overflow-hidden bg-muted`}>
+                                                {design.image_url ? (
                                                     <img
                                                         src={design.image_url}
                                                         alt={design.title}
                                                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                                                     />
+                                                ) : (
+                                                    <div className="w-full h-full flex items-center justify-center">
+                                                        <LayoutGrid className="w-8 h-8 text-muted-foreground/20" />
+                                                    </div>
+                                                )}
+                                                {/* Notification badges overlay */}
+                                                <div className="absolute top-2 right-2 flex gap-1">
+                                                    {design.comment_count > 0 && !viewedDesignIds.has(design.id) && (
+                                                        <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-pink-500/90 backdrop-blur-sm">
+                                                            <MessageSquare className="w-2.5 h-2.5 text-white" />
+                                                            <span className="text-[9px] font-bold text-white">{design.comment_count}</span>
+                                                        </div>
+                                                    )}
+                                                    {design.status !== 'assigned' && !viewedDesignIds.has(design.id) && (
+                                                        <span className="px-1.5 py-0.5 rounded-full bg-blue-500/90 backdrop-blur-sm text-white text-[9px] font-black uppercase tracking-tighter animate-pulse">New</span>
+                                                    )}
                                                 </div>
-                                            )}
+                                            </div>
 
                                             {/* Content */}
                                             <div className={isCompact ? "p-2.5" : "p-3"}>
-                                                <div className="flex items-center justify-between gap-2 mb-2">
-                                                    <h4 className={`font-semibold text-foreground leading-tight line-clamp-1 flex-1 ${titleSize}`} title={design.title}>
-                                                        {design.title}
-                                                    </h4>
-                                                    <div className="flex gap-1 shrink-0">
-                                                        {design.status !== 'pending' && !viewedDesignIds.has(design.id) && (
-                                                            <span className="px-1 py-0.5 rounded bg-blue-500 text-white text-[9px] font-black uppercase tracking-tighter animate-pulse">Updated</span>
-                                                        )}
-                                                        {design.comment_count > 0 && !viewedDesignIds.has(design.id) && (
-                                                            <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-pink-500/20 border border-pink-500/30">
-                                                                <MessageSquare className="w-2.5 h-2.5 text-pink-400 fill-pink-400/20" />
-                                                                <span className="text-[9px] font-bold text-pink-400">{design.comment_count}</span>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </div>
+                                                {/* Title */}
+                                                <h4 className={`font-semibold text-foreground leading-snug line-clamp-2 mb-2 ${titleSize}`} title={design.title}>
+                                                    {design.title}
+                                                </h4>
 
-                                                {/* Metadata Row */}
-                                                <div className="flex items-center justify-between gap-2">
+                                                {/* Price */}
+                                                {design.price > 0 && (
+                                                    <p className={`text-primary font-bold mb-1 ${badgeSize}`}>
+                                                        Price: {design.price.toFixed(2)}
+                                                    </p>
+                                                )}
+
+                                                {/* Date */}
+                                                <p className={`text-muted-foreground mb-3 ${badgeSize}`}>
+                                                    {new Date(design.updated_at || design.created_at).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                                                </p>
+
+                                                {/* Bottom Row: Customer avatar left, Designer avatar right */}
+                                                <div className="flex items-center justify-between pt-2 border-t border-border/50">
+                                                    {/* Customer */}
                                                     <div className="flex items-center gap-1.5">
-                                                        {/* Time Badge */}
-                                                        <div className={`flex items-center gap-1 text-muted-foreground ${badgeSize}`}>
-                                                            <Clock className="w-3 h-3" />
-                                                            <span className="line-clamp-1">{getTimeAgo(design.updated_at || design.created_at)}</span>
+                                                        <div className="w-7 h-7 rounded-full bg-primary/20 border-2 border-primary/30 flex items-center justify-center font-bold text-primary text-[10px] overflow-hidden">
+                                                            {design.customer_avatar ? (
+                                                                <img src={design.customer_avatar} className="w-full h-full object-cover" />
+                                                            ) : (
+                                                                (design.customer_name || design.created_by_name || 'C')?.charAt(0).toUpperCase()
+                                                            )}
                                                         </div>
+                                                        <span className={`text-muted-foreground truncate max-w-[60px] ${badgeSize}`}>
+                                                            {design.customer_name || design.created_by_name || 'Customer'}
+                                                        </span>
                                                     </div>
 
-                                                    {/* Result Link Icon */}
-                                                    {design.result_link && (
-                                                        <a
-                                                            href={design.result_link}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            onClick={(e) => e.stopPropagation()}
-                                                            className="text-blue-400 hover:text-blue-300 transition-colors"
-                                                            title="View result"
-                                                        >
-                                                            <Eye className="w-3.5 h-3.5" />
-                                                        </a>
-                                                    )}
-
-                                                    {/* Comment Count */}
-                                                    {design.comment_count > 0 && (
-                                                        <div className="flex items-center gap-1 text-muted-foreground">
-                                                            <MessageSquare className="w-3 h-3" />
-                                                            <span className={badgeSize}>{design.comment_count}</span>
+                                                    {/* Designer */}
+                                                    <div className="flex items-center gap-1.5">
+                                                        <span className={`text-muted-foreground truncate max-w-[60px] text-right ${badgeSize}`}>
+                                                            {design.designer_name || design.assigned_to_name || 'Unassigned'}
+                                                        </span>
+                                                        <div className="w-7 h-7 rounded-full bg-purple-500/20 border-2 border-purple-500/30 flex items-center justify-center font-bold text-purple-400 text-[10px] overflow-hidden">
+                                                            {design.designer_avatar ? (
+                                                                <img src={design.designer_avatar} className="w-full h-full object-cover" />
+                                                            ) : (
+                                                                (design.designer_name || design.assigned_to_name || 'D')?.charAt(0).toUpperCase()
+                                                            )}
                                                         </div>
-                                                    )}
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
@@ -652,7 +650,8 @@ function DashboardContent({
                             )}
                         </div>
                     </div>
-                ))}
+                    ); // end isCollapsed ternary
+                })}
             </div>
         );
     }

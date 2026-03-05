@@ -55,6 +55,10 @@ export default function NewDesignDrawer({ open, onClose, onCreated }: NewDesignD
             setError("Please fill in all required fields.");
             return;
         }
+        if (imageFiles.length === 0) {
+            setError("Please upload at least one reference image.");
+            return;
+        }
         setLoading(true);
         try {
             const uploadedUrls: string[] = [];
@@ -126,7 +130,10 @@ export default function NewDesignDrawer({ open, onClose, onCreated }: NewDesignD
                             </div>
 
                             <div className="space-y-2">
-                                <label className="text-xs font-bold uppercase text-muted-foreground tracking-widest">Reference Materials</label>
+                                <div className="flex items-center gap-2">
+                                    <label className="text-xs font-bold uppercase text-muted-foreground tracking-widest">Reference Materials</label>
+                                    <span className="text-[10px] font-bold text-red-400 uppercase tracking-widest">* Required</span>
+                                </div>
                                 <div className="grid grid-cols-2 gap-3">
                                     {imagePreviews.map((preview, idx) => (
                                         <div key={idx} className="relative aspect-video rounded-xl overflow-hidden border border-border group">
@@ -141,11 +148,17 @@ export default function NewDesignDrawer({ open, onClose, onCreated }: NewDesignD
                                     ))}
                                     <div
                                         onClick={() => fileRef.current?.click()}
-                                        className="aspect-video rounded-xl border-2 border-dashed border-border flex flex-col items-center justify-center cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-all"
+                                        className={`aspect-video rounded-xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-all ${
+                                            imageFiles.length === 0
+                                                ? 'border-red-400/50 bg-red-500/5 hover:border-red-400 hover:bg-red-500/10'
+                                                : 'border-border hover:border-primary/50 hover:bg-primary/5'
+                                        }`}
                                     >
-                                        <Plus className="w-6 h-6 text-muted-foreground/30 mb-1" />
-                                        <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-tighter">Add Reference</p>
-                                        <input ref={fileRef} type="file" className="hidden" onChange={handleImage} multiple />
+                                        <ImageIcon className={`w-6 h-6 mb-1 ${imageFiles.length === 0 ? 'text-red-400/50' : 'text-muted-foreground/30'}`} />
+                                        <p className={`text-[10px] font-medium uppercase tracking-tighter ${imageFiles.length === 0 ? 'text-red-400/70' : 'text-muted-foreground'}`}>
+                                            {imageFiles.length === 0 ? 'Required' : 'Add More'}
+                                        </p>
+                                        <input ref={fileRef} type="file" className="hidden" onChange={handleImage} multiple accept="image/*" />
                                     </div>
                                 </div>
                             </div>

@@ -140,6 +140,7 @@ function NewDesignDrawer({ open, onClose, onCreated, designers, pricingTemplates
   const handleSubmit = async () => {
     if (!title.trim()) { setError("Title is required"); return; }
     if (!description.trim()) { setError("Description is required"); return; }
+    if (!imageFile) { setError("Please upload a reference image."); return; }
     setError(null);
     setLoading(true);
     try {
@@ -281,7 +282,10 @@ function NewDesignDrawer({ open, onClose, onCreated, designers, pricingTemplates
 
               {/* Image Upload */}
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Reference Image</label>
+                <div className="flex items-center gap-2 mb-2">
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground">Reference Image</label>
+                  <span className="text-[10px] font-bold text-red-400 uppercase tracking-widest">* Required</span>
+                </div>
                 <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleImage} />
                 {imagePreview ? (
                   <div className="relative rounded-xl overflow-hidden border border-border group">
@@ -298,14 +302,14 @@ function NewDesignDrawer({ open, onClose, onCreated, designers, pricingTemplates
                 ) : (
                   <button
                     onClick={() => fileRef.current?.click()}
-                    className="w-full py-10 rounded-xl border-2 border-dashed border-border hover:border-primary/50 hover:bg-primary/5 transition-all flex flex-col items-center gap-3 text-muted-foreground hover:text-primary group"
+                    className="w-full py-10 rounded-xl border-2 border-dashed border-red-400/50 bg-red-500/5 hover:border-red-400 hover:bg-red-500/10 transition-all flex flex-col items-center gap-3 text-red-400/70 hover:text-red-400 group"
                   >
-                    <div className="w-12 h-12 rounded-full bg-foreground/5 group-hover:bg-primary/10 flex items-center justify-center transition-colors">
+                    <div className="w-12 h-12 rounded-full bg-red-500/10 group-hover:bg-red-500/20 flex items-center justify-center transition-colors">
                       <ImageIcon className="w-6 h-6" />
                     </div>
                     <div className="text-center">
                       <p className="text-sm font-medium">Click to upload image</p>
-                      <p className="text-xs mt-1">JPG, PNG, GIF, WebP</p>
+                      <p className="text-xs mt-1 opacity-70">Required — JPG, PNG, GIF, WebP</p>
                     </div>
                   </button>
                 )}
