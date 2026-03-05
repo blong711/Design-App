@@ -53,6 +53,24 @@ async def seed():
     else:
         designer_id = designer_exists["_id"]
         print("Designer user already exists")
+    
+    # Insert Customer
+    customer_exists = await db.users.find_one({"username": "customer"})
+    if not customer_exists:
+        customer_data = {
+            "username": "customer",
+            "email": "customer@example.com",
+            "full_name": "Test Customer",
+            "role": "customer",
+            "is_active": True,
+            "email_verified": True,
+            "hashed_password": get_password_hash("customer123"),
+            "created_at": datetime.now(timezone.utc)
+        }
+        await db.users.insert_one(customer_data)
+        print("Created customer user (customer / customer123)")
+    else:
+        print("Customer user already exists")
         
     # Seed 1 dummy design
     design_exists = await db.designs.find_one({"title": "Design new Logo"})

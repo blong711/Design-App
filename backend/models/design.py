@@ -63,13 +63,16 @@ class DesignResponse(DesignBase):
     def from_mongo(cls, data: dict, comment_count: int = 0, assigned_user: Optional[dict] = None):
         if not data:
             return data
-        data_copy = {k: v for k, v in data.items() if k not in ["_id", "assigned_to"]}
+        # Exclude MongoDB-specific fields and comment_count to avoid duplicates
+        data_copy = {k: v for k, v in data.items() if k not in ["_id", "assigned_to", "comment_count"]}
         id = data.get("_id")
         assigned_to = data.get("assigned_to")
+        # Use comment_count from DB if exists, otherwise use parameter
+        final_comment_count = data.get("comment_count", comment_count)
         return cls(
             **data_copy,
             id=str(id) if id else "",
             assigned_to=str(assigned_to) if assigned_to else None,
-            comment_count=comment_count,
+            comment_count=final_comment_count,
             assigned_user=assigned_user
         )
