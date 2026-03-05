@@ -465,8 +465,7 @@ export default function AdminView() {
   const [timeFilter, setTimeFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("");
   const [hoveredStatus, setHoveredStatus] = useState<string | null>(null);
-  const [selectedDesigner, setSelectedDesigner] = useState("");
-  const [selectedMonth, setSelectedMonth] = useState("");
+
   const [overdueTicketsPage, setOverdueTicketsPage] = useState(1);
   const OVERDUE_PAGE_SIZE = 15;
 
@@ -703,8 +702,6 @@ export default function AdminView() {
       id: string;
       name: string;
       completed: number;
-      unpaid: number;
-      totalEarned: number;
       thisMonth: number;
     }> = {};
 
@@ -717,8 +714,6 @@ export default function AdminView() {
         id: designer.id,
         name: designer.full_name,
         completed: 0,
-        unpaid: 0,
-        totalEarned: 0,
         thisMonth: 0,
       };
     });
@@ -727,22 +722,16 @@ export default function AdminView() {
       if (!ticket.assigned_to || !designerStats[ticket.assigned_to]) return;
 
       const stats = designerStats[ticket.assigned_to];
-      const price = parseFloat(ticket.price) || 0;
 
       if (ticket.status === 'completed') {
         stats.completed++;
-        stats.totalEarned += price;
-
-        if (ticket.payment_status === 'unpaid') {
-          stats.unpaid += price;
-        }
 
         // Check if completed this month
         const completionDate = ticket.completed_at || ticket.updated_at;
         if (completionDate) {
           const ticketDate = new Date(completionDate);
           if (ticketDate.getMonth() === currentMonth && ticketDate.getFullYear() === currentYear) {
-            stats.thisMonth += price;
+            stats.thisMonth++;
           }
         }
       }
@@ -751,70 +740,7 @@ export default function AdminView() {
     return Object.values(designerStats);
   };
 
-  // Get filtered unpaid tickets for debt section
-  const getFilteredUnpaidTickets = () => {
-    return tickets.filter(ticket => {
-      // Filter by completed and unpaid
-      if (ticket.status !== 'completed' || ticket.payment_status === 'paid') return false;
-
-      // Filter by designer
-      if (selectedDesigner && ticket.assigned_to !== selectedDesigner) return false;
-
-      // Filter by month
-      if (selectedMonth) {
-        const completionDate = ticket.completed_at || ticket.updated_at;
-        if (completionDate) {
-          const ticketDate = new Date(completionDate);
-          const [year, month] = selectedMonth.split('-');
-          if (ticketDate.getFullYear() !== parseInt(year) ||
-            ticketDate.getMonth() !== parseInt(month) - 1) {
-            return false;
-          }
-        } else {
-          return false; // No completion date, can't filter by month
-        }
-      }
-
-      return true;
-    });
-  };
-
-  // Mark tickets as paid
-  const handleMarkAsPaid = async () => {
-    const unpaidTickets = getFilteredUnpaidTickets();
-    if (unpaidTickets.length === 0) return;
-
-    try {
-      await Promise.all(
-        unpaidTickets.map(ticket =>
-          api.put(`/designs/${ticket.id}`, { payment_status: 'paid' })
-        )
-      );
-      fetchDesigns();
-      fetchStats();
-    } catch (e) {
-      console.error("Failed to mark tickets as paid", e);
-    }
-  };
-
   const designerPerformance = getDesignerPerformance();
-  const filteredUnpaidTickets = getFilteredUnpaidTickets();
-  const totalUnpaidAmount = filteredUnpaidTickets.reduce((sum, t) => sum + (parseFloat(t.price) || 0), 0);
-
-  // Generate month options (last 12 months)
-  const getMonthOptions = () => {
-    const options: { value: string; label: string }[] = [];
-    const now = new Date();
-    for (let i = 0; i < 12; i++) {
-      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-      const label = formatVietnamDate(date, { month: 'long', year: 'numeric' });
-      options.push({ value, label });
-    }
-    return options;
-  };
-
-  const monthOptions = getMonthOptions();
 
   // Calculate overdue tickets based on status duration
   const getOverdueTickets = () => {
@@ -877,7 +803,7 @@ export default function AdminView() {
   const statCards = [
     { title: "Total Designs", value: stats?.total_designs || 0, icon: Activity, color: "text-blue-400" },
     { title: "Completed", value: stats?.completed_designs || 0, icon: FileCheck, color: "text-green-400" },
-    { title: "To Pay (Debt)", value: `$${stats?.total_unpaid || 0}`, icon: AlertCircle, color: "text-red-400" },
+    { title: "Unpaid by Customer", value: stats?.total_unpaid || 0, icon: AlertCircle, color: "text-red-400" },
   ];
 
   return (
@@ -1186,7 +1112,7 @@ export default function AdminView() {
                 </p>
               )}
             </div>
-            <button className="text-sm text-primary hover:text-primary-foreground underline underline-offset-4 transition-colors">View All</button>
+            <a href="/dashboard/designs" className="text-sm text-primary hover:text-primary/70 underline underline-offset-4 transition-colors">View All</a>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
@@ -1200,72 +1126,90 @@ export default function AdminView() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/30">
-                {designs.length === 0 && (
-                  <tr>
-                    <td colSpan={5} className="py-12 text-center text-muted-foreground bg-background/10">No designs found.</td>
-                  </tr>
-                )}
-                {designs.slice(0, 10).map((design) => (
-                  <tr key={design.id} className="hover:bg-white/[0.03] transition-colors group cursor-default">
-                    <td className="py-5 px-6">
-                      <div className="flex items-center gap-4">
-                        {design.image_url ? (
-                          <div className="relative w-12 h-12 rounded-xl border border-white/10 overflow-hidden shadow-md group-hover:shadow-lg transition-shadow">
-                            <img src={design.image_url} alt="" className="w-full h-full object-cover" />
+                {(() => {
+                  // Filter designs based on status filter
+                  const filteredDesigns = statusFilter
+                    ? designs.filter(d => {
+                      // 'pending' includes both 'pending' and 'assigned' statuses
+                      if (statusFilter === 'pending') {
+                        return d.status === 'pending' || d.status === 'assigned';
+                      }
+                      return d.status === statusFilter;
+                    })
+                    : designs;
+
+                  if (filteredDesigns.length === 0) {
+                    return (
+                      <tr>
+                        <td colSpan={5} className="py-12 text-center text-muted-foreground bg-background/10">
+                          No designs found.
+                        </td>
+                      </tr>
+                    );
+                  }
+
+                  return filteredDesigns.slice(0, 10).map((design) => (
+                    <tr key={design.id} className="hover:bg-white/[0.03] transition-colors group cursor-default">
+                      <td className="py-5 px-6">
+                        <div className="flex items-center gap-4">
+                          {design.image_url ? (
+                            <div className="relative w-12 h-12 rounded-xl border border-white/10 overflow-hidden shadow-md group-hover:shadow-lg transition-shadow">
+                              <img src={design.image_url} alt="" className="w-full h-full object-cover" />
+                            </div>
+                          ) : (
+                            <div className="w-12 h-12 rounded-xl border border-white/10 bg-background/50 flex items-center justify-center shadow-md">
+                              <Activity className="w-5 h-5 text-muted-foreground/50" />
+                            </div>
+                          )}
+                          <div>
+                            <div className="font-semibold text-foreground group-hover:text-primary transition-colors">{design.title}</div>
+                            <div className="text-xs text-muted-foreground mt-1 truncate max-w-[250px]">{design.description}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-4 px-4">
+                        <span className="px-3 py-1 rounded-full text-xs font-medium border border-border"
+                          style={{
+                            backgroundColor:
+                              design.status === 'completed' ? 'rgba(74, 222, 128, 0.15)' :
+                                design.status === 'review' ? 'rgba(250, 204, 21, 0.15)' :
+                                  design.status === 'in_progress' ? 'rgba(96, 165, 250, 0.15)' : 'rgba(161,161,170,0.15)',
+                            color:
+                              design.status === 'completed' ? '#4ade80' :
+                                design.status === 'review' ? '#facc15' :
+                                  design.status === 'in_progress' ? '#60a5fa' : '#a1a1aa'
+                          }}
+                        >
+                          {design.status.replace("_", " ")}
+                        </span>
+                      </td>
+                      <td className="py-5 px-6 font-semibold text-foreground/90">${design.price}</td>
+                      <td className="py-5 px-6 text-sm">
+                        {design.assigned_to ? (
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary/30 to-accent/30 border border-white/10 flex items-center justify-center text-foreground font-bold shadow-inner">
+                              {designerMap[design.assigned_to]?.charAt(0)?.toUpperCase() || "?"}
+                            </div>
+                            <span className="text-foreground font-medium">{designerMap[design.assigned_to] || "Unknown"}</span>
                           </div>
                         ) : (
-                          <div className="w-12 h-12 rounded-xl border border-white/10 bg-background/50 flex items-center justify-center shadow-md">
-                            <Activity className="w-5 h-5 text-muted-foreground/50" />
-                          </div>
+                          <span className="text-muted-foreground italic">Unassigned</span>
                         )}
-                        <div>
-                          <div className="font-semibold text-foreground group-hover:text-primary transition-colors">{design.title}</div>
-                          <div className="text-xs text-muted-foreground mt-1 truncate max-w-[250px]">{design.description}</div>
+                      </td>
+                      <td className="py-4 px-4 text-right">
+                        <div className="relative flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => setAssigningDesign(design)}
+                            className="px-4 py-2 rounded-xl bg-primary/10 hover:bg-primary border border-primary/20 hover:border-primary text-primary hover:text-white text-xs font-bold transition-all duration-300 flex items-center gap-2 opacity-0 group-hover:opacity-100 shadow-lg"
+                          >
+                            <UserPlus className="w-4 h-4" />
+                            {design.assigned_to ? "Reassign" : "Assign"}
+                          </button>
                         </div>
-                      </div>
-                    </td>
-                    <td className="py-4 px-4">
-                      <span className="px-3 py-1 rounded-full text-xs font-medium border border-border"
-                        style={{
-                          backgroundColor:
-                            design.status === 'completed' ? 'rgba(74, 222, 128, 0.15)' :
-                              design.status === 'review' ? 'rgba(250, 204, 21, 0.15)' :
-                                design.status === 'in_progress' ? 'rgba(96, 165, 250, 0.15)' : 'rgba(161,161,170,0.15)',
-                          color:
-                            design.status === 'completed' ? '#4ade80' :
-                              design.status === 'review' ? '#facc15' :
-                                design.status === 'in_progress' ? '#60a5fa' : '#a1a1aa'
-                        }}
-                      >
-                        {design.status.replace("_", " ")}
-                      </span>
-                    </td>
-                    <td className="py-5 px-6 font-semibold text-foreground/90">${design.price}</td>
-                    <td className="py-5 px-6 text-sm">
-                      {design.assigned_to ? (
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary/30 to-accent/30 border border-white/10 flex items-center justify-center text-foreground font-bold shadow-inner">
-                            {designerMap[design.assigned_to]?.charAt(0)?.toUpperCase() || "?"}
-                          </div>
-                          <span className="text-foreground font-medium">{designerMap[design.assigned_to] || "Unknown"}</span>
-                        </div>
-                      ) : (
-                        <span className="text-muted-foreground italic">Unassigned</span>
-                      )}
-                    </td>
-                    <td className="py-4 px-4 text-right">
-                      <div className="relative flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => setAssigningDesign(design)}
-                          className="px-4 py-2 rounded-xl bg-primary/10 hover:bg-primary border border-primary/20 hover:border-primary text-primary hover:text-white text-xs font-bold transition-all duration-300 flex items-center gap-2 opacity-0 group-hover:opacity-100 shadow-lg"
-                        >
-                          <UserPlus className="w-4 h-4" />
-                          {design.assigned_to ? "Reassign" : "Assign"}
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                    </tr>
+                  ));
+                })()}
               </tbody>
             </table>
           </div>
@@ -1457,15 +1401,13 @@ export default function AdminView() {
                 <tr className="border-b border-border text-muted-foreground text-sm">
                   <th className="pb-4 font-medium px-4">Designer</th>
                   <th className="pb-4 font-medium px-4 text-center">Completed</th>
-                  <th className="pb-4 font-medium px-4 text-right">Unpaid</th>
-                  <th className="pb-4 font-medium px-4 text-right">Total Earned</th>
                   <th className="pb-4 font-medium px-4 text-right">This Month</th>
                 </tr>
               </thead>
               <tbody>
                 {designerPerformance.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="py-8 text-center text-muted-foreground">No designers found.</td>
+                    <td colSpan={3} className="py-8 text-center text-muted-foreground">No designers found.</td>
                   </tr>
                 )}
                 {designerPerformance.map((designer) => (
@@ -1484,18 +1426,8 @@ export default function AdminView() {
                       </span>
                     </td>
                     <td className="py-4 px-4 text-right">
-                      <span className={`font-semibold ${designer.unpaid > 0 ? 'text-red-400' : 'text-muted-foreground'}`}>
-                        ${designer.unpaid.toFixed(2)}
-                      </span>
-                    </td>
-                    <td className="py-4 px-4 text-right">
-                      <span className="font-semibold text-emerald-400">
-                        ${designer.totalEarned.toFixed(2)}
-                      </span>
-                    </td>
-                    <td className="py-4 px-4 text-right">
                       <span className="font-medium text-blue-400">
-                        ${designer.thisMonth.toFixed(2)}
+                        {designer.thisMonth}
                       </span>
                     </td>
                   </tr>
@@ -1505,125 +1437,7 @@ export default function AdminView() {
           </div>
         </motion.div>
 
-        {/* Debt Management Section */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.9, duration: 0.5 }}
-          className="rounded-2xl glass-panel p-6"
-        >
-          <h3 className="text-xl font-semibold mb-6">Debt Management</h3>
 
-          {/* Filters */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            {/* Month Filter */}
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-                <Calendar className="w-3 h-3 inline mr-1" /> Filter by Month
-              </label>
-              <select
-                value={selectedMonth}
-                onChange={(e) => setSelectedMonth(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl bg-foreground/5 border border-border text-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-all text-sm"
-              >
-                <option value="">All Months</option>
-                {monthOptions.map(option => (
-                  <option key={option.value} value={option.value}>{option.label}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Designer Filter */}
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-                <Filter className="w-3 h-3 inline mr-1" /> Select Designer
-              </label>
-              <select
-                value={selectedDesigner}
-                onChange={(e) => setSelectedDesigner(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl bg-foreground/5 border border-border text-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-all text-sm"
-              >
-                <option value="">All Designers</option>
-                {designers.filter(d => d.role === "designer").map(designer => (
-                  <option key={designer.id} value={designer.id}>{designer.full_name}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Summary Card */}
-            <div className="flex flex-col justify-center p-4 rounded-xl bg-red-500/10 border border-red-500/30">
-              <div className="text-xs text-red-300 uppercase tracking-wider mb-1">Total Unpaid</div>
-              <div className="text-2xl font-bold text-red-400">${totalUnpaidAmount.toFixed(2)}</div>
-              <div className="text-xs text-red-300 mt-1">{filteredUnpaidTickets.length} ticket{filteredUnpaidTickets.length !== 1 ? 's' : ''}</div>
-            </div>
-          </div>
-
-          {/* Unpaid Tickets List */}
-          <div className="overflow-x-auto mb-4">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-border text-muted-foreground text-sm">
-                  <th className="pb-4 font-medium px-4">Ticket</th>
-                  <th className="pb-4 font-medium px-4">Designer</th>
-                  <th className="pb-4 font-medium px-4">Completed Date</th>
-                  <th className="pb-4 font-medium px-4 text-right">Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredUnpaidTickets.length === 0 && (
-                  <tr>
-                    <td colSpan={4} className="py-8 text-center text-muted-foreground">
-                      {selectedMonth || selectedDesigner ? 'No unpaid tickets match the filters.' : 'All tickets have been paid!'}
-                    </td>
-                  </tr>
-                )}
-                {filteredUnpaidTickets.map((ticket) => (
-                  <tr key={ticket.id} className="border-b border-border hover:bg-foreground/5 transition-colors">
-                    <td className="py-4 px-4">
-                      <div className="font-semibold text-foreground">{ticket.title}</div>
-                      <div className="text-xs text-muted-foreground mt-1">ID: {ticket.id}</div>
-                    </td>
-                    <td className="py-4 px-4">
-                      {ticket.assigned_to ? (
-                        <div className="flex items-center gap-2">
-                          <div className="w-6 h-6 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center text-primary text-xs font-bold">
-                            {designerMap[ticket.assigned_to]?.charAt(0)?.toUpperCase() || "?"}
-                          </div>
-                          <span className="text-sm text-foreground">{designerMap[ticket.assigned_to] || "Unknown"}</span>
-                        </div>
-                      ) : (
-                        <span className="text-xs text-muted-foreground italic">Unassigned</span>
-                      )}
-                    </td>
-                    <td className="py-4 px-4 text-sm text-muted-foreground">
-                      {(ticket.completed_at || ticket.updated_at) ? formatVietnamDate(ticket.completed_at || ticket.updated_at, {
-                        month: 'short',
-                        day: 'numeric',
-                        year: 'numeric'
-                      }) : 'N/A'}
-                    </td>
-                    <td className="py-4 px-4 text-right">
-                      <span className="font-semibold text-red-400">${parseFloat(ticket.price || 0).toFixed(2)}</span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Mark as Paid Button */}
-          {filteredUnpaidTickets.length > 0 && (
-            <div className="flex justify-end">
-              <button
-                onClick={handleMarkAsPaid}
-                className="px-6 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-semibold shadow-lg shadow-emerald-500/30 transition-all flex items-center gap-2"
-              >
-                <Check className="w-5 h-5" />
-                Mark as Paid ({filteredUnpaidTickets.length} ticket{filteredUnpaidTickets.length !== 1 ? 's' : ''})
-              </button>
-            </div>
-          )}
-        </motion.div>
       </div>
 
       <NewDesignDrawer

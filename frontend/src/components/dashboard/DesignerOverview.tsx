@@ -166,7 +166,7 @@ export default function DesignerOverview({ user }: { user: any }) {
             <tbody>
               {activeDesigns.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="py-12 text-center text-muted-foreground">
+                  <td colSpan={4} className="py-12 text-center text-muted-foreground">
                     <div className="flex flex-col items-center gap-2">
                       <CheckCircle2 className="w-12 h-12 text-muted-foreground/50" />
                       <p>No active designs</p>
@@ -244,7 +244,6 @@ export default function DesignerOverview({ user }: { user: any }) {
                       {design.status.replace("_", " ").toUpperCase()}
                     </span>
                   </td>
-
                   <td className="py-4 px-4">
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Clock className="w-4 h-4" />
@@ -351,7 +350,7 @@ export default function DesignerOverview({ user }: { user: any }) {
             <tbody>
               {filteredCompletedDesigns.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="py-12 text-center text-muted-foreground">
+                  <td colSpan={4} className="py-12 text-center text-muted-foreground">
                     <div className="flex flex-col items-center gap-2">
                       <Activity className="w-12 h-12 text-muted-foreground/50" />
                       <p>No completed designs in this period</p>

@@ -76,7 +76,7 @@ export default function DashboardLayout({
 
   const designerLinks = [
     { name: "Overview", href: "/dashboard", icon: LayoutDashboard },
-    { name: "Kanban Board", href: "/dashboard/board", icon: Activity },
+    { name: "Design", href: "/dashboard/board", icon: Activity },
   ];
 
   const links = user?.role === "admin"

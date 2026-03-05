@@ -225,6 +225,8 @@ async def assign_design(
             description=f"Payment for design: {d.get('title')}"
         )
         await db["transactions"].insert_one(tx.model_dump(by_alias=True))
+        # Mark design as paid — customer balance has been deducted
+        update_fields["payment_status"] = "paid"
         update_fields["assigned_to"] = ObjectId(assign_data.assigned_to)
         # Auto-promote status from pending -> assigned
         if d.get("status") == "pending":
