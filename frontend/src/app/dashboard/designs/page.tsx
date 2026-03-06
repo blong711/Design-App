@@ -128,7 +128,7 @@ export default function DesignsPage() {
 
   if (loading) return <div className="animate-pulse text-muted-foreground py-10">Loading designs...</div>;
 
-  if (currentUser?.role === "designer") {
+  if (currentUser?.role === "designer" || currentUser?.role === "admin") {
     return <DesignerView user={currentUser} />;
   }
 

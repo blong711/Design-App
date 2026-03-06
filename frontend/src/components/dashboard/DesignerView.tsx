@@ -88,8 +88,8 @@ export default function DesignerView({ user }: { user: any }) {
     if (!destination) return;
     if (source.droppableId === destination.droppableId && source.index === destination.index) return;
 
-    // Prevent designers from marking as completed directly
-    if (destination.droppableId === "completed") {
+    // Prevent designers (but not admins) from marking as completed directly
+    if (destination.droppableId === "completed" && user.role !== "admin") {
       toast("Only Admins can mark a design as Complete.", "error");
       return;
     }
