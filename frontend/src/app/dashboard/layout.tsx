@@ -116,9 +116,9 @@ export default function DashboardLayout({
         <header className="h-16 glass-panel border-b border-border sticky top-0 z-50 flex items-center px-6 gap-6">
           {/* Logo */}
           <div className="flex items-center gap-2 mr-4">
-            <img 
-              src="/logo.png" 
-              alt="Design Manager" 
+            <img
+              src="/logo.png"
+              alt="Design Manager"
               className="h-10 w-auto object-contain"
             />
           </div>
@@ -186,9 +186,9 @@ export default function DashboardLayout({
       {/* Sidebar - Floating Island Style */}
       <aside className="w-64 glass-panel flex-col hidden md:flex sticky top-4 h-[calc(100vh-2rem)] rounded-[2rem] overflow-hidden shadow-2xl z-40">
         <div className="h-20 flex items-center justify-center px-6 border-b border-border/50">
-          <img 
-            src="/logo.png" 
-            alt="Design Manager" 
+          <img
+            src="/logo.png"
+            alt="Design Manager"
             className="h-12 w-auto object-contain"
           />
         </div>

@@ -21,6 +21,8 @@ services:
       - /app/node_modules
     depends_on:
       - database
+    env_file:
+      - ./backend/.env
     restart: always
 
   frontend:

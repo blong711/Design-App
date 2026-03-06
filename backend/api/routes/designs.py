@@ -264,12 +264,41 @@ async def update_status(
     if current_user.role == "designer" and str(d.get("assigned_to")) != current_user.id:
          raise HTTPException(status_code=403, detail="Forbidden")
 
+    # Only Admin or the designing designer can change status.
+    # But ONLY Admin can cancel a design through this endpoint.
+    if status_update.status == "canceled" and current_user.role != "admin":
+         raise HTTPException(status_code=403, detail="Only administrators can cancel a design and issue refunds.")
+
     old_status = d.get("status")
-    update_fields = {"status": status_update.status, "updated_at": datetime.now(timezone.utc)}
+    update_fields: dict = {"status": status_update.status, "updated_at": datetime.now(timezone.utc)}
+    
     if status_update.status == "completed":
         update_fields["completed_at"] = datetime.now(timezone.utc)
     if status_update.status == "needs_revision" and status_update.rejection_reason:
         update_fields["rejection_reason"] = status_update.rejection_reason
+
+    # Refund logic if status becomes canceled
+    if status_update.status == "canceled":
+        if d.get("payment_status") == "paid" and d.get("price", 0) > 0:
+            customer_id = d.get("created_by")
+            price = d.get("price", 0)
+            
+            # Increase customer balance
+            await db["users"].update_one(
+                {"_id": ObjectId(customer_id)},
+                {"$inc": {"balance": price}}
+            )
+            
+            # Log refund transaction
+            tx = TransactionInDB(
+                user_id=customer_id,
+                amount=price,
+                type="refund",
+                reference_id=id,
+                description=f"Refund for cancelled design (Admin change): {d.get('title')}"
+            )
+            await db["transactions"].insert_one(tx.model_dump(by_alias=True))
+            update_fields["payment_status"] = "unpaid"
 
     await db["designs"].update_one({"_id": ObjectId(id)}, {"$set": update_fields})
     

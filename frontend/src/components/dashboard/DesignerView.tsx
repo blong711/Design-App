@@ -9,6 +9,7 @@ import { CheckCircle2, Clock, Eye, MessageSquare, Loader2, UploadCloud, Search, 
 import { motion, AnimatePresence } from "framer-motion";
 import DesignDetailDrawer from "@/components/dashboard/DesignDetailDrawer";
 import { getTimeAgo } from "@/lib/date-utils";
+import { useSettings } from "@/lib/settings-context";
 
 const COLUMNS = [
   { id: "assigned", title: "To Do", icon: Clock, color: "text-blue-400" },
@@ -29,7 +30,7 @@ function ActivityIcon(props: any) {
 
 export default function DesignerView({ user }: { user: any }) {
   const toast = useToast();
-  const [isDraggingOverall, setIsDraggingOverall] = useState(false);
+  const { colorScheme } = useSettings();
   const [viewMode, setViewMode] = useState<"kanban" | "cart">("kanban");
   const [density, setDensity] = useState<"comfortable" | "compact">("comfortable");
   const [columns, setColumns] = useState<Record<string, any[]>>({
@@ -79,44 +80,56 @@ export default function DesignerView({ user }: { user: any }) {
   };
 
   const onDragStart = () => {
-    setIsDraggingOverall(true);
+    // Standard start
   };
 
-  const onDragEnd = async (result: DropResult) => {
-    setIsDraggingOverall(false);
+  const onDragEnd = (result: DropResult) => {
     const { source, destination } = result;
     if (!destination) return;
     if (source.droppableId === destination.droppableId && source.index === destination.index) return;
 
-    // Prevent designers (but not admins) from marking as completed directly
     if (destination.droppableId === "completed" && user.role !== "admin") {
       toast("Only Admins can mark a design as Complete.", "error");
       return;
     }
 
-    const startCol = columns[source.droppableId];
-    const endCol = columns[destination.droppableId];
-    const movedDesign = startCol[source.index];
+    const sourceColId = source.droppableId;
+    const destColId = destination.droppableId;
+    const oldColumns = { ...columns };
 
-    // Optimistic UI Update
-    const newStart = Array.from(startCol);
-    newStart.splice(source.index, 1);
-    const newEnd = Array.from(endCol);
-    newEnd.splice(destination.index, 0, movedDesign);
+    // Move the item
+    const startItems = Array.from(columns[sourceColId] || []);
+    const [movedDesign] = startItems.splice(source.index, 1);
 
-    setColumns({
-      ...columns,
-      [source.droppableId]: newStart,
-      [destination.droppableId]: newEnd
-    });
-
-    // Update Status API
-    await api.patch(`/designs/${movedDesign.id}/status`, { status: destination.droppableId });
-
-    // Trigger upload modal if dropped in review and no result link yet
-    if (destination.droppableId === "review" && !movedDesign.result_link) {
-      setSelectedDesign(movedDesign);
+    let nextColumns;
+    if (sourceColId === destColId) {
+      startItems.splice(destination.index, 0, movedDesign);
+      nextColumns = { ...columns, [sourceColId]: startItems };
+    } else {
+      const destItems = Array.from(columns[destColId] || []);
+      destItems.splice(destination.index, 0, movedDesign);
+      nextColumns = {
+        ...columns,
+        [sourceColId]: startItems,
+        [destColId]: destItems
+      };
     }
+
+    // Synchronous state update for DnD library stability
+    setColumns(nextColumns);
+
+    // Side-effects in a separate non-awaitable block
+    (async () => {
+      try {
+        await api.patch(`/designs/${movedDesign.id}/status`, { status: destColId });
+        if (destColId === "review" && !movedDesign.result_link) {
+          setSelectedDesign(movedDesign);
+        }
+      } catch (err: any) {
+        toast("Failed to save changes. Reverting...", "error");
+        setColumns(oldColumns);
+      }
+    })();
   };
 
   const handleUploadSubmit = async () => {
@@ -206,19 +219,7 @@ export default function DesignerView({ user }: { user: any }) {
 
       {viewMode === "kanban" ? (
         // Kanban Board View - Scrollable Columns
-        <div className={`flex-1 overflow-hidden ${isDraggingOverall ? 'is-dragging' : ''}`}>
-          {isDraggingOverall && (
-            <style dangerouslySetInnerHTML={{
-              __html: `
-              .is-dragging * { 
-                transition: none !important; 
-                animation: none !important;
-              }
-              .is-dragging .glass-panel {
-                backdrop-filter: none !important;
-              }
-            `}} />
-          )}
+        <div className="flex-1 overflow-hidden">
           <DragDropContext onDragStart={onDragStart} onDragEnd={onDragEnd}>
             <div className="flex gap-2 px-6 py-4 overflow-x-auto h-full">
               {COLUMNS.map((col, colIdx) => {
@@ -275,8 +276,10 @@ export default function DesignerView({ user }: { user: any }) {
                         <div
                           {...provided.droppableProps}
                           ref={provided.innerRef}
-                          className={`overflow-y-auto custom-scrollbar p-2 flex flex-col gap-2 transition-colors ${snapshot.isDraggingOver ? 'bg-primary/5' : ''} ${isDraggingOverall ? '[&_*]:!transition-none' : ''}`}
-                          style={{ height: 'calc(100vh - 220px)' }}
+                          className={`overflow-y-auto custom-scrollbar p-2 flex flex-col gap-2 transition-colors flex-1 ${snapshot.isDraggingOver ? 'bg-primary/5' : ''}`}
+                          style={{
+                            height: 'calc(100vh - 220px)',
+                          }}
                         >
                           {columns[col.id]?.length === 0 ? (
                             <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
@@ -298,6 +301,7 @@ export default function DesignerView({ user }: { user: any }) {
                                 design={design}
                                 index={index}
                                 density={density}
+                                colorScheme={colorScheme}
                                 setDetailDesignId={setDetailDesignId}
                               />
                             ))
@@ -554,80 +558,93 @@ export default function DesignerView({ user }: { user: any }) {
   );
 }
 
-const MemoizedDesignCard = memo(({ design, index, density, setDetailDesignId }: any) => {
+const MemoizedDesignCard = memo(({ design, index, density, colorScheme, setDetailDesignId }: any) => {
   const isCompact = density === "compact";
   const titleSize = isCompact ? "text-xs" : "text-sm";
   const badgeSize = isCompact ? "text-[10px]" : "text-xs";
   const imageHeight = isCompact ? "h-24" : "h-32";
 
+  const isLight = colorScheme === "light";
+
   return (
     <Draggable key={design.id} draggableId={design.id} index={index}>
       {(provided, snapshot) => {
         const isDragging = snapshot.isDragging;
+
+        // Card Body Wrapper - Controlled by DnD Library
         const cardContent = (
           <div
             ref={provided.innerRef}
             {...provided.draggableProps}
             {...provided.dragHandleProps}
-            className={`shrink-0 rounded-xl border border-border select-none cursor-pointer group overflow-hidden transform-gpu ${isDragging
-              ? 'bg-[#1a1528] shadow-[0_20px_50px_rgba(168,85,247,0.4)] border-primary/50 ring-2 ring-primary/20 rotate-2 scale-[1.05] z-[1000]'
-              : 'bg-card hover:border-primary/40 hover:shadow-md'
-              }`}
+            onClick={() => setDetailDesignId(design.id)}
             style={{
               ...provided.draggableProps.style,
-              transition: isDragging ? 'none' : 'all 0.2s ease',
+              zIndex: isDragging ? 9999 : undefined,
             }}
-            onClick={() => setDetailDesignId(design.id)}
           >
-            <div className={`relative w-full ${imageHeight} overflow-hidden bg-muted`}>
-              {design.image_url ? (
-                <img
-                  src={design.image_url}
-                  alt={design.title}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center">
-                  <LayoutGrid className="w-8 h-8 text-muted-foreground/20" />
-                </div>
-              )}
-            </div>
-
-            <div className={isCompact ? "p-2.5" : "p-3"}>
-              <h4 className={`font-semibold text-foreground leading-snug line-clamp-2 mb-2 ${titleSize}`} title={design.title}>
-                {design.title}
-              </h4>
-
-              <p className={`text-muted-foreground mb-3 ${badgeSize}`}>
-                {design.updated_at
-                  ? new Date(design.updated_at).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' })
-                  : new Date(design.created_at).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-              </p>
-
-              <div className="flex items-center justify-between pt-2 border-t border-border/50">
-                <div className="flex items-center gap-1.5">
-                  <div className="w-7 h-7 rounded-full bg-primary/20 border-2 border-primary/30 flex items-center justify-center font-bold text-primary text-[10px] overflow-hidden">
-                    {design.customer_avatar ? (
-                      <img src={design.customer_avatar} className="w-full h-full object-cover" />
-                    ) : (
-                      (design.customer_name || design.created_by_name || 'C')?.charAt(0).toUpperCase()
-                    )}
+            {/* Visual Wrapper - Clean and Responsive */}
+            <div
+              className={`shrink-0 rounded-xl border select-none cursor-pointer group overflow-hidden transition-all duration-200 transform-gpu ${isDragging
+                ? (isLight
+                  ? 'bg-white shadow-[0_30px_80px_rgba(0,0,0,0.15)] border-primary/40 scale-[1.05] ring-2 ring-primary/20'
+                  : 'bg-[#1a1528] shadow-[0_30px_80px_rgba(168,85,247,0.5)] border-primary/60 scale-[1.05] ring-2 ring-primary/30')
+                : 'bg-card border-border hover:border-primary/40 hover:shadow-md'
+                }`}
+              style={{
+                backdropFilter: isDragging ? 'none' : undefined,
+              }}
+            >
+              <div className={`relative w-full ${imageHeight} overflow-hidden bg-muted`}>
+                {design.image_url ? (
+                  <img
+                    src={design.image_url}
+                    alt={design.title}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <LayoutGrid className="w-8 h-8 text-muted-foreground/20" />
                   </div>
-                  <span className={`text-muted-foreground truncate max-w-[60px] ${badgeSize}`}>
-                    {design.customer_name || design.created_by_name || 'Customer'}
-                  </span>
-                </div>
+                )}
+              </div>
 
-                <div className="flex items-center gap-1.5">
-                  <span className={`text-muted-foreground truncate max-w-[60px] text-right ${badgeSize}`}>
-                    {design.designer_name || design.assigned_to_name || 'Unassigned'}
-                  </span>
-                  <div className="w-7 h-7 rounded-full bg-purple-500/20 border-2 border-purple-500/30 flex items-center justify-center font-bold text-purple-400 text-[10px] overflow-hidden">
-                    {design.designer_avatar ? (
-                      <img src={design.designer_avatar} className="w-full h-full object-cover" />
-                    ) : (
-                      (design.designer_name || design.assigned_to_name || 'D')?.charAt(0).toUpperCase()
-                    )}
+              <div className={isCompact ? "p-2.5" : "p-3"}>
+                <h4 className={`font-semibold text-foreground leading-snug line-clamp-2 mb-2 ${titleSize}`} title={design.title}>
+                  {design.title}
+                </h4>
+
+                <p className={`text-muted-foreground mb-3 ${badgeSize}`}>
+                  {design.updated_at
+                    ? new Date(design.updated_at).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' })
+                    : new Date(design.created_at).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                </p>
+
+                <div className="flex items-center justify-between pt-2 border-t border-border/50">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-7 h-7 rounded-full bg-primary/20 border-2 border-primary/30 flex items-center justify-center font-bold text-primary text-[10px] overflow-hidden">
+                      {design.customer_avatar ? (
+                        <img src={design.customer_avatar} className="w-full h-full object-cover" />
+                      ) : (
+                        (design.customer_name || design.created_by_name || 'C')?.charAt(0).toUpperCase()
+                      )}
+                    </div>
+                    <span className={`text-muted-foreground truncate max-w-[60px] ${badgeSize}`}>
+                      {design.customer_name || design.created_by_name || 'Customer'}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-1.5">
+                    <span className={`text-muted-foreground truncate max-w-[60px] text-right ${badgeSize}`}>
+                      {design.designer_name || design.assigned_to_name || 'Unassigned'}
+                    </span>
+                    <div className="w-7 h-7 rounded-full bg-purple-500/20 border-2 border-purple-500/30 flex items-center justify-center font-bold text-purple-400 text-[10px] overflow-hidden">
+                      {design.designer_avatar ? (
+                        <img src={design.designer_avatar} className="w-full h-full object-cover" />
+                      ) : (
+                        (design.designer_name || design.assigned_to_name || 'D')?.charAt(0).toUpperCase()
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -635,8 +652,10 @@ const MemoizedDesignCard = memo(({ design, index, density, setDetailDesignId }: 
           </div>
         );
 
-        if (snapshot.isDragging) {
-          return createPortal(cardContent, document.getElementById('portal-root')!);
+        // ALWAYS use portal while dragging to fix coordinate calculation errors and clipping
+        if (isDragging) {
+          const portalRoot = document.getElementById('portal-root');
+          if (portalRoot) return createPortal(cardContent, portalRoot);
         }
 
         return cardContent;

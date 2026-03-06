@@ -222,17 +222,23 @@ export default function DesignDetailDrawer({ designId, onClose, currentUser, onU
     const handleStatusChange = async (newStatus: string) => {
         if (!design) return;
 
+        // If admin is canceling, show a quick confirmation
+        if (newStatus === "canceled") {
+            const confirmed = window.confirm("Are you sure you want to CANCEL this design? This will refund the payment to the customer balance immediately.");
+            if (!confirmed) return;
+        }
+
         try {
             await api.patch(`/designs/${designId}/status`, { status: newStatus });
             setDesign({ ...design, status: newStatus });
             setShowStatusDropdown(false);
-            toast("Status updated successfully!", "success");
+            toast(newStatus === "canceled" ? "Design cancelled & refunded!" : "Status updated successfully!", "success");
             // Refresh activity to show status change
             fetchActivity();
             // Notify parent component to refresh
             if (onUpdate) onUpdate();
-        } catch (err) {
-            toast("Failed to update status", "error");
+        } catch (err: any) {
+            toast(err.response?.data?.detail || "Failed to update status", "error");
         }
     };
 
@@ -432,6 +438,10 @@ export default function DesignDetailDrawer({ designId, onClose, currentUser, onU
         { value: "needs_revision", label: "Needs Revision", color: "text-orange-400" },
         { value: "completed", label: "Completed", color: "text-green-400" },
     ];
+
+    if (currentUser?.role === "admin") {
+        STATUS_OPTIONS.push({ value: "canceled", label: "Cancelled (Refund)", color: "text-red-400" });
+    }
 
     return (
         <AnimatePresence>
