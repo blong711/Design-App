@@ -29,6 +29,7 @@ export default function RootLayout({
           <SettingsProvider>
             {children}
             <AppSettings />
+            <div id="portal-root" />
           </SettingsProvider>
         </ToastProvider>
       </body>

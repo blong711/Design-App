@@ -1,13 +1,34 @@
-import smtplib
+import base64
+import logging
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+
+from google.oauth2.credentials import Credentials
+from googleapiclient.discovery import build
+from google.auth.transport.requests import Request
+
 from core.config import settings
-import logging
 
 logger = logging.getLogger(__name__)
 
+def get_gmail_service():
+    """Get authorized Gmail API service."""
+    creds = Credentials(
+        None,
+        refresh_token=settings.GOOGLE_REFRESH_TOKEN,
+        token_uri="https://oauth2.googleapis.com/token",
+        client_id=settings.GOOGLE_CLIENT_ID,
+        client_secret=settings.GOOGLE_CLIENT_SECRET,
+    )
+    
+    # Refresh token if expired
+    if creds.expired:
+        creds.refresh(Request())
+        
+    return build('gmail', 'v1', credentials=creds)
+
 async def send_verification_email(email: str, token: str, full_name: str):
-    """Send email verification link to user"""
+    """Send email verification link to user using Gmail API"""
     verification_url = f"{settings.FRONTEND_URL}/verify-email?token={token}"
     
     subject = "Verify your email - Design Manager"
@@ -64,38 +85,33 @@ async def send_verification_email(email: str, token: str, full_name: str):
     """
     
     try:
-        # Create message
-        msg = MIMEMultipart('alternative')
-        msg['Subject'] = subject
-        msg['From'] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
-        msg['To'] = email
+        if not all([settings.GOOGLE_CLIENT_ID, settings.GOOGLE_CLIENT_SECRET, settings.GOOGLE_REFRESH_TOKEN]):
+            logger.warning(f"Google API not configured. Verification link: {verification_url}")
+            print(f"\n📧 EMAIL VERIFICATION LINK FOR {email}: {verification_url}\n")
+            return True
+
+        service = get_gmail_service()
         
-        # Attach both plain text and HTML versions
+        message = MIMEMultipart('alternative')
+        message['to'] = email
+        message['subject'] = subject
+        
         part1 = MIMEText(text_body, 'plain')
         part2 = MIMEText(html_body, 'html')
-        msg.attach(part1)
-        msg.attach(part2)
+        message.attach(part1)
+        message.attach(part2)
+
+        raw_message = base64.urlsafe_b64encode(message.as_bytes()).decode()
         
-        # Send email
-        if settings.SMTP_USER and settings.SMTP_PASSWORD:
-            with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
-                server.starttls()
-                server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
-                server.send_message(msg)
-            
-            logger.info(f"Verification email sent to {email}")
-            return True
-        else:
-            logger.warning(f"SMTP not configured. Verification link would be: {verification_url}")
-            # In development, just log the URL
-            print(f"\n{'='*80}")
-            print(f"📧 EMAIL VERIFICATION LINK FOR {email}:")
-            print(f"   {verification_url}")
-            print(f"{'='*80}\n")
-            return True
+        service.users().messages().send(
+            userId='me',
+            body={'raw': raw_message}
+        ).execute()
+
+        logger.info(f"Verification email sent to {email} via Gmail API")
+        return True
+        
     except Exception as e:
         logger.error(f"Failed to send verification email to {email}: {str(e)}")
-        print(f"\n⚠️  Failed to send email, but here's the verification link:")
-        print(f"   {verification_url}\n")
-        # Don't fail registration if email fails
+        print(f"\n⚠️ Fallback link: {verification_url}\n")
         return True

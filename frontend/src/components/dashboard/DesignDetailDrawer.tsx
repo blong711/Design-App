@@ -331,6 +331,13 @@ export default function DesignDetailDrawer({ designId, onClose, currentUser, onU
                 xhr.addEventListener("error", () => reject(new Error("Network error")));
                 xhr.open("PUT", upload_url);
                 xhr.setRequestHeader("Content-Type", selectedFile.type || "application/octet-stream");
+
+                // Add Authorization header for local uploads (S3 presigned URLs don't need/want it)
+                const token = localStorage.getItem("access_token");
+                if (token && upload_url.includes("/api/v1")) {
+                    xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+                }
+
                 xhr.send(selectedFile);
             });
 

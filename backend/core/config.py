@@ -30,6 +30,12 @@ class Settings(BaseSettings):
     SMTP_FROM_NAME: str = "Design Manager"
     FRONTEND_URL: str = "http://localhost:3000"
 
+    # Gmail API (Google Cloud)
+    GOOGLE_CLIENT_ID: str = ""
+    GOOGLE_CLIENT_SECRET: str = ""
+    GOOGLE_REFRESH_TOKEN: str = ""
+    GOOGLE_SENDER_EMAIL: str = ""
+
     # External API Keys (Simplistic approach: comma separated keys or valid key)
     # In production, this should be verified against the DB (`api_keys` collection).
     
