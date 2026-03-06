@@ -288,7 +288,7 @@ function OverviewContent({
                     { title: "Completed", value: designs.filter(d => d.status === 'completed').length, icon: CheckCircle2, color: "text-green-400" },
                     {
                         title: "Total Paid",
-                        value: `$${Math.abs(transactions.filter(tx => tx.type === 'design_payment').reduce((acc, tx) => acc + tx.amount, 0)).toFixed(2)}`,
+                        value: `$${Math.abs(transactions.filter(tx => ['design_payment', 'refund'].includes(tx.type)).reduce((acc, tx) => acc + tx.amount, 0)).toFixed(2)}`,
                         icon: DollarSign,
                         color: "text-rose-400"
                     },
