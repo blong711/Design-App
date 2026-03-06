@@ -26,6 +26,7 @@ import { useToast } from "@/lib/toast";
 import DesignDetailDrawer from "@/components/dashboard/DesignDetailDrawer";
 import NewDesignDrawer from "@/components/dashboard/NewDesignDrawer";
 import { getTimeAgo } from "@/lib/date-utils";
+import DepositModal from "@/components/dashboard/DepositModal";
 
 function ActivityIcon(props: any) {
     return (
@@ -148,14 +149,23 @@ export default function CustomerView({ user: initialUser, initialView = "overvie
                             </p>
                         </div>
 
-                        {/* New Design Button */}
-                        <button
-                            onClick={() => setIsNewDesignOpen(true)}
-                            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary hover:bg-primary/80 text-primary-foreground font-bold transition-all shadow-lg shadow-primary/20"
-                        >
-                            <Plus className="w-5 h-5" />
-                            New Design
-                        </button>
+                        {/* Action Buttons */}
+                        <div className="flex items-center gap-3">
+                            <button
+                                onClick={() => setIsDepositOpen(true)}
+                                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 font-bold transition-all border border-emerald-500/20"
+                            >
+                                <Wallet className="w-5 h-5" />
+                                Add Funds
+                            </button>
+                            <button
+                                onClick={() => setIsNewDesignOpen(true)}
+                                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary hover:bg-primary/80 text-primary-foreground font-bold transition-all shadow-lg shadow-primary/20"
+                            >
+                                <Plus className="w-5 h-5" />
+                                New Design
+                            </button>
+                        </div>
                     </div>
 
                     {/* Dashboard View Controls */}
@@ -197,6 +207,7 @@ export default function CustomerView({ user: initialUser, initialView = "overvie
                             deposits={deposits}
                             transactions={transactions}
                             onNewDesign={() => setIsNewDesignOpen(true)}
+                            onDeposit={() => setIsDepositOpen(true)}
                             onViewDesign={(id) => {
                                 setViewedDesignIds(prev => new Set(prev).add(id));
                                 setDetailDesignId(id);
@@ -252,6 +263,7 @@ function OverviewContent({
     deposits,
     transactions,
     onNewDesign,
+    onDeposit,
     onViewDesign,
     viewedDesignIds
 }: {
@@ -260,14 +272,16 @@ function OverviewContent({
     deposits: any[];
     transactions: any[];
     onNewDesign: () => void;
+    onDeposit: () => void;
     onViewDesign: (id: string) => void;
     viewedDesignIds: Set<string>;
 }) {
     return (
         <div className="space-y-8 px-6 py-4 animate-in fade-in duration-500">
             {/* Stats Summary */}
-            <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
+            <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
                 {[
+                    { title: "Current Balance", value: `$${(user?.balance || 0).toFixed(2)}`, icon: Wallet, color: "text-emerald-400", action: onDeposit, actionLabel: "Top up" },
                     { title: "Total Designs", value: designs.length, icon: ImageIcon, color: "text-blue-400" },
                     { title: "Pending", value: designs.filter(d => d.status === 'pending').length, icon: Clock, color: "text-amber-400" },
                     { title: "Active", value: designs.filter(d => ['assigned', 'in_progress', 'review', 'needs_revision'].includes(d.status)).length, icon: ActivityIcon, color: "text-purple-400" },
@@ -276,7 +290,7 @@ function OverviewContent({
                         title: "Total Paid",
                         value: `$${Math.abs(transactions.filter(tx => tx.type === 'design_payment').reduce((acc, tx) => acc + tx.amount, 0)).toFixed(2)}`,
                         icon: DollarSign,
-                        color: "text-emerald-400"
+                        color: "text-rose-400"
                     },
                 ].map((stat, i) => (
                     <motion.div
@@ -289,8 +303,20 @@ function OverviewContent({
                         <div className="absolute top-0 right-0 p-3 opacity-5 group-hover:opacity-10 transition-opacity">
                             <stat.icon className="w-12 h-12" />
                         </div>
-                        <h3 className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground">{stat.title}</h3>
-                        <div className={`text-xl font-bold mt-1 ${stat.color}`}>{stat.value}</div>
+                        <div className="flex justify-between items-start relative z-10">
+                            <div>
+                                <h3 className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground">{stat.title}</h3>
+                                <div className={`text-xl font-bold mt-1 ${stat.color}`}>{stat.value}</div>
+                            </div>
+                            {stat.action && (
+                                <button
+                                    onClick={stat.action}
+                                    className="p-1 px-2 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 text-[10px] font-black uppercase tracking-tighter transition-all opacity-0 group-hover:opacity-100"
+                                >
+                                    {stat.actionLabel}
+                                </button>
+                            )}
+                        </div>
                     </motion.div>
                 ))}
             </div>
@@ -818,78 +844,3 @@ function DashboardContent({
     );
 }
 
-
-function DepositModal({ open, onClose, onSuccess }: { open: boolean; onClose: () => void; onSuccess: () => void }) {
-    const [amount, setAmount] = useState("");
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-
-    const handleSubmit = async () => {
-        if (!amount || parseFloat(amount) <= 0) return;
-        setLoading(true);
-        try {
-            await api.post("/deposits", { amount: parseFloat(amount) });
-            onSuccess();
-            onClose();
-            setAmount("");
-        } catch (e: any) {
-            setError(e.response?.data?.detail || "Failed to submit request");
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    return (
-        <AnimatePresence>
-            {open && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-                    <motion.div
-                        initial={{ scale: 0.9, opacity: 0, y: 20 }}
-                        animate={{ scale: 1, opacity: 1, y: 0 }}
-                        exit={{ scale: 0.9, opacity: 0, y: 20 }}
-                        className="w-full max-w-md bg-background border border-border rounded-[2rem] p-8 relative shadow-2xl"
-                    >
-                        <div className="flex justify-between items-center mb-6">
-                            <h3 className="text-2xl font-bold text-foreground">Deposit Funds</h3>
-                            <button onClick={onClose} className="p-2 hover:bg-foreground/5 rounded-lg transition-colors">
-                                <X className="w-5 h-5 text-muted-foreground" />
-                            </button>
-                        </div>
-
-                        <div className="space-y-6">
-                            <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-500 flex gap-3 text-sm">
-                                <AlertCircle className="w-5 h-5 shrink-0" />
-                                <p>After submitting, an admin will verify your payment and approve the funds to your account.</p>
-                            </div>
-
-                            <div className="space-y-2">
-                                <label className="text-xs font-bold uppercase text-muted-foreground tracking-widest">Amount (USD)</label>
-                                <div className="relative">
-                                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-primary font-bold text-lg">$</span>
-                                    <input
-                                        type="number"
-                                        value={amount}
-                                        onChange={e => setAmount(e.target.value)}
-                                        placeholder="0.00"
-                                        className="w-full bg-muted border border-border rounded-2xl pl-10 pr-4 py-4 text-xl font-bold focus:border-primary outline-none transition-all text-foreground"
-                                    />
-                                </div>
-                            </div>
-
-                            {error && <p className="text-red-500 text-sm text-center">{error}</p>}
-
-                            <button
-                                disabled={loading || !amount}
-                                onClick={handleSubmit}
-                                className="w-full py-4 rounded-2xl bg-primary text-primary-foreground font-bold text-lg shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:hover:scale-100"
-                            >
-                                {loading ? <Loader2 className="w-6 h-6 animate-spin mx-auto" /> : "Submit Request"}
-                            </button>
-                        </div>
-                    </motion.div>
-                </div>
-            )}
-        </AnimatePresence>
-    );
-}

@@ -14,8 +14,8 @@ class BrandAsset(BaseModel):
 class BrandKitBase(BaseModel):
     brand_name: Optional[str] = None
     description: Optional[str] = None
-    primary_font: Optional[str] = "Inter"
-    secondary_font: Optional[str] = "Roboto"
+    primary_font: Optional[str] = None
+    secondary_font: Optional[str] = None
     colors: List[BrandColor] = []
     assets: List[BrandAsset] = []
 

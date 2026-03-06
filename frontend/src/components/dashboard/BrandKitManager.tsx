@@ -9,9 +9,9 @@ export default function BrandKitManager() {
     const [kit, setKit] = useState<any>({
         brand_name: "",
         description: "",
-        primary_font: "Inter",
-        secondary_font: "Roboto",
-        colors: [{ name: "Primary", hex: "#6366f1" }],
+        primary_font: "",
+        secondary_font: "",
+        colors: [],
         assets: []
     });
     const [loading, setLoading] = useState(true);

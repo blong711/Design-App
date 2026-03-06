@@ -12,10 +12,12 @@ import {
     Download,
     User as UserIcon,
     Clock,
-    DollarSign
+    DollarSign,
+    Plus
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { formatVietnamDateTime } from "@/lib/date-utils";
+import DepositModal from "@/components/dashboard/DepositModal";
 
 interface Transaction {
     id: string;
@@ -34,6 +36,7 @@ export default function TransactionsView({ isAdmin = false }: { isAdmin?: boolea
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
     const [typeFilter, setTypeFilter] = useState("all");
+    const [isDepositOpen, setIsDepositOpen] = useState(false);
 
     const fetchTransactions = async () => {
         try {
@@ -82,6 +85,16 @@ export default function TransactionsView({ isAdmin = false }: { isAdmin?: boolea
                         {isAdmin ? "Monitor all financial activities across the platform." : "Manage your deposits and payments here."}
                     </p>
                 </div>
+
+                {!isAdmin && (
+                    <button
+                        onClick={() => setIsDepositOpen(true)}
+                        className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary hover:bg-primary/80 text-primary-foreground font-bold transition-all shadow-lg shadow-primary/20"
+                    >
+                        <Plus className="w-5 h-5" />
+                        Add Funds
+                    </button>
+                )}
             </div>
 
             {/* Filters & Tools */}
@@ -199,6 +212,12 @@ export default function TransactionsView({ isAdmin = false }: { isAdmin?: boolea
                     </table>
                 </div>
             </div>
+
+            <DepositModal
+                open={isDepositOpen}
+                onClose={() => setIsDepositOpen(false)}
+                onSuccess={() => fetchTransactions()}
+            />
         </div>
     );
 }
